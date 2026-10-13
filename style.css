@@ -173,3 +173,13 @@ details.goal[open]>summary{padding-bottom:6px;border-bottom:2px solid var(--soft
 .tag{color:#1f2a2e}
 details.how{margin-top:8px}details.how>summary{font-weight:700;min-height:36px}
 details.how ol{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+
+/* campos dos formulários: altos e legíveis no iPhone (Safari ignora min-height em select/date) */
+.sheet input,.sheet select,.sheet textarea{height:52px;min-height:52px;font-size:17px;line-height:1.3;padding:10px 14px;-webkit-appearance:none;appearance:none;display:block;box-sizing:border-box;background-color:var(--card);color:var(--ink)}
+.sheet textarea{height:auto;min-height:104px}
+.sheet input[type=checkbox]{height:24px;min-height:24px;width:24px;-webkit-appearance:checkbox;appearance:auto;display:inline-block}
+.sheet select{padding-right:44px;text-overflow:ellipsis;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10' viewBox='0 0 16 10'%3E%3Cpath d='M2 2l6 6 6-6' fill='none' stroke='%231f2a2e' stroke-width='3'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+:root[data-theme=dark] .sheet select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='10' viewBox='0 0 16 10'%3E%3Cpath d='M2 2l6 6 6-6' fill='none' stroke='%23e8f0f2' stroke-width='3'/%3E%3C/svg%3E")}
+.sheet input[type=date],.sheet input[type=time]{min-width:0;text-align:left}
+.sheet input[type=date]::-webkit-date-and-time-value{text-align:left;min-height:1.3em}
+.sheet label{margin-top:var(--s2)}
