@@ -119,3 +119,5 @@ details.card>summary{margin-bottom:0}
 
 input,select,textarea,button{font-family:inherit}
 .px{font-family:'PixelPS',monospace;letter-spacing:.02em}
+.px,.h2,.grp,details>summary .px{text-transform:uppercase}
+.idea{text-transform:none}
