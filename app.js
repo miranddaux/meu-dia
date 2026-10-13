@@ -867,16 +867,19 @@ const A = {
     save(); },
   ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
   addtx: () => {
-    const p = ui.plan && ui.plan.mo === ui.mo && !ui.plan.err ? ui.plan.despesas : [], on = S.settings.sync.key && S.settings.sheetOn !== false;
-    const opts = [['none', 'Não enviar'], ['nova', 'Linha nova na planilha'], ...p.filter(x => !x.livre).map(x => ['r' + x.row + '|' + x.desc, 'Somar em: ' + x.desc])];
-    form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha', type: 'select', value: on ? 'nova' : 'none', options: opts }] : [])], r => {
+    const pl = ui.plan && ui.plan.mo === ui.mo && !ui.plan.err ? ui.plan : null, on = S.settings.sync.key && S.settings.sheetOn !== false;
+    const opts = [['none', 'Não enviar'], ['nova', 'Saída: linha nova na planilha'], ...(pl ? pl.despesas.filter(x => !x.livre).map(x => ['r' + x.row + '|' + x.desc, 'Saída: somar em ' + x.desc]) : []), ...(pl ? pl.entradas.map(x => ['e' + x.row + '|' + x.desc, 'Entrada: somar em ' + x.desc]) : [])];
+    form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha (escolha a linha que combina com o tipo)', type: 'select', value: on ? 'nova' : 'none', options: opts }] : [])], r => {
       const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r }; S.tx.push(t);
-      if (t.type === 'out' && sh && sh !== 'none') {
-        const mo = String(t.date).slice(0, 7), v = num(t.amount);
-        planQueue(sh === 'nova' ? { action: 'nova', month: mo, desc: t.desc || t.cat, valor: v } : { action: 'soma', month: mo, row: +sh.slice(1, sh.indexOf('|')), desc: sh.slice(sh.indexOf('|') + 1), valor: v });
-      }
+      if (!sh || sh === 'none') return;
+      const mo = String(t.date).slice(0, 7), v = num(t.amount), kind = sh[0], bar = sh.indexOf('|'), row = +sh.slice(1, bar), desc = sh.slice(bar + 1);
+      if (t.type === 'out' && sh === 'nova') planQueue({ action: 'nova', month: mo, desc: t.desc || t.cat, valor: v });
+      else if (t.type === 'out' && kind === 'r') planQueue({ action: 'soma', month: mo, row, desc, valor: v });
+      else if (t.type === 'in' && kind === 'e') planQueue({ action: 'entrada', month: mo, row, desc, valor: v });
+      else setTimeout(() => toast('Não enviei para a planilha: o tipo não combina com a linha escolhida.'), 300);
     }); return false;
   },
+
   edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
   addgoal: () => { form('Nova meta', [{ k: 'title', label: 'Meta' }, { k: 'target', label: 'Valor alvo (R$)', type: 'number' }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: 0 }], r => S.goals.push({ id: uid(), ...r })); return false; },
@@ -1229,6 +1232,7 @@ async function planLoad(mo, quiet) {
     const r = await fetch(`${planUrl()}?month=${mo}`, { headers: { 'x-app-key': sy.key } });
     if (!r.ok) throw new Error((await r.text()).slice(0, 160));
     ui.plan = Object.assign(await r.json(), { mo, at: Date.now(), err: '' });
+    if (ui.plan.created) toast(`Criei a aba ${ui.plan.tab} a partir de ${ui.plan.from}. Revise os valores.`);
     try { localStorage.setItem(PLAN_KEY, JSON.stringify(ui.plan)); } catch (e) { }
   } catch (e) { ui.plan = Object.assign(planCache(mo) || { mo }, { err: String(e.message || e), at: Date.now() }); }
   ui.planBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();

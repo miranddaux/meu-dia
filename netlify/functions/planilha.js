@@ -1,33 +1,7 @@
 // Ponte com a planilha financeira (Google Sheets). GET lê o mês; POST marca "PAGO", soma ou lança uma linha nova.
 // Variáveis no Netlify: GOOGLE_SA_JSON (chave da conta de serviço, JSON inteiro), SHEET_ID (id da planilha), APP_KEY (a mesma do app).
 // A planilha precisa estar compartilhada (Editor) com o e-mail da conta de serviço. Nada é apagado.
-const crypto = require('crypto');
-const MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const b64 = o => Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64url');
-const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
-const noPago = s => String(s || '').replace(/\s*PAGO\s*$/i, '').trim();
-async function token(sa) {
-  const now = Math.floor(Date.now() / 1000), head = b64({ alg: 'RS256', typ: 'JWT' });
-  const claim = b64({ iss: sa.client_email, scope: 'https://www.googleapis.com/auth/spreadsheets', aud: 'https://oauth2.googleapis.com/token', iat: now, exp: now + 3000 });
-  const sig = crypto.createSign('RSA-SHA256').update(head + '.' + claim).sign(sa.private_key, 'base64url');
-  const r = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=' + head + '.' + claim + '.' + sig });
-  const j = await r.json(); if (!r.ok) throw new Error('Google recusou a chave: ' + (j.error_description || j.error));
-  return j.access_token;
-}
-function parse(rows) {
-  const entradas = [], despesas = []; let grupo = '', sobra = null;
-  rows.forEach((r, i) => {
-    const row = i + 1; if (row < 7) return;
-    const B = r[1], C = r[2], E = r[4], F = r[5], G = r[6];
-    if (E && String(E).trim()) grupo = String(E).trim();
-    if (B && /^SE SUA PLANILHA/i.test(String(B))) { if (typeof C === 'number') sobra = C; return; }
-    if (B && typeof C === 'number' && !/^(TOTAL|NESTE|SE )/i.test(String(B))) entradas.push({ row, desc: String(B).trim(), valor: C });
-    if (F && !/^TOTAL/i.test(String(F)) && !/^Se não/i.test(String(F))) {
-      const d = String(F).trim(); despesas.push({ row, grupo, desc: noPago(d), pago: /\sPAGO$/i.test(d), valor: typeof G === 'number' ? G : 0, livre: /^LINHA VARI/i.test(d) });
-    }
-  });
-  return { entradas, despesas, sobra };
-}
+const { MES, noPago, norm, token, parse, ensureTab, tabName, base } = require('../lib/planilha-lib.js');
 exports.handler = async event => {
   const { GOOGLE_SA_JSON, SHEET_ID, APP_KEY } = process.env;
   if (!GOOGLE_SA_JSON || !SHEET_ID || !APP_KEY) return { statusCode: 500, body: 'Faltam variáveis no Netlify (GOOGLE_SA_JSON, SHEET_ID)' };
@@ -36,17 +10,19 @@ exports.handler = async event => {
   const body = event.httpMethod === 'POST' ? (() => { try { return JSON.parse(event.body); } catch (e) { return null; } })() : (event.queryStringParameters || {});
   if (!body || !/^\d{4}-\d{2}$/.test(body.month || '')) return { statusCode: 400, body: 'Mês inválido' };
   const [y, m] = body.month.split('-').map(Number); if (m < 1 || m > 12) return { statusCode: 400, body: 'Mês inválido' };
-  const tab = `${MES[m - 1]} | ${y}`, base = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/`;
+  const tab = tabName(y, m), vbase = base(SHEET_ID) + '/values/';
   try {
     const tk = await token(sa), H = { Authorization: 'Bearer ' + tk, 'content-type': 'application/json' };
-    const read = async () => { const r = await fetch(base + encodeURIComponent(`'${tab}'!A1:G70`) + '?valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro ao ler a planilha'); return j.values || []; };
-    const put = async (cell, v) => { const r = await fetch(base + encodeURIComponent(`'${tab}'!${cell}`) + '?valueInputOption=USER_ENTERED', { method: 'PUT', headers: H, body: JSON.stringify({ values: [[v]] }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); };
+    const read = async () => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!A1:G70`) + '?valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro ao ler a planilha'); return j.values || []; };
+    const put = async (cell, v) => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!${cell}`) + '?valueInputOption=USER_ENTERED', { method: 'PUT', headers: H, body: JSON.stringify({ values: [[v]] }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); };
+    const made = await ensureTab(SHEET_ID, tk, y, m, true);
     const rows = await read(), data = parse(rows);
-    if (event.httpMethod !== 'POST') return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, ...data }) };
+    if (event.httpMethod !== 'POST') return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, created: made.created, from: made.from, ...data }) };
     const ac = body.action, v = Math.round(Number(body.valor) * 100) / 100;
     const find = () => { const it = data.despesas.find(x => x.row === body.row); if (!it || norm(it.desc) !== norm(body.desc)) throw new Error('A linha mudou na planilha. Atualize e tente de novo.'); return it; };
     if (ac === 'pago') { const it = find(); await put('F' + it.row, it.desc + (body.paid ? ' PAGO' : '')); }
     else if (ac === 'soma') { const it = find(); if (!isFinite(v) || v <= 0) throw new Error('Valor inválido'); await put('G' + it.row, Math.round((it.valor + v) * 100) / 100); }
+    else if (ac === 'entrada') { const it = data.entradas.find(x => x.row === body.row); if (!it || norm(it.desc) !== norm(body.desc)) throw new Error('A linha mudou na planilha. Atualize e tente de novo.'); if (!isFinite(v) || v <= 0) throw new Error('Valor inválido'); await put('C' + it.row, Math.round((it.valor + v) * 100) / 100); }
     else if (ac === 'nova') {
       if (!isFinite(v) || v <= 0) throw new Error('Valor inválido');
       const slot = data.despesas.find(x => x.livre && !x.valor); if (!slot) throw new Error('Sem linha livre neste mês (LINHA VARIÁVEL).');
@@ -55,4 +31,3 @@ exports.handler = async event => {
     return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true }) };
   } catch (e) { return { statusCode: 502, body: String(e.message || e) }; }
 };
-exports.parse = parse;
