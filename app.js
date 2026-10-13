@@ -1,6 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
+const APP_V = 'v28';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -409,7 +410,7 @@ function vHoje() {
     items.sort((a, c) => ((a.h ? a.h.at : '06:00') ? tm(a.h ? a.h.at : '06:00') : 5000 + a.o) - ((c.h ? c.h.at : '06:00') ? tm(c.h ? c.h.at : '06:00') : 5000 + c.o));
     const done = items.filter(i => i.study ? sl.done : stOf(k, i.h.id) === 'done').length;
     const hr = n.getHours(), curW = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
-    out += acc(w, WH[w], `${done}/${items.length}`, `${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><span class="hr">06:00</span><b>Estudo:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}`, w === curW);
+    out += acc(w, WH[w], `${done}/${items.length}`, `${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><span class="hr">06:00</span><b>Estudo:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}${pomoMini()}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}`, w === curW);
   });
   if (!hard) {
     out += roadCard();
@@ -806,7 +807,7 @@ function vCfg() {
 <div class="card">${sec('coin', 'Moedas')}<div class="row sp"><span>Moedas e Loja</span><button class="chip ${s.gamify ? 'on' : ''}" data-a="gam" aria-pressed="${!!s.gamify}">${s.gamify ? 'Ligadas' : 'Desligadas'}</button></div><div class="mut">Só progresso acumulado: sem ranking, punição, sorteio ou perda de moedas.</div></div>
 <div class="card">${sec('sun', 'Aparência')}<div class="chips">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="chip ${(s.theme || 'auto') === v ? 'on' : ''}" data-a="theme" data-v="${v}">${l}</button>`).join('')}</div></div>
 <div class="card">${sec('clock', 'Avisos no iPhone')}<div class="mut">O iPhone não deixa um app avisar com ele fechado. O jeito certo é o app Calendário: ele avisa missões, prioridades, contas do Porkinho e cuidados dos cachorros. Baixe, abra e toque em Adicionar tudo. Quando algo mudar, o app avisa na Home para atualizar (não duplica).</div><button class="btn full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros (só avisam)</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button></div>
-<div class="card">${sec('sync', 'Sincronizar com o Notion')}<div class="row sp"><span>Enviar o dia automaticamente</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}"><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'} Depois de configurar, o dia vai para o banco "Meu Dia, registro diário" no Notion.</div></div>
+<div class="card">${sec('sync', 'Sincronizar com o Notion')}<div class="row sp"><span>Enviar o dia automaticamente</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}"><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'} Depois de configurar, o dia vai para o banco "Meu Dia, registro diário" no Notion.</div><div class="mut">Versão do app: ${APP_V}</div></div>
 <div class="card">${sec('link', 'Links')}<label>Notion (Career OS / Faculdade Miranda)</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}<div class="mut">O Notion segue como fonte principal. Use Mais, Progresso, Copiar resumo para registrar o dia via Claude (Sistema XP).</div></div>
 <div class="card">${sec('save', 'Backup')}<div class="mut">Seus dados ficam só neste aparelho. Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
 <button class="btn full" data-a="export">${ic('download')}Exportar backup</button>
@@ -1045,6 +1046,14 @@ function stSet(f, v) { const d = ui.sd ?? new Date().getDay(); S.study[d] = S.st
 /* ================= v4: Pomodoro, Aprender, Evolução, Sync ================= */
 const POMS = [[25, 5, '25 + 5'], [50, 10, '50 + 10']];
 function pomToday() { return S.pomo[dkey()] || 0; }
+function pomoMini() {
+  const n = pomToday(), t = ui.tm;
+  const run = t ? `<b class="tmq">--:--</b>` : '';
+  const body = t
+    ? `<div class="mut">${t.mode === 'f' ? 'Foco rodando.' : 'Pausa.'}</div><div class="row"><button class="btn sm ghost" data-a="tmstop">${ic('close')}Parar</button></div>`
+    : `<div class="mut">Usa o do PC? Marque o ciclo aqui. Vale 1 moeda (até 4 por dia).</div><div class="row"><button class="btn sm ghost" data-a="pomadd">+1 ciclo feito</button>${n ? `<button class="btn link" data-a="pomsub">desfazer</button>` : ''}<button class="btn link" data-a="tmstart">foco de ${S.settings.pom.f} min aqui</button></div>`;
+  return `<details class="pomo-mini" data-w="pomo" ${ui.open.pomo ? 'open' : ''}><summary>${ic('hourglass', 'sm')}<span>Pomodoro · hoje ${n}</span>${run}</summary>${body}</details>`;
+}
 function vTimer() {
   const t = ui.tm, n = pomToday(), pm = S.settings.pom;
   let out = `<div class="card">${sec('hourglass', 'Pomodoro', `<span class="mut">hoje: ${n} ${n === 1 ? 'ciclo' : 'ciclos'}</span>`)}`;
@@ -1054,6 +1063,8 @@ function vTimer() {
 }
 Object.assign(A, {
   pomset: v => { const p = POMS.find(x => x[0] === +v); S.settings.pom = { f: p[0], b: p[1] }; save(); },
+  pomadd: () => { const k = dkey(); S.pomo[k] = (S.pomo[k] || 0) + 1; save(); toast('Ciclo registrado.'); },
+  pomsub: () => { const k = dkey(); S.pomo[k] = Math.max(0, (S.pomo[k] || 0) - 1); save(); },
   tmstart: () => { ui.tm = { mode: 'f', end: Date.now() + S.settings.pom.f * 60000 }; },
   tmskip: () => { ui.tm.end = Date.now() - 1; tickTimer(); return false; }
 });
@@ -1388,8 +1399,8 @@ setInterval(() => {
     if (left > 0) t.textContent = `${Math.floor(left / 60)}:${pad(left % 60)}`;
     else if (s.restEnd) { s.restEnd = null; save(); if (box) box.hidden = true; if (navigator.vibrate) navigator.vibrate(200); }
   }
-  const tt = $('#tmTxt');
-  if (ui.tm) { const left = Math.ceil((ui.tm.end - Date.now()) / 1000); if (left > 0) { if (tt) tt.textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`; } else tickTimer(); }
+  const tts = document.querySelectorAll('#tmTxt,.tmq');
+  if (ui.tm) { const left = Math.ceil((ui.tm.end - Date.now()) / 1000); if (left > 0) { tts.forEach(tt => { tt.textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`; }); } else tickTimer(); }
 }, 1000);
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });

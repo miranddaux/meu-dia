@@ -215,3 +215,11 @@ input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and
 .qa .btn.dis{opacity:1}
 .btn:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 .grid3 b{white-space:nowrap;font-size:clamp(14px,4.4vw,19px)}
+
+/* Pomodoro sutil dentro do Estudo da Home */
+details.pomo-mini{margin-top:6px}
+details.pomo-mini>summary{display:flex;justify-content:flex-start;align-items:center;gap:6px;min-height:32px;font-size:13px;color:var(--mut);cursor:pointer;list-style:none}
+details.pomo-mini>summary::-webkit-details-marker{display:none}
+details.pomo-mini>summary b{margin-left:auto;color:var(--ink)}
+details.pomo-mini[open]{padding:8px 0 2px}
+details.pomo-mini .row{gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
