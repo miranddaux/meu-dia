@@ -31,13 +31,26 @@ const planCfg = () => Object.assign({ start: 150, add: 50, every: 3, since: dkey
 const planTotal = mo => { const c = planCfg(); return num(c.start) + num(c.add) * Math.floor(Math.max(0, moNum(mo) - moNum(c.since)) / Math.max(1, Math.round(num(c.every)) || 3)); };
 const activeGoals = () => S.goals.filter(g => num(g.target) > num(g.saved));
 const gW = g => num(g.w) || 1;
-const goalShare = g => { const ag = activeGoals(); return ag.includes(g) ? gW(g) / ag.reduce((a, x) => a + gW(x), 0) : 0; };
+const sharesOf = list => {
+  const ag = list.filter(x => num(x.target) > num(x.saved)), o = {}; list.forEach(x => { o[x.id] = 0; }); if (!ag.length) return o;
+  if ((S.settings.plan || {}).focus === false) { const t = ag.reduce((a, x) => a + gW(x), 0); ag.forEach(x => { o[x.id] = gW(x) / t; }); return o; }
+  /* Foco (padrão): 1º mini colchão leva tudo; depois colchão grande 60% + o 1º desejo da lista 40% */
+  const mini = ag.find(x => /mini/i.test(x.title)); if (mini) { o[mini.id] = 1; return o; }
+  const res = ag.find(x => /reserva|colch/i.test(x.title)), des = ag.find(x => x !== res);
+  if (res && des) { o[res.id] = 0.6; o[des.id] = 0.4; } else o[(res || des).id] = 1;
+  return o;
+};
+const goalShare = g => sharesOf(S.goals)[g.id] || 0;
 const goalM = (g, mo) => Math.round(planTotal(mo) * goalShare(g));
 const goalEta = g => {
   const rest = Math.max(0, num(g.target) - num(g.saved)); if (!num(g.target)) return ''; if (rest <= 0) return 'meta batida';
-  const mo0 = dkey().slice(0, 7); let acc = 0, n = 0; while (acc < rest && n < 240) { acc += goalM(g, addMo(mo0, n)); n++; }
-  if (acc < rest) return `faltam ${brl(rest)} · defina um valor maior por mês`;
-  const f = addMo(mo0, n - 1); return `faltam ${brl(rest)} · ~${n} ${n > 1 ? 'meses' : 'mês'} (${f.slice(5)}/${f.slice(0, 4)})`;
+  const mo0 = dkey().slice(0, 7), sim = S.goals.map(x => ({ id: x.id, title: x.title, target: num(x.target), saved: num(x.saved), w: x.w }));
+  for (let n = 0; n < 240; n++) {
+    const tot = planTotal(addMo(mo0, n)), sh = sharesOf(sim); sim.forEach(x => { x.saved += tot * (sh[x.id] || 0); });
+    const me = sim.find(x => x.id === g.id);
+    if (me.saved >= me.target) { const f = addMo(mo0, n); return `faltam ${brl(rest)} · ~${n + 1} ${n ? 'meses' : 'mês'} (${f.slice(5)}/${f.slice(0, 4)})`; }
+  }
+  return `faltam ${brl(rest)} · defina um valor maior por mês`;
 };
 const goalFields = g => [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo (R$)', type: 'number', value: g.target }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: g.saved || 0 }, { k: 'w', label: 'Prioridade (quem recebe mais do valor guardado)', type: 'select', value: String(g.w || 1), options: [['1', 'Normal'], ['2', 'Alta'], ['3', 'Máxima']] }, { k: 'day', label: 'Dia do mês para guardar (1 a 28, de preferência o dia do pagamento)', type: 'number', value: g.day || '' }];
 const goalClean = r => { const o = { ...r }; o.day = Math.min(28, Math.max(0, Math.round(num(r.day)))) || ''; o.w = num(r.w) || 1; return o; };
@@ -237,6 +250,13 @@ function migrate() {
     S.challenges.forEach(c => {
       if (c.kind === 'detox' && /LoL|TikTok/i.test(c.title) && chDays(c) === 0 && !(c.slips || []).length) backfill(c, 6);
     });
+  }
+  if (!f.goalfocus1 && S.goals && S.goals.length) {
+    f.goalfocus1 = 1;
+    if (!S.goals.some(g => /mini/i.test(g.title))) S.goals.push({ id: uid(), title: 'Mini colchão', target: 1000, saved: 0, w: 1, day: 5 });
+    if (!S.goals.some(g => /anel/i.test(g.title))) S.goals.push({ id: uid(), title: 'Anel de noivado', target: 3000, saved: 0, w: 1, day: 5 });
+    const rk = g => /mini/i.test(g.title) ? 0 : /reserva|colch/i.test(g.title) ? 1 : /anel/i.test(g.title) ? 2 : /ps5/i.test(g.title) ? 3 : /cel|iphone/i.test(g.title) ? 4 : 3.5;
+    S.goals = S.goals.map((g, i) => [g, i]).sort((a, b) => rk(a[0]) - rk(b[0]) || a[1] - b[1]).map(x => x[0]);
   }
 }
 function backfill(c, n) {
@@ -662,26 +682,25 @@ function billAlerts() {
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) out.push('Faz uns dias sem lançar no Porkinho');
   return out;
 }
-function planoCard() {
+function planoInner() {
   const renda = rendaVal(), c = planCfg(), mo = dkey().slice(0, 7), tot = planTotal(mo), ev = Math.max(1, Math.round(num(c.every)) || 3);
   const nxt = addMo(c.since, (Math.floor(Math.max(0, moNum(mo) - moNum(c.since)) / ev) + 1) * ev);
   const b = `<div class="grid3 sm"><div><b>${brl(renda)}</b><small>renda (planilha)</small></div><div><b>${brl(tot)}</b><small>guardar por mês</small></div><div><b>${Math.round(tot / renda * 100)}%</b><small>da renda</small></div></div><div class="mut">Começa pouco e sobe ${brl(num(c.add))} a cada ${ev} meses. Próximo aumento: ${nxt.slice(5)}/${nxt.slice(0, 4)} (${brl(planTotal(nxt))}/mês).</div><div class="mut">Regra simples: no dia do pagamento, guarde primeiro, depois gaste o resto. Deixe o depósito automático no app do banco e use o Meu Dia só para conferir.</div>`;
-  return `<div class="card">${sec('trending-up', 'Plano de guardar', `<button class="btn sm ghost" data-a="plano">${ic('sliders')}Ajustar</button>`)}${b}</div>`;
+  return `${b}<button class="btn sm ghost" data-a="plano">${ic('sliders')}Ajustar plano</button>`;
 }
 function vGrana() {
   const mo = ui.mo, [y, m] = mo.split('-').map(Number), st = monthStats(mo);
   const nm = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   let out = `<div class="row sp card slim">${ib('chevron-left', 'Mês anterior', 'mo', -1)}<b class="cap1">${nm}</b>${ib('chevron-right', 'Próximo mês', 'mo', 1)}</div>`;
-  out += `<div class="card">${sec('wallet', 'Porkinho')}<div class="mut">${esc(porkSays(st))}</div><div class="mut">Esta versão usa regras simples. Dá para conectar uma IA depois.</div></div>`;
+  out += `<div class="card">${sec('wallet', 'Porkinho')}<div class="mut">${esc(porkSays(st))}</div></div>`;
   out += `<div class="grid3"><div><b class="ok">${brl(st.inn)}</b><small>entradas</small></div><div><b class="warnc">${brl(st.out)}</b><small>saídas</small></div><div><b>${brl(st.inn - st.out)}</b><small>saldo</small></div></div>`;
   out += `<button class="btn full pri" data-a="addtx">${ic('plus')}Lançar</button>`;
+  out += acc('gmetas', 'Colchão e metas', brl(planTotal(mo)) + '/mês', `${planoInner()}<div class="grp">Ordem: mini colchão, depois colchão 60% + 1 meta por vez 40%</div>${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div class="road"><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="mut">${goalShare(g) ? brl(goalM(g, dkey().slice(0, 7))) + '/mês' + (g.day ? ', dia ' + g.day : '') + ' · ' : ''}${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Toque em Ajustar para criar o colchão, o anel e o PS5.</div>'}<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`, true);
   out += billsCard(mo);
   out += planCard(mo);
   const cats = Object.entries(st.by).sort((a, c) => c[1] - a[1]);
-  out += `<div class="card"><h3 class="px">Gastos por categoria</h3>${cats.map(([c, v]) => { const lim = num(S.budgets[c]); const w = lim ? Math.min(100, v / lim * 100) : (st.out ? v / st.out * 100 : 0); return `<div><div class="row sp"><span>${esc(c)}</span><span class="mut">${brl(v)}${lim ? ' / ' + brl(lim) : ''}</span></div><div class="bar ${lim && v > lim ? 'over' : ''}"><i style="width:${w}%"></i></div></div>`; }).join('') || '<div class="mut">Sem gastos ainda.</div>'}<button class="btn sm ghost" data-a="budget">Definir limite por categoria</button></div>`;
-  out += `<div class="card"><h3 class="px">Lançamentos</h3>${[...st.t].sort((a, c) => c.date.localeCompare(a.date)).map(x => `<div class="item" data-a="edittx" data-v="${x.id}" role="button" tabindex="0"><div class="t">${esc(x.desc || x.cat)}<div class="mut">${sd2(x.date)} · ${esc(x.cat)}</div></div><b class="${x.type === 'in' ? 'ok' : 'warnc'}">${x.type === 'in' ? '+' : '−'}${brl(num(x.amount))}</b></div>`).join('') || '<div class="mut">Nada lançado neste mês.</div>'}</div>`;
-  out += planoCard();
-  out += `<div class="card">${sec('flag', 'Metas', `<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`)}${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="mut">${goalShare(g) ? brl(goalM(g, dkey().slice(0, 7))) + '/mês' + (g.day ? ', dia ' + g.day : '') + ' · ' : ''}${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Toque em Ajustar no Plano de guardar para criar a reserva, o PS5 e o celular.</div>'}</div>`;
+  out += acc('gcat', 'Gastos por categoria', cats.length ? brl(st.out) : '', `${cats.map(([c, v]) => { const lim = num(S.budgets[c]); const w = lim ? Math.min(100, v / lim * 100) : (st.out ? v / st.out * 100 : 0); return `<div><div class="row sp"><span>${esc(c)}</span><span class="mut">${brl(v)}${lim ? ' / ' + brl(lim) : ''}</span></div><div class="bar ${lim && v > lim ? 'over' : ''}"><i style="width:${w}%"></i></div></div>`; }).join('') || '<div class="mut">Sem gastos ainda.</div>'}<button class="btn sm ghost" data-a="budget">Definir limite por categoria</button>`, false);
+  out += acc('gtx', 'Lançamentos', st.t.length ? st.t.length + ' no mês' : '', `${[...st.t].sort((a, c) => c.date.localeCompare(a.date)).map(x => `<div class="item" data-a="edittx" data-v="${x.id}" role="button" tabindex="0"><div class="t">${esc(x.desc || x.cat)}<div class="mut">${sd2(x.date)} · ${esc(x.cat)}</div></div><b class="${x.type === 'in' ? 'ok' : 'warnc'}">${x.type === 'in' ? '+' : '−'}${brl(num(x.amount))}</b></div>`).join('') || '<div class="mut">Nada lançado neste mês.</div>'}`, false);
   return out;
 }
 

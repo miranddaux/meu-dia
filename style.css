@@ -146,3 +146,15 @@ details.card[open]>summary::after{content:'−'}
 
 .segs i{background:var(--card)}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .segs i.on{background:#4cc9ff}}
+
+/* accordions abertos: mais respiro e separação do título */
+details.card>summary{padding:4px 0}
+details.card[open]>summary{margin-bottom:var(--s3);padding-bottom:var(--s2);border-bottom:3px solid var(--ink)}
+details.card[open]{gap:var(--s3);padding-bottom:var(--s4,20px)}
+details.card>summary::after{display:grid;place-items:center;flex:none;width:32px;height:32px;border:3px solid var(--ink);border-radius:8px;background:var(--soft);font-size:18px;line-height:1;margin-left:10px}
+details.card[open]>summary::after{background:var(--ink);color:var(--card)}
+details.card .item,details.card .hab{min-height:60px;padding:var(--s3) 0}
+details.card .grp{margin-top:var(--s2)}
+details.card .road{padding:12px 14px;margin:8px 0}
+details.card .bar{margin:4px 0}
+details.card .btn,details.card .row{margin-top:2px}
