@@ -340,6 +340,7 @@ function vHoje() {
   });
   out += `<div class="card">${sec('bullseye', 'Prioridades')}${[0, 1, 2].map(i => `<div class="pri"><input type="checkbox" data-c="pd" data-v="${i}" ${pr[i] && pr[i].d ? 'checked' : ''} aria-label="Prioridade ${i + 1} feita"><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1}"></div>`).join('')}</div>`;
   if (!hard) {
+    out += roadCard();
     out += `<div class="card">${sec('zap', 'Aprender e foco', `<button class="btn sm ghost" data-a="gotolearn">Abrir</button>`)}<div class="mut">Lições hoje: ${S.learn.days[k] || 0}/1 · Pomodoros hoje: ${S.pomo[k] || 0}</div></div>`;
     const act = S.challenges.filter(c => !c.completedAt || c.log[k]);
     out += `<div class="card">${sec('shield', 'Desafios', `<button class="btn sm ghost" data-a="gotodes">Abrir aba</button>`)}${act.map(c => chRow(c, k)).join('') || '<div class="mut">Sem desafios ativos. Crie um na aba Desafios.</div>'}</div>`;
@@ -374,6 +375,7 @@ function vEstudos() {
 function vPlano() {
   const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '' }, k = dkey(), sl = S.studyLog[k] || {};
   let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
+  out += roadCard();
   out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>
 <label>Tema do dia</label><input data-c="sth" value="${esc(st.theme)}" placeholder="Ex.: Front-end (Udemy)">
 <label>Trilha</label><select data-c="str">${['', ...S.tracks.map(t => t.name)].map(n => `<option ${n === st.track ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
@@ -1023,6 +1025,40 @@ async function doSync(quiet) {
 }
 Object.assign(A, { syncnow: () => { doSync(false); return false; }, synctog: () => { S.settings.sync.on = !S.settings.sync.on; save(); } });
 Object.assign(C, { syncurl: v => { S.settings.sync.url = v.trim(); save(); }, synckey: v => { S.settings.sync.key = v.trim(); save(); } });
+
+/* ---- Estudo do dia vindo do Roadmap (Notion, só leitura) ---- */
+const ROAD_KEY = 'meudia_road';
+function roadLoad() { if (ui.road) return ui.road; try { ui.road = JSON.parse(localStorage.getItem(ROAD_KEY)) || {}; } catch (e) { ui.road = {}; } return ui.road; }
+async function roadFetch(force) {
+  const sy = S.settings.sync, rd = roadLoad(); if (!sy.key || ui.roadBusy) return;
+  if (!force && rd.at && Date.now() - rd.at < 10 * 60 * 1000 && rd.date === dkey()) return;
+  ui.roadBusy = true; if (force) render();
+  try {
+    const base = (sy.url || '/.netlify/functions/sync').replace(/sync$/, 'roadmap');
+    const r = await fetch(`${base}?date=${dkey()}`, { headers: { 'x-app-key': sy.key } });
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(); ui.road = { at: Date.now(), date: dkey(), items: j.items || [], err: '' };
+    try { localStorage.setItem(ROAD_KEY, JSON.stringify(ui.road)); } catch (e) { }
+  } catch (e) { ui.road = Object.assign(roadLoad(), { err: String(e.message || e) }); }
+  ui.roadBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
+}
+function roadCard() {
+  const sy = S.settings.sync, k = dkey();
+  if (!sy.key) return `<div class="card">${sec('book-open', 'Estudo do Roadmap')}<div class="mut">Ligue o Notion em Mais, Config, para ver aqui o estudo do dia.</div></div>`;
+  const rd = roadLoad(); setTimeout(() => roadFetch(false), 0);
+  const items = (rd.items || []).filter(x => x.date <= dkey(addD(k, 7)));
+  const hoje = items.filter(x => x.date === k), atr = items.filter(x => x.date < k), prox = items.filter(x => x.date > k).slice(0, 4);
+  const row = (x, tag) => `<a class="road" href="${esc(x.url)}" target="_blank" rel="noopener"><span class="t">${esc(x.title)}</span><span class="mut">${esc([x.tipo, x.cat].filter(Boolean).join(' · '))}${tag ? ' · ' + tag : ''}${x.xp ? ' · ' + x.xp + ' XP' : ''}</span>${x.crit ? `<span class="mut">Pronto quando: ${esc(x.crit)}</span>` : ''}</a>`;
+  const dd = d => d.split('-').reverse().slice(0, 2).join('/');
+  let b = '';
+  if (hoje.length) b += `<div class="grp">Hoje</div>` + hoje.map(x => row(x, '')).join('');
+  if (atr.length) b += `<div class="grp">Para retomar</div>` + atr.slice(-3).map(x => row(x, dd(x.date))).join('') + (atr.length > 3 ? `<div class="mut">+${atr.length - 3} mais no Notion.</div>` : '');
+  if (prox.length) b += `<div class="grp">Próximos dias</div>` + prox.map(x => row(x, dd(x.date))).join('');
+  if (!b) b = `<div class="mut">${rd.err ? 'Não consegui ler o Roadmap agora (' + esc(rd.err) + '). Mostrando o que tinha salvo.' : rd.at ? 'Nada marcado no Roadmap para hoje.' : 'Carregando…'}</div>`;
+  else if (rd.err) b += `<div class="mut">Sem conexão agora. Mostrando o último que carregou.</div>`;
+  return `<div class="card">${sec('book-open', 'Estudo do Roadmap', `<button class="btn sm ghost" data-a="roadrefresh">${ic('refresh')}Atualizar</button>`)}${b}<div class="mut">Para concluir ou adiar, use o Sistema XP no Claude.</div></div>`;
+}
+Object.assign(A, { roadrefresh: () => { roadFetch(true); return false; } });
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-a]'); if (!el || e.target.closest('.modal')) return;
