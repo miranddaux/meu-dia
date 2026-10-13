@@ -97,7 +97,7 @@ const DEF_HABITS = () => [
   hb('Oração e agradecimento', 'm', ALL, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', ALL, 1, 0, 2, '05:55'), hb('Leitura', 'm', ALL, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', ALL, 0, 1, 5, '07:15'),
   hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
   hb('Almoço', 't', ALL, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', ALL, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
-  hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Banho do cachorro (conforme necessidade)', 't', [6], 1, 0, 7, ''), hb('Igreja', 'm', [0], 0, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [0], 1, 0, 9, '15:00'),
+  hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Igreja', 'm', [0], 0, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [0], 1, 0, 9, '15:00'),
   hb('Passear com o cachorro', 'n', ALL, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', ALL, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', ALL, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', ALL, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', ALL, 1, 0, 4, '21:45'),
   hb('Cuidado da orelha (ajuste a recorrência)', 'n', ALL, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
@@ -139,7 +139,7 @@ function defaults() {
     session: null, foods: FOODS(), water: {},
     challenges: [mkCh('Sem LoL'), mkCh('Sem TikTok')],
     ideas: { done: [], mine: [] },
-    spent: [], tx: [], budgets: {}, goals: [], reviews: {}, bills: [], billPaid: {}
+    spent: [], tx: [], budgets: {}, goals: [], reviews: {}, bills: [], billPaid: {}, pet: [{ id: 'banho', title: 'Banho do cachorro', every: 15, last: '' }]
   };
 }
 function load() {
@@ -201,6 +201,11 @@ function migrate() {
     S.habits.forEach(h => { if (!h.at) h.at = AT[h.title.toLowerCase()] || ''; });
     if (!S.habits.some(h => h.title === 'Passear com o cachorro')) S.habits.push(DEF_HABITS().find(h => h.title === 'Passear com o cachorro'));
     if ((S.schedule[1] || []).some(x => x.t === 'Remédio do cachorro e passeio')) { const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); }
+  }
+  if (!f.pet) {
+    f.pet = 1;
+    S.habits = S.habits.filter(h => h.title !== 'Banho do cachorro (conforme necessidade)');
+    if (!S.pet || !S.pet.length) S.pet = [{ id: 'banho', title: 'Banho do cachorro', every: 15, last: '' }];
   }
   if (!f.orelha) {
     f.orelha = 1;
@@ -321,6 +326,12 @@ function chRow(c, k) {
 const isMin = h => /^(Oração e agradecimento|Almoço|Higiene e oração da noite)/.test(h.title);
 const minHabs = dow => S.habits.filter(h => h.days.includes(dow) && isMin(h));
 function minDone(k) { const hs = minHabs(new Date(k + 'T12:00').getDay()); return hs.length >= 3 && hs.every(h => stOf(k, h.id) === 'done'); }
+const dayDiff = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
+function petNext(p) { return p.last ? dkey(addD(new Date(p.last + 'T12:00'), +p.every || 15)) : ''; }
+function petCard(k) {
+  if (!S.pet || !S.pet.length) return '';
+  return `<div class="card">${sec('heart', 'Cuidados dos cachorros', `<button class="btn sm ghost" data-a="addpet">${ic('plus')}Item</button>`)}${S.pet.map(p => { const nx = petNext(p), left = nx ? dayDiff(k, nx) : null, due = left === null || left <= 0; return `<div class="item"><div class="t" data-a="editpet" data-v="${p.id}" role="button" tabindex="0">${esc(p.title)}<div class="mut">A cada ${p.every} dias · ${p.last ? 'último ' + sd2(p.last) : 'sem registro'}${left === null ? '' : left > 0 ? ' · faltam ' + left + ' dia' + (left > 1 ? 's' : '') : left === 0 ? ' · é hoje' : ' · atrasado ' + (-left) + ' dia' + (left < -1 ? 's' : '')}</div></div><button class="btn sm ${due ? '' : 'ghost'}" data-a="petdone" data-v="${p.id}">${ic('check')}Fiz hoje</button></div>`; }).join('')}</div>`;
+}
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -337,6 +348,7 @@ function vHoje() {
   out += `</div>`;
   if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
   const ba = billAlerts(); if (ba.length) out += `<div class="banner">${ic('wallet')}<span>Porkinho: ${ba.map(esc).join(' · ')}. <a href="#" data-a="loja_pork">Abrir</a></span></div>`;
+  out += petCard(k);
   out += waterCard(k);
   ['m', 't', 'n'].forEach(w => {
     let items = habs.filter(h => h.when === w).map(h => ({ o: h.ord ?? 50, h }));
@@ -833,6 +845,9 @@ const A = {
   editfood: v => { const f = S.foods.find(x => x.id === v); form('Editar alimento', foodFields(f), r => Object.assign(f, r), () => { S.foods = S.foods.filter(x => x.id !== v); }); return false; },
   mo: v => { const [y, m] = ui.mo.split('-').map(Number), d = new Date(y, m - 1 + +v, 1); ui.mo = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; },
   loja_pork: () => { ui.tab = 'mais'; ui.mais = 'pork'; window.scrollTo(0, 0); },
+  petdone: v => { const p = S.pet.find(x => x.id === v); p.last = dkey(); toast('Anotado. Próximo em ' + p.every + ' dias.'); save(); },
+  addpet: () => { form('Novo cuidado', [{ k: 'title', label: 'Nome', value: '' }, { k: 'every', label: 'A cada quantos dias', type: 'number', value: 15 }], r => S.pet.push({ id: uid(), title: r.title || 'Cuidado', every: Math.max(1, Math.round(num(r.every)) || 15), last: '' })); return false; },
+  editpet: v => { const p = S.pet.find(x => x.id === v); form('Editar cuidado', [{ k: 'title', label: 'Nome', value: p.title }, { k: 'every', label: 'A cada quantos dias', type: 'number', value: p.every }, { k: 'last', label: 'Último feito', type: 'date', value: p.last }], r => { p.title = r.title || p.title; p.every = Math.max(1, Math.round(num(r.every)) || 15); p.last = r.last; }, () => { S.pet = S.pet.filter(x => x.id !== v); }); return false; },
   addbill: () => { form('Nova conta fixa', billFields({ day: 5, cat: 'Moradia' }), r => S.bills.push({ id: uid(), ...r })); return false; },
   editbill: v => { const b = S.bills.find(x => x.id === v); form('Editar conta', billFields(b), r => Object.assign(b, r), () => { S.bills = S.bills.filter(x => x.id !== v); }); return false; },
   paybill: (v, mo) => { const b = S.bills.find(x => x.id === v), pm = S.billPaid[mo] = S.billPaid[mo] || {};
@@ -1068,6 +1083,7 @@ function downloadIcs(w) {
   const sun = [0, 1, 2, 3, 4, 5, 6].map(i => addD(now, i)).find(d => d.getDay() === 0);
   add('Lançar os gastos da semana no Porkinho', sun, '20:00', 'FREQ=WEEKLY;BYDAY=SU', 'PT0S', 10);
   add('Revisar Porkinho: limites e metas', new Date(now.getFullYear(), now.getMonth() + 1, 1), '09:00', 'FREQ=MONTHLY;BYMONTHDAY=1', 'PT0S', 15);
+  (S.pet || []).forEach(p => { const nx = petNext(p) || dkey(now), d0 = new Date((nx < dkey(now) ? dkey(now) : nx) + 'T12:00'); add(p.title, d0, '09:00', `FREQ=DAILY;INTERVAL=${+p.every || 15}`, 'PT0S', 30); });
   S.bills.forEach(b => { const dd = Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${b.title} (${brl(num(b.amount))})`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, '-P1D', 15); });
   const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meu Dia//PT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/calendar' })); a.download = 'meu-dia-lembretes.ics'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
@@ -1082,7 +1098,7 @@ function reportData(k = dkey()) {
     date: k, missoesPct: hs.length ? Math.round(100 * dn / hs.length) : 0, estudo: !!(S.studyLog[k] && S.studyLog[k].done), pomodoros: S.pomo[k] || 0, licoes: S.learn.days[k] || 0,
     aguaL: Math.round((S.water[k] || 0) / 100) / 10, treino: S.workouts.filter(w => w.date === k).map(w => w.name).join(', '), kcal: Math.round(sum(ms, 'kcal')), prot: Math.round(sum(ms, 'prot')),
     peso: wts ? num(wts.kg) : null, desafios: S.challenges.map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}`).join('; '), humor: md.m || null, energia: md.e || null, moedas: coins(),
-    vida: AREAS.map(a => `${a[1]} ${vi.s[a[0]] ?? '-'}`).join(' · '), resumo: (S.hardDay[k] ? 'DIA DIFÍCIL (mínimo de 3). ' : '') + dayReport(k)
+    vida: AREAS.map(a => `${a[1]} ${vi.s[a[0]] ?? '-'}`).join(' · '), resumo: (S.hardDay[k] ? 'DIA DIFÍCIL (mínimo de 3). ' : '') + dayReport(k) + (dow === 0 ? '\n\n' + weekSummary(wkStart(new Date(k + 'T12:00'))).txt : '')
   };
 }
 async function doSync(quiet) {
