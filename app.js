@@ -164,7 +164,12 @@ function migrate() {
     const s1 = S.schedule && S.schedule[1];
     if (s1 && s1[0] && /^Levantar, cama/.test(s1[0].t)) { S.schedule = buildSchedule(S.settings.college); }
     const ord = { 'Oração e agradecimento': 1, 'Arrumar a cama': 2 };
-    DEF_HABITS().forEach(h => { if (!S.habits.some(x => x.title === h.title)) S.habits.push(h); });
+    S.habits.forEach(h => {
+      if (/^Academia \(o treino guiado/.test(h.title)) { h.title = 'Treino (o treino guiado dá moedas)'; if (h.days.join() === '1,3,5') h.days = [1, 2, 3]; }
+      if (h.title === 'Passear com o cachorro') h.title = h.when === 'n' ? 'Passear com o cachorro (noite)' : 'Passear com o cachorro (manhã)';
+    });
+    const nk = t => t.toLowerCase().replace(/\s*\(.*\)\s*$/, '').trim();
+    DEF_HABITS().forEach(h => { if (!S.habits.some(x => x.title.toLowerCase() === h.title.toLowerCase() || (nk(x.title) === nk(h.title) && x.when === h.when))) S.habits.push(h); });
     S.habits.forEach(h => { if (h.ord === undefined) h.ord = (ord[h.title] || 50); });
     S.challenges.forEach(c => { if (!c.kind) c.kind = 'detox'; });
     S.tracks.forEach(t => { if (t.now === undefined) t.now = t.name === 'Matemática de apoio' ? 'Divisão' : ''; });
