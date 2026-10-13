@@ -142,3 +142,4 @@ details.card>summary .px{flex:1}
 details.card>summary::after{content:'+';font-family:'PixelPS',monospace;margin-left:10px}
 details.card[open]>summary::after{content:'−'}
 .card.slim .grid3{margin:0}
+.grid3.sm b{font-size:15px;line-height:20px;white-space:nowrap}

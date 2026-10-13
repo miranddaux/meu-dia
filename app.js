@@ -25,6 +25,10 @@ let syncT = null;
 const KEY = 'meudia_v1';
 const VER = 4;
 let S;
+const goalEta = g => { const rest = Math.max(0, num(g.target) - num(g.saved)), m = num(g.monthly); if (!num(g.target)) return ''; if (rest <= 0) return 'meta batida'; if (m <= 0) return 'defina quanto guardar por mês'; const n = Math.ceil(rest / m), d = new Date(); d.setMonth(d.getMonth() + n); return `faltam ${brl(rest)} · ~${n} ${n > 1 ? 'meses' : 'mês'} (${pad(d.getMonth() + 1)}/${d.getFullYear()})`; };
+const goalFields = g => [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo (R$)', type: 'number', value: g.target }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: g.saved || 0 }, { k: 'monthly', label: 'Guardar por mês (R$)', type: 'number', value: g.monthly || '' }, { k: 'day', label: 'Dia do mês para guardar (1 a 28, de preferência o dia do pagamento)', type: 'number', value: g.day || '' }];
+const goalClean = r => { const o = { ...r }; o.day = Math.min(28, Math.max(0, Math.round(num(r.day)))) || ''; return o; };
+const goalDue = (g, k) => { const mo = k.slice(0, 7), d = num(g.day); return num(g.monthly) > 0 && d >= 1 && num(g.target) > num(g.saved) && +k.slice(8) >= d && !((S.goalPaid || {})[mo] || {})[g.id]; };
 const PLAN_KEY = 'meudia_plan';
 const pdays = () => (S.planDays = S.planDays || {});
 const pkey = d => String(d).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -336,7 +340,7 @@ function petCard(k) {
   return `<div class="card">${sec('heart', 'Cuidados dos cachorros', `<button class="btn sm ghost" data-a="addpet">${ic('plus')}Item</button>`)}${S.pet.map(p => { const nx = petNext(p), left = nx ? dayDiff(k, nx) : null, due = left === null || left <= 0; return `<div class="item"><div class="t" data-a="editpet" data-v="${p.id}" role="button" tabindex="0">${esc(p.title)}<div class="mut">A cada ${p.every} dias · ${p.last ? 'último ' + sd2(p.last) : 'sem registro'}${left === null ? '' : left > 0 ? ' · faltam ' + left + ' dia' + (left > 1 ? 's' : '') : left === 0 ? ' · é hoje' : ' · atrasado ' + (-left) + ' dia' + (left < -1 ? 's' : '')}</div></div><button class="btn sm ${due ? '' : 'ghost'}" data-a="petdone" data-v="${p.id}">${ic('check')}Fiz hoje</button></div>`; }).join('')}</div>`;
 }
 const acc = (key, title, right, body, def) => `<details class="card" data-w="${key}" ${(ui.open[key] !== undefined ? ui.open[key] : def) ? 'open' : ''}><summary><span class="px">${title}</span><span class="mut">${right || ''}</span></summary>${body}</details>`;
-function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}]); }
+function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}, S.goals.map(g => [g.title, g.monthly, g.day])]); }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -356,6 +360,7 @@ function vHoje() {
   out += `<div class="card slim"><div class="row sp"><div class="grow">${cur ? `<div class="mut">Agora · ${cur.s}–${cur.e}</div><b>${esc(bt(cur, dow))}</b>` : `<div class="mut">Agora</div><b>Nenhum bloco neste horário</b>`}${nxt ? `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>` : ''}</div><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div></div>`;
   if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
   const ba = billAlerts(); if (ba.length) out += `<div class="banner">${ic('wallet')}<span>Porkinho: ${ba.map(esc).join(' · ')}. <a href="#" data-a="loja_pork">Abrir</a></span></div>`;
+  S.goals.filter(g => goalDue(g, k)).forEach(g => { out += `<div class="banner">${ic('flag')}<span>Dia de guardar ${brl(num(g.monthly))} para ${esc(g.title)}.</span><button class="btn sm" data-a="goalpaid" data-v="${g.id}">Guardei</button></div>`; });
   const sig = icsSig();
   if (S.settings.icsHash !== sig && S.settings.icsSkip !== k) out += `<div class="banner">${ic('clock')}<span>${S.settings.icsHash ? 'Seus lembretes mudaram.' : 'Ative os avisos no iPhone (missões, contas e cachorros).'}</span><span class="row"><button class="btn sm" data-a="ics">${S.settings.icsHash ? 'Atualizar' : 'Ativar'}</button><button class="btn sm ghost" data-a="icsskip">Depois</button></span></div>`;
   /* 3) Missões em accordion */
@@ -642,6 +647,13 @@ function billAlerts() {
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) out.push('Faz uns dias sem lançar no Porkinho');
   return out;
 }
+function planoCard() {
+  const renda = num(S.settings.renda), pct = num(S.settings.pctGuardar) || 10, tot = S.goals.reduce((a, g) => a + num(g.monthly), 0), alvo = Math.round(renda * pct / 100);
+  let b;
+  if (!renda) b = `<div class="mut">Diga sua renda líquida e quanto quer guardar. O app divide entre as metas, mostra em quantos meses cada uma fica pronta e avisa no dia de guardar.</div>`;
+  else b = `<div class="grid3 sm"><div><b>${brl(renda)}</b><small>renda líquida</small></div><div><b>${brl(alvo)}</b><small>guardar (${pct}%)</small></div><div><b class="${tot > alvo ? 'warnc' : 'ok'}">${brl(tot)}</b><small>nas metas</small></div></div>${tot > alvo ? `<div class="mut">As metas pedem ${brl(tot - alvo)} a mais do que o plano. Reduza uma delas ou aumente a porcentagem.</div>` : tot < alvo ? `<div class="mut">Ainda dá para colocar ${brl(alvo - tot)} por mês em alguma meta.</div>` : ''}<div class="mut">Regra simples: no dia do pagamento, guarde primeiro, depois gaste o resto. Deixe o depósito automático no app do banco e use o Meu Dia só para conferir.</div>`;
+  return `<div class="card">${sec('trending-up', 'Plano de guardar', `<button class="btn sm ghost" data-a="plano">${ic('sliders')}${renda ? 'Ajustar' : 'Montar plano'}</button>`)}${b}</div>`;
+}
 function vGrana() {
   const mo = ui.mo, [y, m] = mo.split('-').map(Number), st = monthStats(mo);
   const nm = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -654,7 +666,8 @@ function vGrana() {
   const cats = Object.entries(st.by).sort((a, c) => c[1] - a[1]);
   out += `<div class="card"><h3 class="px">Gastos por categoria</h3>${cats.map(([c, v]) => { const lim = num(S.budgets[c]); const w = lim ? Math.min(100, v / lim * 100) : (st.out ? v / st.out * 100 : 0); return `<div><div class="row sp"><span>${esc(c)}</span><span class="mut">${brl(v)}${lim ? ' / ' + brl(lim) : ''}</span></div><div class="bar ${lim && v > lim ? 'over' : ''}"><i style="width:${w}%"></i></div></div>`; }).join('') || '<div class="mut">Sem gastos ainda.</div>'}<button class="btn sm ghost" data-a="budget">Definir limite por categoria</button></div>`;
   out += `<div class="card"><h3 class="px">Lançamentos</h3>${[...st.t].sort((a, c) => c.date.localeCompare(a.date)).map(x => `<div class="item" data-a="edittx" data-v="${x.id}" role="button" tabindex="0"><div class="t">${esc(x.desc || x.cat)}<div class="mut">${sd2(x.date)} · ${esc(x.cat)}</div></div><b class="${x.type === 'in' ? 'ok' : 'warnc'}">${x.type === 'in' ? '+' : '−'}${brl(num(x.amount))}</b></div>`).join('') || '<div class="mut">Nada lançado neste mês.</div>'}</div>`;
-  out += `<div class="card">${sec('flag', 'Metas', `<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`)}${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Crie uma meta (viagem, reserva, notebook).</div>'}</div>`;
+  out += planoCard();
+  out += `<div class="card">${sec('flag', 'Metas', `<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`)}${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="mut">${num(g.monthly) ? brl(num(g.monthly)) + '/mês' + (g.day ? ', dia ' + g.day : '') + ' · ' : ''}${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Toque em Montar plano para criar a sua primeira meta (reserva de emergência).</div>'}</div>`;
   return out;
 }
 
@@ -882,8 +895,17 @@ const A = {
 
   edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
-  addgoal: () => { form('Nova meta', [{ k: 'title', label: 'Meta' }, { k: 'target', label: 'Valor alvo (R$)', type: 'number' }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: 0 }], r => S.goals.push({ id: uid(), ...r })); return false; },
-  editgoal: v => { const g = S.goals.find(x => x.id === v); form('Editar meta', [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo', type: 'number', value: g.target }, { k: 'saved', label: 'Guardado', type: 'number', value: g.saved }], r => Object.assign(g, r), () => { S.goals = S.goals.filter(x => x.id !== v); }); return false; },
+  addgoal: () => { form('Nova meta', goalFields({}), r => S.goals.push({ id: uid(), ...goalClean(r) })); return false; },
+  editgoal: v => { const g = S.goals.find(x => x.id === v); form('Editar meta', goalFields(g), r => Object.assign(g, goalClean(r)), () => { S.goals = S.goals.filter(x => x.id !== v); }); return false; },
+  plano: () => {
+    const pl = ui.plan && !ui.plan.err ? ui.plan : null, ess = pl ? pl.despesas.filter(x => /^ESSENC/i.test(x.grupo) && !/RESERVA|GUARDAR/i.test(x.desc)).reduce((a, x) => a + x.valor, 0) : 0, sal = pl ? pl.entradas.reduce((a, x) => a + x.valor, 0) : 0;
+    const renda0 = num(S.settings.renda) || sal || '';
+    form('Plano de guardar', [{ k: 'renda', label: 'Renda líquida por mês (R$)', type: 'number', value: renda0 }, { k: 'pct', label: 'Quanto guardar por mês (% da renda). Comece com 10', type: 'number', value: num(S.settings.pctGuardar) || 10 }, ...(S.goals.length ? [] : [{ k: 'reserva', label: `Criar a meta Reserva de emergência (R$). Sugestão: 6 meses de gastos essenciais${ess ? ' = ' + brl(ess * 6) : ''}`, type: 'number', value: ess ? Math.round(ess * 6) : '' }])], r => {
+      S.settings.renda = String(num(r.renda)); S.settings.pctGuardar = String(num(r.pct) || 10);
+      if (r.reserva && num(r.reserva) > 0 && !S.goals.length) S.goals.push({ id: uid(), title: 'Reserva de emergência', target: num(r.reserva), saved: 0, monthly: Math.round(num(r.renda) * (num(r.pct) || 10) / 100), day: 5 });
+    }); return false;
+  },
+  goalpaid: v => { const g = S.goals.find(x => x.id === v), mo = dkey().slice(0, 7); if (!g) return false; S.goalPaid = S.goalPaid || {}; (S.goalPaid[mo] = S.goalPaid[mo] || {})[v] = true; g.saved = num(g.saved) + num(g.monthly); toast('Guardado. Boa!'); save(); },
   goaladd: v => { const g = S.goals.find(x => x.id === v); form('Guardar para ' + esc(g.title), [{ k: 'a', label: 'Quanto? (R$)', type: 'number' }], r => { g.saved = num(g.saved) + num(r.a); }); return false; },
   mtab: v => { ui.mais = v; },
   wo: v => { ui.wo += +v; },
@@ -1114,6 +1136,9 @@ function downloadIcs(w) {
   (S.pet || []).forEach(p => { const nx = petNext(p) || dkey(now), d0 = new Date((nx < dkey(now) ? dkey(now) : nx) + 'T12:00'); add(p.title, d0, '09:00', `FREQ=DAILY;INTERVAL=${+p.every || 15}`, ['-PT12H', 'PT0S'], 30); });
   S.bills.forEach(b => { const dd = Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${b.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
   Object.values(pdays()).forEach(p => { const dd = p.day, d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${p.t}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
+  S.goals.filter(g => num(g.monthly) > 0 && num(g.day) >= 1).forEach(g => { const dd = num(g.day), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Guardar ${brl(num(g.monthly))}: ${g.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['PT0S'], 15); });
+  { const d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > 20 ? 1 : 0), 20); add('DAS do MEI vence hoje (dia 20)', d0, '09:00', 'FREQ=MONTHLY;BYMONTHDAY=20', ['-P3D', 'PT0S'], 15);
+    const y0 = new Date(now.getFullYear() + (now.getMonth() > 4 ? 1 : 0), 4, 15); add('Declaração anual do MEI (DASN-SIMEI) vence 31/05', y0, '09:00', 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=15', ['-P7D', 'PT0S'], 15); }
   const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meu Dia//PT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/calendar' })); a.download = 'meu-dia-lembretes.ics'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   S.settings.icsHash = icsSig(); save();
