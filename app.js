@@ -646,6 +646,7 @@ function vGrana() {
   out += `<div class="grid3"><div><b class="ok">${brl(st.inn)}</b><small>entradas</small></div><div><b class="warnc">${brl(st.out)}</b><small>saídas</small></div><div><b>${brl(st.inn - st.out)}</b><small>saldo</small></div></div>`;
   out += `<button class="btn full pri" data-a="addtx">${ic('plus')}Lançar</button>`;
   out += billsCard(mo);
+  out += planCard(mo);
   const cats = Object.entries(st.by).sort((a, c) => c[1] - a[1]);
   out += `<div class="card"><h3 class="px">Gastos por categoria</h3>${cats.map(([c, v]) => { const lim = num(S.budgets[c]); const w = lim ? Math.min(100, v / lim * 100) : (st.out ? v / st.out * 100 : 0); return `<div><div class="row sp"><span>${esc(c)}</span><span class="mut">${brl(v)}${lim ? ' / ' + brl(lim) : ''}</span></div><div class="bar ${lim && v > lim ? 'over' : ''}"><i style="width:${w}%"></i></div></div>`; }).join('') || '<div class="mut">Sem gastos ainda.</div>'}<button class="btn sm ghost" data-a="budget">Definir limite por categoria</button></div>`;
   out += `<div class="card"><h3 class="px">Lançamentos</h3>${[...st.t].sort((a, c) => c.date.localeCompare(a.date)).map(x => `<div class="item" data-a="edittx" data-v="${x.id}" role="button" tabindex="0"><div class="t">${esc(x.desc || x.cat)}<div class="mut">${sd2(x.date)} · ${esc(x.cat)}</div></div><b class="${x.type === 'in' ? 'ok' : 'warnc'}">${x.type === 'in' ? '+' : '−'}${brl(num(x.amount))}</b></div>`).join('') || '<div class="mut">Nada lançado neste mês.</div>'}</div>`;
@@ -861,7 +862,7 @@ const A = {
     if (pm[v]) { S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; } else { const id = uid(), td = dkey(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount }); pm[v] = id; toast('Lançado como saída.'); }
     save(); },
   ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
-  addtx: () => { form('Lançar', txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), r => S.tx.push({ id: uid(), ...r })); return false; },
+  addtx: () => { form('Lançar', txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), r => { const t = { id: uid(), ...r }; S.tx.push(t); if (t.type === 'out' && S.settings.sheetOn) planPost({ action: 'nova', month: String(t.date).slice(0, 7), desc: t.desc || t.cat, valor: num(t.amount) }, true); }); return false; },
   edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
   addgoal: () => { form('Nova meta', [{ k: 'title', label: 'Meta' }, { k: 'target', label: 'Valor alvo (R$)', type: 'number' }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: 0 }], r => S.goals.push({ id: uid(), ...r })); return false; },
@@ -1156,7 +1157,7 @@ function roadCard() {
   if (!b) b = `<div class="mut">${rd.err ? 'Não consegui ler o Roadmap agora (' + esc(rd.err) + '). Mostrando o que tinha salvo.' : rd.at ? 'Nada marcado no Roadmap para hoje.' : 'Carregando…'}</div>`;
   else if (rd.err) b += `<div class="mut">Sem conexão agora. Mostrando o último que carregou.</div>`;
   const pend = hoje.filter(x => x.status !== 'Concluído').length;
-  return acc('road', 'Estudo do Roadmap', hoje.length ? `${hoje.length - pend}/${hoje.length} hoje` : (atr.length ? `${atr.length} p/ retomar` : ''), `${b}<div class="row"><button class="btn sm ghost" data-a="roadrefresh">${ic('refresh')}Atualizar</button><button class="btn sm ghost" data-a="gotolearn">${ic('zap')}Aprender e foco</button></div><div class="mut">Feito marca como Concluído no Notion. Para adiar ou anotar, use o Sistema XP no Claude.</div>`, !!pend);
+  return acc('road', 'Estudo do Roadmap', hoje.length ? `${hoje.length - pend}/${hoje.length} hoje` : (atr.length ? `${atr.length} p/ retomar` : ''), `${b}<div class="row"><button class="btn sm ghost" data-a="roadrefresh">${ic('reload')}Atualizar</button><button class="btn sm ghost" data-a="gotolearn">${ic('zap')}Aprender e foco</button></div><div class="mut">Feito marca como Concluído no Notion. Para adiar ou anotar, use o Sistema XP no Claude.</div>`, !!pend);
 }
 async function roadSet(id, status) {
   const sy = S.settings.sync, rd = roadLoad(), it = (rd.items || []).find(x => x.id === id); if (!it || ui.roadBusy) return;
@@ -1200,3 +1201,45 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.settings.sync.on && S.settings.sync.key) doSync(true); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render(); });
+
+/* ---- Planilha financeira (Google Sheets, via função do Netlify) ---- */
+const planUrl = () => ((S.settings.sync.url || '/.netlify/functions/sync').replace(/sync$/, 'planilha'));
+async function planLoad(mo) {
+  const sy = S.settings.sync; if (!sy.key) { toast('Defina a chave nos ajustes (ícone no topo).'); return; }
+  ui.planBusy = true; render();
+  try {
+    const r = await fetch(`${planUrl()}?month=${mo}`, { headers: { 'x-app-key': sy.key } });
+    if (!r.ok) throw new Error((await r.text()).slice(0, 160));
+    ui.plan = Object.assign(await r.json(), { mo, at: Date.now(), err: '' });
+  } catch (e) { ui.plan = { mo, err: String(e.message || e), at: Date.now() }; }
+  ui.planBusy = false; render();
+}
+async function planPost(b, quiet) {
+  const sy = S.settings.sync; if (!sy.key) return false;
+  try {
+    const r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify(b) });
+    if (!r.ok) throw new Error((await r.text()).slice(0, 160));
+    if (!quiet) toast('Planilha atualizada.'); else toast('Gasto enviado para a planilha.');
+    return true;
+  } catch (e) { toast('Planilha: ' + (e.message || e)); return false; }
+}
+function planCard(mo) {
+  const sy = S.settings.sync, p = ui.plan && ui.plan.mo === mo ? ui.plan : null;
+  const head = sec('calendar', 'Planilha do mês', `<button class="btn sm ghost" data-a="planload" data-v="${mo}" ${ui.planBusy ? 'disabled' : ''}>${ic('reload')}${p ? 'Atualizar' : 'Carregar'}</button>`);
+  if (!sy.key) return `<div class="card">${head}<div class="mut">Ligue o Notion nos ajustes (ícone no topo) para criar a chave do app. A planilha usa a mesma.</div></div>`;
+  let b = '';
+  if (!p) b = `<div class="mut">${ui.planBusy ? 'Carregando…' : 'Toque em Carregar para ver as despesas da planilha e marcar o que pagou.'}</div>`;
+  else if (p.err) b = `<div class="banner warn"><span>${esc(p.err)}</span></div>`;
+  else {
+    const L2 = p.despesas.filter(x => !x.livre || x.valor > 0), pg = L2.filter(x => x.pago).reduce((a, x) => a + x.valor, 0), tt = L2.reduce((a, x) => a + x.valor, 0);
+    b = `<div class="mut">${esc(p.tab)} · pago ${brl(pg)} de ${brl(tt)}${typeof p.sobra === 'number' ? ' · sobra prevista ' + brl(p.sobra) : ''}</div><div class="bar"><i style="width:${tt ? Math.min(100, pg / tt * 100) : 0}%"></i></div>`;
+    let g = '';
+    b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><button class="btn sm ${x.pago ? 'ghost' : ''}" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${x.pago ? 'Desfazer' : ic('check') + 'Paguei'}</button></div>`; }).join('');
+  }
+  return `<div class="card">${head}${b}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn ? 'checked' : ''}><span>Enviar novos gastos do app para a planilha (em uma linha variável livre)</span></label></div>`;
+}
+Object.assign(A, {
+  planload: v => { planLoad(v); return false; },
+  planpago: async (v, d) => { const p = ui.plan, it = p && p.despesas.find(x => x.row === +v); if (!it) return false; const ok = await planPost({ action: 'pago', month: ui.mo, row: +v, desc: d, paid: !it.pago }); if (ok) planLoad(ui.mo); return false; }
+});
+Object.assign(C, { sheettog: (v, i, el) => { S.settings.sheetOn = el.checked; save(); } });
