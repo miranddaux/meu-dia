@@ -922,14 +922,8 @@ const A = {
     if (pm[v]) { const ot = S.tx.find(x => x.id === pm[v]); S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; if (ot && ot.sent && sheetOn()) planQueue({ action: 'auto', month: mo, type: 'out', bill: true, undo: true, cat: b.cat || 'Moradia', desc: b.title, valor: num(b.amount) }); } else { const id = uid(), td = dkey(), sent = sheetOn(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount, nec: 'fix', sent }); pm[v] = id; toast('Lançado como saída.'); if (sent) planQueue({ action: 'auto', month: mo, type: 'out', bill: true, cat: b.cat || 'Moradia', desc: b.title, valor: num(b.amount) }); }
     save(); },
   ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
-  addtx: () => {
-    const on = S.settings.sync.key && S.settings.sheetOn !== false;
-    form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha', type: 'select', value: on ? 'auto' : 'none', options: [['auto', 'Enviar automático (soma na linha certa)'], ['none', 'Não enviar']] }] : [])], r => {
-      const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r, sent: sh === 'auto' }; S.tx.push(t);
-      if (sh === 'auto') txSend(t);
-    }); return false;
-  },
-  edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => { const o = { ...x }; Object.assign(x, r); if (o.sent && sheetOn() && (o.amount !== x.amount || o.desc !== x.desc || o.cat !== x.cat || o.date.slice(0, 7) !== x.date.slice(0, 7) || o.type !== x.type)) { txSend(o, true); txSend(x); } }, () => { S.tx = S.tx.filter(y => y.id !== v); if (x.sent && sheetOn()) txSend(x, true); }); return false; },
+  addtx: () => { const on = sheetOn(); txSheet({ type: 'out', date: dkey(), sheet: on ? 'auto' : 'none' }, 'Lançar', r => { const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r, sent: sh === 'auto' }; S.tx.push(t); if (sh === 'auto') txSend(t); else toast('Lançado.'); }); return false; },
+  edittx: v => { const x = S.tx.find(y => y.id === v); txSheet({ ...x, sheet: x.sent ? 'auto' : 'none' }, 'Editar lançamento', r => { delete r.sheet; const o = { ...x }; Object.assign(x, r); if (o.sent && sheetOn() && (o.amount !== x.amount || o.desc !== x.desc || o.cat !== x.cat || o.date.slice(0, 7) !== x.date.slice(0, 7) || o.type !== x.type)) { txSend(o, true); txSend(x); } }, () => { S.tx = S.tx.filter(y => y.id !== v); if (x.sent && sheetOn()) txSend(x, true); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
   addgoal: () => { form('Nova meta', goalFields({}), r => S.goals.push({ id: uid(), ...goalClean(r) })); return false; },
   editgoal: v => { const g = S.goals.find(x => x.id === v); form('Editar meta', goalFields(g), r => Object.assign(g, goalClean(r)), () => { S.goals = S.goals.filter(x => x.id !== v); }); return false; },
@@ -974,6 +968,48 @@ const A = {
 function guessMeal() { const h = new Date().getHours(); return h < 10 ? 'Café da manhã' : h < 12 ? 'Lanche' : h < 15 ? 'Almoço' : h < 18 ? 'Lanche da tarde' : h < 22 ? 'Jantar' : 'Ceia'; }
 const mealFields = m => [{ k: 'meal', label: 'Refeição', type: 'select', value: m.meal, options: MEALS }, { k: 'text', label: 'O que comi', type: 'textarea', value: m.text }, { k: 'kcal', label: 'kcal', type: 'number', value: m.kcal }, { k: 'prot', label: 'Proteína (g)', type: 'number', value: m.prot }, { k: 'carb', label: 'Carboidrato (g, opcional)', type: 'number', value: m.carb }, { k: 'fat', label: 'Gordura (g, opcional)', type: 'number', value: m.fat }];
 const foodFields = f => [{ k: 'name', label: 'Alimento / porção', value: f.name }, { k: 'kcal', label: 'kcal', type: 'number', value: f.kcal }, { k: 'prot', label: 'Proteína (g)', type: 'number', value: f.prot }, { k: 'carb', label: 'Carboidrato (g, opcional)', type: 'number', value: f.carb }, { k: 'fat', label: 'Gordura (g, opcional)', type: 'number', value: f.fat }];
+/* ---- Lançar rápido: valor primeiro, categoria em 1 toque ---- */
+function txSheet(t0, title, onSave, onDel) {
+  const st = { type: t0.type || 'out', cat: t0.cat || '', nec: t0.nec || '' }, hasSheet = !!S.settings.sync.key;
+  const m = document.createElement('div'); m.className = 'modal'; m.setAttribute('role', 'dialog');
+  m.innerHTML = `<div class="sheet qa"><h3 class="px">${title}</h3>
+<div class="chips wrapc" id="qt"><button type="button" class="chip" data-t="out">Saída</button><button type="button" class="chip" data-t="in">Entrada</button></div>
+<div class="amt"><span>R$</span><input name="amount" inputmode="decimal" autocomplete="off" placeholder="0,00" value="${esc(t0.amount ?? '')}" aria-label="Valor em reais"></div>
+<label>Categoria</label><div class="chips wrapc" id="qc"></div>
+<div id="qnw"><label>Esse gasto é</label><div class="chips wrapc" id="qn"></div></div>
+<input name="desc" placeholder="O que foi? (opcional)" value="${esc(t0.desc || '')}" aria-label="Descrição">
+<details class="more"><summary>Mais opções</summary><label>Data</label><input type="date" name="date" value="${esc(t0.date || dkey())}">${hasSheet ? `<label>Na planilha</label><select name="sheet"><option value="auto" ${t0.sheet !== 'none' ? 'selected' : ''}>Enviar automático (soma na linha certa)</option><option value="none" ${t0.sheet === 'none' ? 'selected' : ''}>Não enviar</option></select>` : ''}</details>
+<div class="row act"><button type="button" class="btn ghost" data-x>Cancelar</button>${onDel ? '<button type="button" class="btn danger" data-del>Excluir</button>' : ''}<button type="button" class="btn" data-save>Salvar</button></div></div>`;
+  document.body.appendChild(m);
+  const q = sel => m.querySelector(sel), amt = q('[name=amount]'), sv = q('[data-save]');
+  const freq = () => { const c = {}; S.tx.slice(-80).forEach(x => { if (x.type === st.type) c[x.cat] = (c[x.cat] || 0) + 1; }); return [...(st.type === 'in' ? CATS_IN : CATS)].sort((a, b) => (c[b] || 0) - (c[a] || 0)); };
+  const ok = () => num(amt.value) > 0 && !!st.cat;
+  const draw = () => {
+    q('#qt').querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b.dataset.t === st.type));
+    q('#qc').innerHTML = freq().map(c => `<button type="button" class="chip ${c === st.cat ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+    q('#qn').innerHTML = NEC.map(([k, l]) => `<button type="button" class="chip ${k === (st.nec || necOf({ cat: st.cat })) ? 'on' : ''}" data-n="${k}">${esc(l.replace(' (todo mês)', ''))}</button>`).join('');
+    q('#qnw').hidden = st.type === 'in'; sv.classList.toggle('dis', !ok());
+  };
+  m.addEventListener('click', e => {
+    e.stopPropagation();
+    const b = e.target.closest('button');
+    if (e.target === m || (b && b.dataset.x !== undefined)) { m.remove(); return; }
+    if (!b) return;
+    if (b.dataset.t) { st.type = b.dataset.t; st.cat = ''; st.nec = ''; draw(); }
+    else if (b.dataset.c) { st.cat = b.dataset.c; st.nec = ''; draw(); }
+    else if (b.dataset.n) { st.nec = b.dataset.n; draw(); }
+    else if (b.dataset.del !== undefined) { if (confirm('Excluir?')) { onDel(); m.remove(); save(); render(); } }
+    else if (b.dataset.save !== undefined) {
+      if (!ok()) { toast(num(amt.value) > 0 ? 'Escolha a categoria.' : 'Coloque o valor.'); return; }
+      const r = { type: st.type, cat: st.cat, amount: num(amt.value), desc: q('[name=desc]').value.trim(), date: q('[name=date]').value || dkey(), nec: st.type === 'in' ? '' : (st.nec || necOf({ cat: st.cat })) };
+      const sh = q('[name=sheet]'); r.sheet = sh ? sh.value : 'none';
+      onSave(r); m.remove(); save(); render();
+    }
+  });
+  amt.addEventListener('input', () => sv.classList.toggle('dis', !ok()));
+  m.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')) { e.preventDefault(); sv.click(); } });
+  draw(); setTimeout(() => { if (!amt.value) amt.focus(); }, 30);
+}
 const NEC = [['ess', 'Essencial'], ['fix', 'Fixo (todo mês)'], ['nao', 'Não essencial']];
 const necOf = x => x.nec || (['Moradia', 'Saúde', 'Mercado', 'Transporte'].includes(x.cat) ? 'ess' : ['Assinaturas'].includes(x.cat) ? 'fix' : 'nao');
 const txFields = x => [{ k: 'type', label: 'Tipo', type: 'select', value: x.type, options: [['out', 'Saída'], ['in', 'Entrada']] }, { k: 'date', label: 'Data', type: 'date', value: x.date }, { k: 'cat', label: 'Categoria', type: 'select', value: x.cat, options: [...CATS, ...CATS_IN] }, { k: 'nec', label: 'Esse gasto é (só para saída)', type: 'select', value: necOf(x), options: NEC }, { k: 'desc', label: 'Descrição', value: x.desc }, { k: 'amount', label: 'Valor (R$)', type: 'number', value: x.amount }];

@@ -183,3 +183,15 @@ details.how ol{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:colu
 .sheet input[type=date],.sheet input[type=time]{min-width:0;text-align:left}
 .sheet input[type=date]::-webkit-date-and-time-value{text-align:left;min-height:1.3em}
 .sheet label{margin-top:var(--s2)}
+
+/* Lançar rápido */
+.qa .amt{display:flex;align-items:center;gap:10px;border:3px solid var(--ink);border-radius:var(--r);padding:0 14px;background:var(--card)}
+.qa .amt span{font-size:24px;font-weight:700}
+.qa .amt input{border:0;height:72px;min-height:72px;font-size:36px;font-weight:700;padding:0;flex:1;min-width:0;background:transparent}
+.qa .amt input:focus-visible{outline:none}
+.qa .amt:focus-within{outline:3px solid var(--acc);outline-offset:2px}
+.qa .chip{min-height:48px;padding:0 16px;font-size:15px}
+.qa #qt .chip{flex:1;justify-content:center}
+.qa .btn.dis{opacity:.45}
+.qa details.more{margin-top:4px}.qa details.more>summary{font-weight:700;min-height:44px}
+.qa [hidden]{display:none}
