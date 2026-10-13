@@ -347,6 +347,7 @@ function vHoje() {
   const pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
   const pdone = [0, 1, 2].filter(i => pst(i) === 'done').length;
   out += `<div class="card"><div class="row sp"><h3 class="px">${ic('bullseye')}<span>Prioridades</span></h3><span class="mut">${pdone}/3 feitas</span></div>${[0, 1, 2].map(i => { const s = pst(i); return `<div class="pri"><button class="st ${s === 'done' ? 'done' : s === 'no' ? 'no' : ''}" data-a="prcyc" data-v="${i}" aria-label="Prioridade ${i + 1}: ${s === 'done' ? 'feita' : s === 'no' ? 'não feita' : 'pendente'}. Toque para mudar">${s === 'done' ? ic('check') : s === 'no' ? ic('close') : ''}</button><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1}"></div>`; }).join('')}<div class="mut">Toque no quadrado: feito, não fiz, vazio.</div></div>`;
+  out += waterCard(k);
   if (!S.settings.welcomed) out += `<div class="card"><h3 class="px">${ic('mood-happy')}<span>Oi!</span></h3><p class="mut">Tudo fica salvo só neste iPhone. Toque no quadrado para marcar: vazio = pendente, check = feito, meio = parcial, seta = adiado, traço = não se aplica. Moedas vêm de missões, treino, água, estudo e desafios; você troca na Loja (Mais, Loja). Nada vira dívida. Faça backup nos ajustes (ícone no topo).</p><button class="btn sm" data-a="welcome">Entendi</button></div>`;
   /* 2) Agora */
   out += `<div class="card slim"><div class="row sp"><div class="grow">${cur ? `<div class="mut">Agora · ${cur.s}–${cur.e}</div><b>${esc(bt(cur, dow))}</b>` : `<div class="mut">Agora</div><b>Nenhum bloco neste horário</b>`}${nxt ? `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>` : ''}</div><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div></div>`;
@@ -364,8 +365,6 @@ function vHoje() {
     const hr = n.getHours(), curW = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
     out += acc(w, WH[w], `${done}/${items.length}`, `${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><span class="hr">06:00</span><b>Estudo:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}`, w === curW);
   });
-  /* 4) Água compacta */
-  out += waterCard(k);
   if (!hard) {
     out += roadCard();
     const act = S.challenges.filter(c => !c.completedAt || c.log[k]);
