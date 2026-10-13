@@ -132,3 +132,13 @@ body{padding-bottom:calc(175px + env(safe-area-inset-bottom))}
 .road .rt{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .road .rt .btn{flex:none}
 .road.dn .t{text-decoration:line-through;opacity:.6}
+
+.st.no{background:var(--acc);color:#1f2a2e}
+.pri input[type=text]{flex:1;min-width:0}
+.sheet{padding-bottom:calc(88px + env(safe-area-inset-bottom));max-height:92vh}
+.sheet .row.act{position:sticky;bottom:-4px;background:var(--card);padding-top:var(--s2)}
+.hud>button{cursor:pointer}
+details.card>summary .px{flex:1}
+details.card>summary::after{content:'+';font-family:'PixelPS',monospace;margin-left:10px}
+details.card[open]>summary::after{content:'−'}
+.card.slim .grid3{margin:0}
