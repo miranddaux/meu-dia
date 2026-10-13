@@ -52,9 +52,17 @@ const goalEta = g => {
   }
   return `faltam ${brl(rest)} · defina um valor maior por mês`;
 };
-const goalFields = g => [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo (R$)', type: 'number', value: g.target }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: g.saved || 0 }, { k: 'w', label: 'Prioridade (quem recebe mais do valor guardado)', type: 'select', value: String(g.w || 1), options: [['1', 'Normal'], ['2', 'Alta'], ['3', 'Máxima']] }, { k: 'day', label: 'Dia do mês para guardar (1 a 28, de preferência o dia do pagamento)', type: 'number', value: g.day || '' }];
-const goalClean = r => { const o = { ...r }; o.day = Math.min(28, Math.max(0, Math.round(num(r.day)))) || ''; o.w = num(r.w) || 1; return o; };
-const goalDue = (g, k) => { const mo = k.slice(0, 7), d = num(g.day); return goalShare(g) > 0 && d >= 1 && +k.slice(8) >= d && !((S.goalPaid || {})[mo] || {})[g.id]; };
+const goalFields = g => [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo (R$)', type: 'number', value: g.target }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: g.saved || 0 }, { k: 'w', label: 'Prioridade (quem recebe mais do valor guardado)', type: 'select', value: String(g.w || 1), options: [['1', 'Normal'], ['2', 'Alta'], ['3', 'Máxima']] }];
+const goalClean = r => { const o = { ...r }; o.w = num(r.w) || 1; return o; };
+const goalDue = (g, k) => { const mo = k.slice(0, 7); return goalShare(g) > 0 && k >= payDay(mo) && !((S.goalPaid || {})[mo] || {})[g.id]; };
+/* ---- Dia do pagamento: 5º dia útil (sem sábado, domingo e feriados nacionais) ---- */
+const payNth = () => Math.max(1, Math.min(15, Math.round(num((S.settings.plan || {}).payNth)) || 5));
+const easterOf = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), dy = (h + l - 7 * m + 114) % 31 + 1; return new Date(y, mo - 1, dy); };
+function payDay(mo) {
+  const [y, m] = mo.split('-').map(Number), gf = dkey(addD(easterOf(y), -2)), H = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25']; let n = 0;
+  for (let d = 1; d <= 31; d++) { const dt = new Date(y, m - 1, d), key = dkey(dt); if (dt.getMonth() !== m - 1) break; if (dt.getDay() === 0 || dt.getDay() === 6 || H.includes(key.slice(5)) || key === gf) continue; if (++n === payNth()) return key; }
+  return mo + '-07';
+}
 const rendaVal = () => { const c = (typeof planCache === 'function') ? planCache(dkey().slice(0, 7)) : null, e = c && c.entradas ? c.entradas.filter(x => /SAL[ÁA]RIO/i.test(x.desc)).reduce((a, x) => a + x.valor, 0) : 0; return e || num(S.settings.renda) || 4000; };
 const PLAN_KEY = 'meudia_plan';
 const pdays = () => (S.planDays = S.planDays || {});
@@ -374,7 +382,7 @@ function petCard(k) {
   return `<div class="card">${sec('heart', 'Cuidados dos cachorros', `<button class="btn sm ghost" data-a="addpet">${ic('plus')}Item</button>`)}${S.pet.map(p => { const nx = petNext(p), left = nx ? dayDiff(k, nx) : null, due = left === null || left <= 0; return `<div class="item"><div class="t" data-a="editpet" data-v="${p.id}" role="button" tabindex="0">${esc(p.title)}<div class="mut">A cada ${p.every} dias · ${p.last ? 'último ' + sd2(p.last) : 'sem registro'}${left === null ? '' : left > 0 ? ' · faltam ' + left + ' dia' + (left > 1 ? 's' : '') : left === 0 ? ' · é hoje' : ' · atrasado ' + (-left) + ' dia' + (left < -1 ? 's' : '')}</div></div><button class="btn sm ${due ? '' : 'ghost'}" data-a="petdone" data-v="${p.id}">${ic('check')}Fiz hoje</button></div>`; }).join('')}</div>`;
 }
 const acc = (key, title, right, body, def) => `<details class="card" data-w="${key}" ${(ui.open[key] !== undefined ? ui.open[key] : def) ? 'open' : ''}><summary><span class="px">${title}</span><span class="mut">${right || ''}</span></summary>${body}</details>`;
-function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}, S.goals.map(g => [g.title, g.day])]); }
+function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}, S.goals.map(g => [g.title, num(g.target) > num(g.saved)]), payNth()]); }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -393,10 +401,6 @@ function vHoje() {
   /* 2) Agora */
   out += `<div class="card slim"><div class="row sp"><div class="grow">${cur ? `<div class="mut">Agora · ${cur.s}–${cur.e}</div><b>${esc(bt(cur, dow))}</b>` : `<div class="mut">Agora</div><b>Nenhum bloco neste horário</b>`}${nxt ? `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>` : ''}</div><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div></div>`;
   if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
-  const ba = billAlerts(); if (ba.length) out += `<div class="banner">${ic('wallet')}<span>Porkinho: ${ba.map(esc).join(' · ')}. <a href="#" data-a="loja_pork">Abrir</a></span></div>`;
-  S.goals.filter(g => goalDue(g, k)).forEach(g => { out += `<div class="banner">${ic('flag')}<span>Dia de guardar ${brl(goalM(g, k.slice(0, 7)))} para ${esc(g.title)}.</span><button class="btn sm" data-a="goalpaid" data-v="${g.id}">Guardei</button></div>`; });
-  const sig = icsSig();
-  if (S.settings.icsHash !== sig && S.settings.icsSkip !== k) out += `<div class="banner">${ic('clock')}<span>${S.settings.icsHash ? 'Seus lembretes mudaram.' : 'Ative os avisos no iPhone (missões, contas e cachorros).'}</span><span class="row"><button class="btn sm" data-a="ics">${S.settings.icsHash ? 'Atualizar' : 'Ativar'}</button><button class="btn sm ghost" data-a="icsskip">Depois</button></span></div>`;
   /* 3) Missões em accordion */
   ['m', 't', 'n'].forEach(w => {
     let items = habs.filter(h => h.when === w).map(h => ({ o: h.ord ?? 50, h }));
@@ -414,8 +418,6 @@ function vHoje() {
   }
   const md = S.mood[k] || {};
   out += `<details class="card" data-w="mood" ${ui.open.mood ? 'open' : ''}><summary><span class="px">Como estou</span><span class="mut">opcional, privado</span></summary><div class="mut">Humor</div><div class="chips">${[['mood-sad', 1], ['mood-sad', 2], ['mood-neutral', 3], ['mood-happy', 4], ['mood-happy', 5]].map(([i, v]) => `<button class="chip ${md.m === v ? 'on' : ''}" data-a="mood" data-v="m" data-w="${v}" aria-label="Humor ${v} de 5">${ic(i)}${v}</button>`).join('')}</div><div class="mut">Energia</div><div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${md.e === i ? 'on' : ''}" data-a="mood" data-v="e" data-w="${i}" aria-label="Energia ${i} de 5">${ic('battery-full')}${i}</button>`).join('')}</div><input data-c="mnote" value="${esc(md.note)}" placeholder="Nota rápida (só você vê)"></details>`;
-  const lb = S.settings.lastBackup;
-  if (!lb || (new Date(dkey()) - new Date(lb)) / 864e5 > 14) out += `<div class="banner">${ic('save')}<span>Faz um tempo sem backup. Ajustes (ícone no topo), Exportar backup.</span></div>`;
   return out;
 }
 
@@ -812,7 +814,7 @@ function render() {
   const n = new Date(), k = dkey(n), hr = n.getHours();
   const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino, dieta, metas e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox, melhorar e fazer coisas juntos'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
   const [h, p] = titles[ui.tab];
-  const hud = `<div class="hud"><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
+  const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   $('#top').innerHTML = `${hud}<h1 class="px">${h}</h1><p>${p}</p>`;
   $('#view').innerHTML = { hoje: vHoje, corpo: vCorpo, estudos: vEstudos, desafios: vDesafios, mais: vMais }[ui.tab]();
   $('#nav').innerHTML = TABS.map(([i, c, l]) => `<button class="${ui.tab === i ? 'on' : ''}" data-a="tab" data-v="${i}" aria-label="${l}" ${ui.tab === i ? 'aria-current="page"' : ''}>${ic(c)}<span>${l}</span></button>`).join('');
@@ -1147,9 +1149,9 @@ const hid = t => { let h = 5381; for (const c of String(t)) h = ((h << 5) + h + 
 function downloadIcs(w) {
   const BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'], now = new Date(), stamp = now.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', ev = [];
   const D8 = d => dkey(d).replace(/-/g, ''), T = t => t.replace(':', '') + '00', esc2 = t => String(t).replace(/([,;\\])/g, '\\$1');
-  const add = (title, d, t, rrule, alarm, mins) => {
+  const add = (title, d, t, rrule, alarm, mins, uidx) => {
     const [h, m] = t.split(':').map(Number), e = new Date(2000, 0, 1, h, m + (mins || 15)), et = pad(e.getHours()) + ':' + pad(e.getMinutes());
-    ev.push(['BEGIN:VEVENT', `UID:md-${hid(title + rrule)}@meudia`, `DTSTAMP:${stamp}`, `DTSTART:${D8(d)}T${T(t)}`, `DTEND:${D8(d)}T${T(et)}`, `RRULE:${rrule}`, `SUMMARY:${esc2(title)}`, ...[].concat(alarm || 'PT0S').flatMap(tr => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc2(title)}`, `TRIGGER:${tr}`, 'END:VALARM']), 'END:VEVENT'].join('\r\n'));
+    ev.push(['BEGIN:VEVENT', `UID:md-${hid(title + rrule + (uidx || ''))}@meudia`, `DTSTAMP:${stamp}`, `DTSTART:${D8(d)}T${T(t)}`, `DTEND:${D8(d)}T${T(et)}`, ...(rrule ? [`RRULE:${rrule}`] : []), `SUMMARY:${esc2(title)}`, ...[].concat(alarm || 'PT0S').flatMap(tr => ['BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc2(title)}`, `TRIGGER:${tr}`, 'END:VALARM']), 'END:VEVENT'].join('\r\n'));
   };
   if (w !== 'fin') S.habits.filter(h => h.at && h.days.length && (w === 'all' || h.hard)).forEach(h => {
     const first = [0, 1, 2, 3, 4, 5, 6].map(i => addD(now, i)).find(d => h.days.includes(d.getDay()));
@@ -1163,7 +1165,7 @@ function downloadIcs(w) {
   (S.pet || []).forEach(p => { const nx = petNext(p) || dkey(now), d0 = new Date((nx < dkey(now) ? dkey(now) : nx) + 'T12:00'); add(p.title, d0, '09:00', `FREQ=DAILY;INTERVAL=${+p.every || 15}`, ['-PT12H', 'PT0S'], 30); });
   S.bills.forEach(b => { const dd = Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${b.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
   Object.values(pdays()).forEach(p => { const dd = p.day, d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${p.t}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
-  S.goals.filter(g => num(g.day) >= 1).forEach(g => { const dd = num(g.day), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Guardar para: ${g.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['PT0S'], 15); });
+  if (activeGoals().length) for (let i = 0; i < 12; i++) { const mo = addMo(dkey(now).slice(0, 7), i), pd = payDay(mo); if (pd < dkey(now)) continue; add('Dia do pagamento: guardar para suas metas', new Date(pd + 'T12:00'), '09:00', '', ['PT0S'], 15, pd); }
   { const d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > 20 ? 1 : 0), 20); add('DAS do MEI vence hoje (dia 20)', d0, '09:00', 'FREQ=MONTHLY;BYMONTHDAY=20', ['-P3D', 'PT0S'], 15);
     const y0 = new Date(now.getFullYear() + (now.getMonth() > 4 ? 1 : 0), 4, 15); add('Declaração anual do MEI (DASN-SIMEI) vence 31/05', y0, '09:00', 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=15', ['-P7D', 'PT0S'], 15); }
   const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meu Dia//PT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
@@ -1281,6 +1283,43 @@ async function roadSet(id, status) {
 }
 Object.assign(A, { roadrefresh: () => { roadFetch(true); return false; }, roaddone: v => { const it = (roadLoad().items || []).find(x => x.id === v); if (it) roadSet(v, it.status === 'Concluído' ? (it.prev && it.prev !== 'Concluído' ? it.prev : 'Não iniciado') : 'Concluído'); return false; } });
 
+/* ---- Central de avisos (sino no topo): Guardei / Paguei / Depois ---- */
+const snzd = id => ((S.snz || {})[id]) === dkey();
+function notifs() {
+  const k = dkey(), mo = k.slice(0, 7), out = [], add = (id, icon, text, acts) => { if (!snzd(id)) out.push({ id, icon, text, acts }); };
+  S.goals.filter(g => goalDue(g, k)).forEach(g => add(`g:${g.id}:${mo}`, 'flag', `Dia do pagamento: guardar ${brl(goalM(g, mo))} para ${g.title}.`, [['Guardei', 'goalpaid', g.id, '']]));
+  const paid = S.billPaid[mo] || {}, rel = d => { const diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); return diff < 0 ? 'venceu dia ' + d.slice(8) : diff <= 3 ? 'vence ' + (diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias') : ''; };
+  S.bills.forEach(b => { if (paid[b.id]) return; const r = rel(billDue(b, mo)); if (r) add(`b:${b.id}:${mo}`, 'wallet', `${b.title} ${r} (${brl(num(b.amount))}).`, [['Paguei', 'paybill', b.id, mo]]); });
+  Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas, row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const r = rel(billDue({ day: p.day }, mo)); if (r) add(`p:${pkey(p.t)}:${mo}`, 'wallet', `${p.t} ${r}.`, [['Abrir Porkinho', 'loja_pork', '', '']]); });
+  const last = S.tx.map(x => x.date).sort().pop();
+  if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) add(`t:${k}`, 'wallet', 'Faz uns dias sem lançar gastos no Porkinho.', [['Lançar', 'addtx', '', '']]);
+  if (S.settings.icsHash !== icsSig()) add(`i:${k}`, 'clock', S.settings.icsHash ? 'Seus lembretes mudaram. Atualize no Calendário.' : 'Ative os avisos no iPhone (missões, contas, cachorros).', [[S.settings.icsHash ? 'Atualizar' : 'Ativar', 'ics', '', '']]);
+  const lb = S.settings.lastBackup; if (!lb || (new Date(k) - new Date(lb)) / 864e5 > 14) add(`k:${k}`, 'save', 'Faz um tempo sem backup. Ajustes (ícone no topo), Exportar backup.', []);
+  return out;
+}
+function notifHtml() {
+  const l = notifs(), k = dkey(), pd = payDay(k.slice(0, 7)), dd = pd.split('-').reverse().slice(0, 2).join('/');
+  return `<div class="sheet"><h3 class="px">${ic('bell')}<span>Avisos</span></h3><div class="mut">Pagamento (5º dia útil) deste mês: ${dd}${k === pd ? ' · hoje' : ''}.</div>` +
+    (l.length ? l.map(n => `<div class="road"><div class="rt"><span class="t">${ic(n.icon)} ${esc(n.text)}</span></div><div class="row">${n.acts.map(a => `<button class="btn sm" data-a="${a[1]}" data-v="${esc(a[2])}" data-w="${esc(a[3])}">${esc(a[0])}</button>`).join('')}<button class="btn sm ghost" data-a="snz" data-v="${esc(n.id)}">Deixar para depois</button></div></div>`).join('') : `<div class="mut">Tudo em dia. Nada pendente agora.</div>`) +
+    `<div class="row act"><button type="button" class="btn ghost" data-x>Fechar</button></div></div>`;
+}
+function notifOpen() {
+  let m = document.querySelector('.modal.notif');
+  if (!m) {
+    m = document.createElement('div'); m.className = 'modal notif'; m.setAttribute('role', 'dialog'); document.body.appendChild(m);
+    m.addEventListener('click', e => {
+      e.stopPropagation();
+      if (e.target === m || e.target.closest('[data-x]')) { m.remove(); return; }
+      const el = e.target.closest('[data-a]'); if (!el) return; const f = A[el.dataset.a]; if (!f) return;
+      if (['ics', 'addtx', 'loja_pork'].includes(el.dataset.a)) m.remove();
+      f(el.dataset.v, el.dataset.w, el); save(); render();
+      if (document.body.contains(m)) m.innerHTML = notifHtml();
+    });
+  }
+  m.innerHTML = notifHtml();
+}
+Object.assign(A, { notif: () => { notifOpen(); return false; }, snz: v => { S.snz = S.snz || {}; Object.keys(S.snz).forEach(x => { if (S.snz[x] !== dkey()) delete S.snz[x]; }); S.snz[v] = dkey(); toast('Aviso volta amanhã.'); } });
+
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-a]'); if (!el || e.target.closest('.modal')) return;
   const f = A[el.dataset.a]; if (!f) return;
@@ -1292,6 +1331,7 @@ document.addEventListener('change', e => { const el = e.target.closest('[data-c]
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
 load(); applyTheme(); save(); render();
+if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');
   if (s && el) { const m = Math.floor((Date.now() - s.start) / 1000); el.textContent = `${Math.floor(m / 60)}:${pad(m % 60)}`; }

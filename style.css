@@ -158,3 +158,7 @@ details.card .grp{margin-top:var(--s2)}
 details.card .road{padding:12px 14px;margin:8px 0}
 details.card .bar{margin:4px 0}
 details.card .btn,details.card .row{margin-top:2px}
+
+.nbadge{background:var(--acc);color:#1f2a2e;border-radius:999px;min-width:20px;height:20px;font-size:12px;font-weight:700;display:inline-grid;place-items:center;padding:0 5px}
+.modal.notif .road{margin:4px 0}.modal.notif .road .t{font-weight:700;display:flex;gap:8px;align-items:flex-start}
+.modal.notif .row{flex-wrap:wrap;gap:8px;margin-top:8px}
