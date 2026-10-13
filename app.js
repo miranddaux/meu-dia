@@ -98,7 +98,7 @@ const DEF_HABITS = () => [
   hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
   hb('Almoço', 't', ALL, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', ALL, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
   hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Banho do cachorro (conforme necessidade)', 't', [6], 1, 0, 7, ''), hb('Igreja', 'm', [0], 0, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [0], 1, 0, 9, '15:00'),
-  hb('Passear com o cachorro', 'n', ALL, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', ALL, 0, 1, 2, '19:15'), hb('Higiene e oração da noite', 'n', ALL, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', ALL, 1, 0, 4, '21:45'),
+  hb('Passear com o cachorro', 'n', ALL, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', ALL, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', ALL, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', ALL, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', ALL, 1, 0, 4, '21:45'),
   hb('Cuidado da orelha (ajuste a recorrência)', 'n', ALL, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
 const STARTER = [
@@ -201,6 +201,10 @@ function migrate() {
     S.habits.forEach(h => { if (!h.at) h.at = AT[h.title.toLowerCase()] || ''; });
     if (!S.habits.some(h => h.title === 'Passear com o cachorro')) S.habits.push(DEF_HABITS().find(h => h.title === 'Passear com o cachorro'));
     if ((S.schedule[1] || []).some(x => x.t === 'Remédio do cachorro e passeio')) { const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); }
+  }
+  if (!f.orelha) {
+    f.orelha = 1;
+    if (!S.habits.some(h => /orelha/i.test(h.title))) S.habits.push(DEF_HABITS().find(h => /orelha/.test(h.title)));
   }
   if (!f.detox6) {
     f.detox6 = 1;
