@@ -162,3 +162,14 @@ details.card .btn,details.card .row{margin-top:2px}
 .nbadge{background:var(--acc);color:#1f2a2e;border-radius:999px;min-width:20px;height:20px;font-size:12px;font-weight:700;display:inline-grid;place-items:center;padding:0 5px}
 .modal.notif .road{margin:4px 0}.modal.notif .road .t{font-weight:700;display:flex;gap:8px;align-items:flex-start}
 .modal.notif .row{flex-wrap:wrap;gap:8px;margin-top:8px}
+
+details.goal{border:2px solid var(--soft);border-radius:12px;padding:10px 12px;margin:8px 0;background:var(--card);display:flex;flex-direction:column;gap:8px}
+details.goal>summary{margin:0!important;min-height:40px}
+details.goal[open]{border-color:var(--ink)}
+details.goal[open]>summary{padding-bottom:6px;border-bottom:2px solid var(--soft)}
+.gt{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex:1}
+.tag{font-size:11px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:999px;border:2px solid var(--ink)}
+.tag.now{background:var(--gold)}.tag.wait{background:var(--soft)}.tag.ok{background:var(--ok)}
+.tag{color:#1f2a2e}
+details.how{margin-top:8px}details.how>summary{font-weight:700;min-height:36px}
+details.how ol{margin:6px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}

@@ -669,6 +669,8 @@ function porkSays(st) {
   if (top) msgs.push(`Maior gasto: ${top[0]} (${brl(top[1])}).`);
   return msgs.join(' ');
 }
+const sheetOn = () => !!(S.settings.sync.key && S.settings.sheetOn !== false);
+const txSend = (t, undo) => planQueue({ action: 'auto', month: String(t.date).slice(0, 7), type: t.type, cat: t.cat, desc: t.desc || t.cat, valor: num(t.amount), ...(undo ? { undo: true } : {}) });
 const billDue = (b, mo) => `${mo}-${pad(Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)))}`;
 function billsCard(mo) {
   const paid = S.billPaid[mo] || {}, tot = S.bills.reduce((a, b) => a + num(b.amount), 0), pg = S.bills.filter(b => paid[b.id]).reduce((a, b) => a + num(b.amount), 0), today = dkey();
@@ -697,7 +699,13 @@ function vGrana() {
   out += `<div class="card">${sec('wallet', 'Porkinho')}<div class="mut">${esc(porkSays(st))}</div></div>`;
   out += `<div class="grid3"><div><b class="ok">${brl(st.inn)}</b><small>entradas</small></div><div><b class="warnc">${brl(st.out)}</b><small>saídas</small></div><div><b>${brl(st.inn - st.out)}</b><small>saldo</small></div></div>`;
   out += `<button class="btn full pri" data-a="addtx">${ic('plus')}Lançar</button>`;
-  out += acc('gmetas', 'Colchão e metas', brl(planTotal(mo)) + '/mês', `${planoInner()}<div class="grp">Ordem: mini colchão, depois colchão 60% + 1 meta por vez 40%</div>${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div class="road"><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="mut">${goalShare(g) ? brl(goalM(g, dkey().slice(0, 7))) + '/mês' + (g.day ? ', dia ' + g.day : '') + ' · ' : ''}${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Toque em Ajustar para criar o colchão, o anel e o PS5.</div>'}<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`, true);
+  const goalRow = g => {
+    const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0, done = num(g.target) > 0 && num(g.saved) >= num(g.target), sh = goalShare(g), key = 'g_' + g.id;
+    const tag = done ? ['batida', 'ok'] : sh > 0 ? ['agora', 'now'] : ['na fila', 'wait'];
+    return `<details class="goal" data-w="${key}" ${ui.open[key] ? 'open' : ''}><summary><span class="gt"><b>${esc(g.title)}</b><span class="tag ${tag[1]}">${tag[0]}</span></span><span class="mut">${Math.round(p)}%</span></summary><div class="bar"><i style="width:${p}%"></i></div><div class="row sp"><span class="mut">${brl(num(g.saved))} de ${brl(num(g.target))}</span>${sh ? `<b>${brl(goalM(g, mo))}/mês</b>` : ''}</div><div class="mut">${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></details>`;
+  };
+  const howto = `<details class="how"><summary>Como usar</summary><ol class="mut"><li>No 5º dia útil o sino avisa quanto guardar.</li><li>Faça o depósito no PicPay (ou deixe automático).</li><li>Toque <b>Guardei</b> no sino. O app soma na meta e lança na planilha.</li><li>Etiqueta <b>agora</b> recebe o dinheiro neste mês. <b>Na fila</b> espera a vez.</li><li>Toque na meta para ver valor, prazo e botões.</li></ol></details>`;
+  out += acc('gmetas', 'Colchão e metas', brl(planTotal(mo)) + '/mês', `${planoInner()}${S.goals.map(goalRow).join('') || '<div class="mut">Toque em Ajustar para criar o colchão, o anel e o PS5.</div>'}<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>${howto}`, true);
   out += billsCard(mo);
   out += planCard(mo);
   const cats = Object.entries(st.by).sort((a, c) => c[1] - a[1]);
@@ -911,17 +919,17 @@ const A = {
   addbill: () => { form('Nova conta fixa', billFields({ day: 5, cat: 'Moradia' }), r => S.bills.push({ id: uid(), ...r })); return false; },
   editbill: v => { const b = S.bills.find(x => x.id === v); form('Editar conta', billFields(b), r => Object.assign(b, r), () => { S.bills = S.bills.filter(x => x.id !== v); }); return false; },
   paybill: (v, mo) => { const b = S.bills.find(x => x.id === v), pm = S.billPaid[mo] = S.billPaid[mo] || {};
-    if (pm[v]) { S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; } else { const id = uid(), td = dkey(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount }); pm[v] = id; toast('Lançado como saída.'); if (S.settings.sync.key && S.settings.sheetOn !== false) planQueue({ action: 'auto', month: mo, type: 'out', bill: true, cat: b.cat || 'Moradia', desc: b.title, valor: num(b.amount) }); }
+    if (pm[v]) { const ot = S.tx.find(x => x.id === pm[v]); S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; if (ot && ot.sent && sheetOn()) planQueue({ action: 'auto', month: mo, type: 'out', bill: true, undo: true, cat: b.cat || 'Moradia', desc: b.title, valor: num(b.amount) }); } else { const id = uid(), td = dkey(), sent = sheetOn(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount, sent }); pm[v] = id; toast('Lançado como saída.'); if (sent) planQueue({ action: 'auto', month: mo, type: 'out', bill: true, cat: b.cat || 'Moradia', desc: b.title, valor: num(b.amount) }); }
     save(); },
   ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
   addtx: () => {
     const on = S.settings.sync.key && S.settings.sheetOn !== false;
     form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha', type: 'select', value: on ? 'auto' : 'none', options: [['auto', 'Enviar automático (soma na linha certa)'], ['none', 'Não enviar']] }] : [])], r => {
-      const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r }; S.tx.push(t);
-      if (sh === 'auto') planQueue({ action: 'auto', month: String(t.date).slice(0, 7), type: t.type, cat: t.cat, desc: t.desc || t.cat, valor: num(t.amount) });
+      const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r, sent: sh === 'auto' }; S.tx.push(t);
+      if (sh === 'auto') txSend(t);
     }); return false;
   },
-  edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
+  edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => { const o = { ...x }; Object.assign(x, r); if (o.sent && sheetOn() && (o.amount !== x.amount || o.desc !== x.desc || o.cat !== x.cat || o.date.slice(0, 7) !== x.date.slice(0, 7) || o.type !== x.type)) { txSend(o, true); txSend(x); } }, () => { S.tx = S.tx.filter(y => y.id !== v); if (x.sent && sheetOn()) txSend(x, true); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
   addgoal: () => { form('Nova meta', goalFields({}), r => S.goals.push({ id: uid(), ...goalClean(r) })); return false; },
   editgoal: v => { const g = S.goals.find(x => x.id === v); form('Editar meta', goalFields(g), r => Object.assign(g, goalClean(r)), () => { S.goals = S.goals.filter(x => x.id !== v); }); return false; },
@@ -935,7 +943,7 @@ const A = {
     }); return false;
   },
   goalpaid: v => { const g = S.goals.find(x => x.id === v), mo = dkey().slice(0, 7); if (!g) return false; const val = goalM(g, mo); S.goalPaid = S.goalPaid || {}; (S.goalPaid[mo] = S.goalPaid[mo] || {})[v] = true; g.saved = num(g.saved) + val; toast('Guardado. Boa!'); save(); if (S.settings.sync.key && S.settings.sheetOn !== false && val > 0) planQueue({ action: 'auto', month: mo, type: 'out', cat: 'Outros', desc: 'Guardar: ' + g.title, hint: 'RESERVA|GUARDAR', valor: val }); },
-  goaladd: v => { const g = S.goals.find(x => x.id === v); form('Guardar para ' + esc(g.title), [{ k: 'a', label: 'Quanto? (R$)', type: 'number' }], r => { g.saved = num(g.saved) + num(r.a); }); return false; },
+  goaladd: v => { const g = S.goals.find(x => x.id === v); form('Guardar para ' + esc(g.title), [{ k: 'a', label: 'Quanto? (R$)', type: 'number' }], r => { g.saved = num(g.saved) + num(r.a); if (num(r.a) > 0 && sheetOn()) planQueue({ action: 'auto', month: dkey().slice(0, 7), type: 'out', cat: 'Outros', desc: 'Guardar: ' + g.title, hint: 'RESERVA|GUARDAR', valor: num(r.a) }); }); return false; },
   mtab: v => { ui.mais = v; },
   wo: v => { ui.wo += +v; },
   addhab: () => { form('Nova missão', habFields({ when: 'm', days: ALL, pts: 1, hard: 0 }), r => S.habits.push(hfix({ id: uid(), ord: 50, ...r }))); return false; },

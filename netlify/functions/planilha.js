@@ -34,10 +34,10 @@ exports.handler = async event => {
     }
     if (body.action === 'auto') {
       if (!isFinite(v) || v <= 0) throw new Error('Valor inválido');
-      let msg;
-      if (body.type === 'in') { const it = pick(data.entradas, body.desc, '', CATIN[body.cat]); if (!it) throw new Error('Não achei a linha de entrada na planilha.'); await put('C' + it.row, Math.round((it.valor + v) * 100) / 100); msg = `Entrada ${v} em ${it.desc}`; }
-      else if (body.bill) { const it = pick(data.despesas, body.desc, body.hint, CATX[body.cat]); if (it) { if (!it.pago) await put('F' + it.row, it.desc + ' PAGO'); msg = `${it.desc} marcada como paga`; } else { const sl = slot(); await put('F' + sl.row, String(body.desc).slice(0, 80)); await put('G' + sl.row, v); msg = `${body.desc} lançada em linha nova`; } }
-      else { const it = pick(data.despesas, body.desc, body.hint, CATX[body.cat]); if (it) { await put('G' + it.row, Math.round((it.valor + v) * 100) / 100); msg = `${v} somado em ${it.desc}`; } else { const sl = slot(); await put('F' + sl.row, String(body.desc || body.cat || 'Gasto').slice(0, 80)); await put('G' + sl.row, v); msg = `${body.desc || body.cat}: ${v} em linha nova`; } }
+      let msg; const und = body.undo === true, dl = und ? -v : v, notFound = 'A linha mudou ou não existe mais. Ajuste direto na planilha.';
+      if (body.type === 'in') { const it = pick(data.entradas, body.desc, '', CATIN[body.cat]); if (!it) throw new Error(und ? notFound : 'Não achei a linha de entrada na planilha.'); await put('C' + it.row, Math.max(0, Math.round((it.valor + dl) * 100) / 100)); msg = `Entrada ${v} em ${it.desc}`; }
+      else if (body.bill) { const it = pick(data.despesas, body.desc, body.hint, CATX[body.cat]); if (und) { if (!it) throw new Error(notFound); if (it.pago) await put('F' + it.row, it.desc); msg = `${it.desc} desmarcada`; } else if (it) { if (!it.pago) await put('F' + it.row, it.desc + ' PAGO'); msg = `${it.desc} marcada como paga`; } else { const sl = slot(); await put('F' + sl.row, String(body.desc).slice(0, 80)); await put('G' + sl.row, v); msg = `${body.desc} lançada em linha nova`; } }
+      else { const it = pick(data.despesas, body.desc, body.hint, CATX[body.cat]); if (und && !it) throw new Error(notFound); if (it) { await put('G' + it.row, Math.max(0, Math.round((it.valor + dl) * 100) / 100)); msg = `${dl} somado em ${it.desc}`; } else { const sl = slot(); await put('F' + sl.row, String(body.desc || body.cat || 'Gasto').slice(0, 80)); await put('G' + sl.row, v); msg = `${body.desc || body.cat}: ${v} em linha nova`; } }
       return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, msg }) };
     }
     const find = () => { const it = data.despesas.find(x => x.row === body.row); if (!it || norm(it.desc) !== norm(body.desc)) throw new Error('A linha mudou na planilha. Atualize e tente de novo.'); return it; };
