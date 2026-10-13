@@ -423,6 +423,7 @@ function vPlano() {
   const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '' }, k = dkey(), sl = S.studyLog[k] || {};
   let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
   out += roadCard();
+  out += histCard();
   out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>
 <label>Tema do dia</label><input data-c="sth" value="${esc(st.theme)}" placeholder="Ex.: Front-end (Udemy)">
 <label>Trilha</label><select data-c="str">${['', ...S.tracks.map(t => t.name)].map(n => `<option ${n === st.track ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
@@ -1209,6 +1210,42 @@ function roadCard() {
   const pend = hoje.filter(x => x.status !== 'Concluído').length;
   return acc('road', 'Estudo do Roadmap', hoje.length ? `${hoje.length - pend}/${hoje.length} hoje` : (atr.length ? `${atr.length} p/ retomar` : ''), `${b}<div class="row"><button class="btn sm ghost" data-a="roadrefresh">${ic('reload')}Atualizar</button><button class="btn sm ghost" data-a="gotolearn">${ic('zap')}Aprender e foco</button></div><div class="mut">Feito marca como Concluído no Notion. Para adiar ou anotar, use o Sistema XP no Claude.</div>`, !!pend);
 }
+/* ---- Histórico: aulas feitas (Roadmap Concluído + log de inglês), só leitura ---- */
+const HIST_KEY = 'meudia_hist';
+const histArea = c => c === 'Inglês' ? 'Inglês' : ['Código', 'ADS', 'Arquitetura'].includes(c) ? 'Código' : ['UI Design', 'UX Research', 'Figma', 'Design System', 'Produto', 'Métricas', 'Psicologia', 'Agile', 'Projeto Portfolio'].includes(c) ? 'UX/UI' : 'Outros';
+function histLoad() { if (ui.hist) return ui.hist; try { ui.hist = JSON.parse(localStorage.getItem(HIST_KEY)) || {}; } catch (e) { ui.hist = {}; } return ui.hist; }
+async function histFetch(force) {
+  const sy = S.settings.sync, h = histLoad(); if (!sy.key || ui.histBusy) return;
+  if (!force && h.at && Date.now() - h.at < 15 * 60 * 1000) return;
+  ui.histBusy = true;
+  try {
+    const base = (sy.url || '/.netlify/functions/sync').replace(/sync$/, 'roadmap');
+    const r = await fetch(`${base}?hist=1&date=${dkey()}`, { headers: { 'x-app-key': sy.key } });
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json(); ui.hist = { at: Date.now(), done: j.done || [], english: j.english || [], enErr: j.englishErr || '', err: '' };
+    try { localStorage.setItem(HIST_KEY, JSON.stringify(ui.hist)); } catch (e) { }
+  } catch (e) { ui.hist = Object.assign(histLoad(), { err: String(e.message || e) }); }
+  ui.histBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
+}
+function histCard() {
+  const sy = S.settings.sync; if (!sy.key) return '';
+  const h = histLoad(); setTimeout(() => histFetch(false), 0);
+  const done = h.done || [], en = h.english || [];
+  const wk = dkey(addD(dkey(), -7)), by = {};
+  done.forEach(x => { const a = histArea(x.cat); (by[a] = by[a] || { n: 0, w: 0, xp: 0 }); by[a].n++; by[a].xp += x.xp || 0; if (x.date >= wk) by[a].w++; });
+  const xpT = done.reduce((s, x) => s + (x.xp || 0), 0), dd = d => d.split('-').reverse().slice(0, 2).join('/');
+  let b = '';
+  if (done.length) {
+    b += `<div class="grid3 sm">${['Inglês', 'UX/UI', 'Código'].map(a => `<div><b>${(by[a] || { w: 0 }).w}</b><span class="mut">${a} (7 dias)</span></div>`).join('')}</div>`;
+    b += `<div class="mut">Últimos 45 dias: ${done.length} concluídos · ${xpT} XP${by.Outros ? ' · ' + by.Outros.n + ' em outras áreas' : ''}</div>`;
+    b += `<div class="grp">Últimas aulas feitas</div>` + done.slice(0, 8).map(x => `<div class="road dn"><div class="rt"><a class="t" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a></div><span class="mut">${dd(x.date)} · ${esc([x.tipo, x.cat].filter(Boolean).join(' · '))}${x.xp ? ' · ' + x.xp + ' XP' : ''}</span></div>`).join('');
+  } else b += `<div class="mut">${h.err ? 'Não consegui ler agora (' + esc(h.err) + ').' : h.at ? 'Nada concluído nos últimos 45 dias no Roadmap.' : 'Carregando…'}</div>`;
+  if (en.length) b += `<div class="grp">Inglês por semana</div>` + en.slice(0, 4).map(x => `<div class="road"><div class="rt"><a class="t" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title || 'Semana ' + dd(x.date))}</a></div><span class="mut">${x.min ? x.min + ' min' : 'sem minutos'}${x.frentes.length ? ' · ' + esc(x.frentes.join(', ')) : ''}${x.aula ? ' · aula 1:1' : ''}${x.nivel ? ' · ' + esc(x.nivel) : ''}${x.sens ? ' · ' + esc(x.sens) : ''}</span></div>`).join('');
+  else if (h.enErr) b += `<div class="mut">Log de inglês: o Notion não deixou ler (${esc(h.enErr)}). No Notion, abra essa tabela, ••• Conexões, e adicione "Meu Dia".</div>`;
+  b += `<div class="row"><button class="btn sm ghost" data-a="histrefresh">${ic('reload')}Atualizar</button></div><div class="mut">Só leitura: o que você registra no Notion (ou pede ao Claude para registrar) aparece aqui.</div>`;
+  return acc('hist', 'Aulas feitas', done.length ? `${done.filter(x => x.date >= wk).length} nesta semana` : '', b, false);
+}
+Object.assign(A, { histrefresh: () => { histFetch(true); return false; } });
 async function roadSet(id, status) {
   const sy = S.settings.sync, rd = roadLoad(), it = (rd.items || []).find(x => x.id === id); if (!it || ui.roadBusy) return;
   ui.roadBusy = true;

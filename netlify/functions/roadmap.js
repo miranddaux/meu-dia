@@ -23,6 +23,34 @@ exports.handler = async event => {
     } catch (e) { return { statusCode: 500, body: String(e.message) }; }
   }
   const q = event.queryStringParameters || {};
+  if (q.hist) {
+    // Histórico só de leitura: tópicos Concluídos dos últimos 45 dias + log semanal de inglês (últimas 6 semanas).
+    const EN = (process.env.NOTION_ENGLISH_DB || 'bea412d856504064860176f5e5176058').replace(/-/g, '');
+    const hoje = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : new Date().toISOString().slice(0, 10);
+    const from = new Date(hoje + 'T12:00:00Z'); from.setUTCDate(from.getUTCDate() - 45);
+    const out = { ok: true, done: [], english: [], englishErr: '' };
+    try {
+      const r = await fetch(`${N}/databases/${DB}/query`, { method: 'POST', headers: H(NOTION_TOKEN), body: JSON.stringify({
+        filter: { and: [{ property: 'Status', select: { equals: 'Concluído' } }, { property: 'Data', date: { on_or_after: from.toISOString().slice(0, 10) } }] },
+        sorts: [{ property: 'Data', direction: 'descending' }], page_size: 100 }) });
+      const j = await r.json(); if (!r.ok) return { statusCode: 502, body: JSON.stringify(j) };
+      out.done = (j.results || []).map(p => { const g = p.properties || {}; return {
+        id: p.id, url: p.url, title: plain(g['Tópico'] && g['Tópico'].title), date: g.Data && g.Data.date ? g.Data.date.start.slice(0, 10) : '',
+        tipo: g.Tipo && g.Tipo.select ? g.Tipo.select.name : '', cat: g.Categoria && g.Categoria.select ? g.Categoria.select.name : '',
+        xp: g.XP && typeof g.XP.number === 'number' ? g.XP.number : 0 }; }).filter(x => x.title);
+    } catch (e) { return { statusCode: 500, body: String(e.message) }; }
+    try {
+      const r = await fetch(`${N}/databases/${EN}/query`, { method: 'POST', headers: H(NOTION_TOKEN), body: JSON.stringify({ sorts: [{ property: 'Início', direction: 'descending' }], page_size: 6 }) });
+      const j = await r.json();
+      if (!r.ok) out.englishErr = (j && j.code) || String(r.status);
+      else out.english = (j.results || []).map(p => { const g = p.properties || {}; return {
+        id: p.id, url: p.url, title: plain(g['Semana'] && g['Semana'].title), date: g['Início'] && g['Início'].date ? g['Início'].date.start.slice(0, 10) : '',
+        min: g['Minutos totais'] && typeof g['Minutos totais'].number === 'number' ? g['Minutos totais'].number : 0,
+        frentes: ((g.Frentes && g.Frentes.multi_select) || []).map(x => x.name), aula: !!(g['Aula 1:1'] && g['Aula 1:1'].checkbox),
+        nivel: g['Nível atual'] && g['Nível atual'].select ? g['Nível atual'].select.name : '', sens: g['Sensação'] && g['Sensação'].select ? g['Sensação'].select.name : '' }; });
+    } catch (e) { out.englishErr = String(e.message); }
+    return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify(out) };
+  }
   const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : new Date().toISOString().slice(0, 10);
   const lim = new Date(date + 'T12:00:00Z'); lim.setUTCDate(lim.getUTCDate() + 7);
   const until = lim.toISOString().slice(0, 10);
