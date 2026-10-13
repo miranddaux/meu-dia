@@ -205,3 +205,13 @@ input[type=date],input[type=time]{min-width:0;text-align:left}
 input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value{text-align:left;min-height:1.3em}
 .qa .amt input{height:72px!important;min-height:72px!important;font-size:36px!important;border:0!important;padding:0!important;width:auto!important;flex:1}
 .pri input[type=text]{flex:1;min-width:0;width:auto}
+
+/* Estados dos botões */
+.btn.done{background:var(--ok);color:#1f2a2e;box-shadow:none;cursor:default;pointer-events:none;border-color:var(--ink)}
+.btn.link{background:transparent;border-color:transparent;box-shadow:none;color:var(--ink);text-decoration:underline;text-underline-offset:3px;padding:0 8px;min-height:44px}
+.btn:disabled,.btn.dis,.btn[aria-disabled=true]{background:var(--soft);color:var(--mut);border-color:var(--mut);box-shadow:none;opacity:1;cursor:not-allowed;border-style:dashed}
+.btn.busy{pointer-events:none;background:var(--soft);color:var(--ink);box-shadow:none;opacity:.8}
+.btn.danger:disabled{color:var(--mut)}
+.qa .btn.dis{opacity:1}
+.btn:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.grid3 b{white-space:nowrap;font-size:clamp(14px,4.4vw,19px)}
