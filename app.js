@@ -25,10 +25,24 @@ let syncT = null;
 const KEY = 'meudia_v1';
 const VER = 4;
 let S;
-const goalEta = g => { const rest = Math.max(0, num(g.target) - num(g.saved)), m = num(g.monthly); if (!num(g.target)) return ''; if (rest <= 0) return 'meta batida'; if (m <= 0) return 'defina quanto guardar por mês'; const n = Math.ceil(rest / m), d = new Date(); d.setMonth(d.getMonth() + n); return `faltam ${brl(rest)} · ~${n} ${n > 1 ? 'meses' : 'mês'} (${pad(d.getMonth() + 1)}/${d.getFullYear()})`; };
-const goalFields = g => [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo (R$)', type: 'number', value: g.target }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: g.saved || 0 }, { k: 'monthly', label: 'Guardar por mês (R$)', type: 'number', value: g.monthly || '' }, { k: 'day', label: 'Dia do mês para guardar (1 a 28, de preferência o dia do pagamento)', type: 'number', value: g.day || '' }];
-const goalClean = r => { const o = { ...r }; o.day = Math.min(28, Math.max(0, Math.round(num(r.day)))) || ''; return o; };
-const goalDue = (g, k) => { const mo = k.slice(0, 7), d = num(g.day); return num(g.monthly) > 0 && d >= 1 && num(g.target) > num(g.saved) && +k.slice(8) >= d && !((S.goalPaid || {})[mo] || {})[g.id]; };
+const moNum = mo => +mo.slice(0, 4) * 12 + (+mo.slice(5, 7) - 1);
+const addMo = (mo, n) => { const t = moNum(mo) + n; return `${Math.floor(t / 12)}-${pad(t % 12 + 1)}`; };
+const planCfg = () => Object.assign({ start: 150, add: 50, every: 3, since: dkey().slice(0, 7) }, S.settings.plan || {});
+const planTotal = mo => { const c = planCfg(); return num(c.start) + num(c.add) * Math.floor(Math.max(0, moNum(mo) - moNum(c.since)) / Math.max(1, Math.round(num(c.every)) || 3)); };
+const activeGoals = () => S.goals.filter(g => num(g.target) > num(g.saved));
+const gW = g => num(g.w) || 1;
+const goalShare = g => { const ag = activeGoals(); return ag.includes(g) ? gW(g) / ag.reduce((a, x) => a + gW(x), 0) : 0; };
+const goalM = (g, mo) => Math.round(planTotal(mo) * goalShare(g));
+const goalEta = g => {
+  const rest = Math.max(0, num(g.target) - num(g.saved)); if (!num(g.target)) return ''; if (rest <= 0) return 'meta batida';
+  const mo0 = dkey().slice(0, 7); let acc = 0, n = 0; while (acc < rest && n < 240) { acc += goalM(g, addMo(mo0, n)); n++; }
+  if (acc < rest) return `faltam ${brl(rest)} · defina um valor maior por mês`;
+  const f = addMo(mo0, n - 1); return `faltam ${brl(rest)} · ~${n} ${n > 1 ? 'meses' : 'mês'} (${f.slice(5)}/${f.slice(0, 4)})`;
+};
+const goalFields = g => [{ k: 'title', label: 'Meta', value: g.title }, { k: 'target', label: 'Valor alvo (R$)', type: 'number', value: g.target }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: g.saved || 0 }, { k: 'w', label: 'Prioridade (quem recebe mais do valor guardado)', type: 'select', value: String(g.w || 1), options: [['1', 'Normal'], ['2', 'Alta'], ['3', 'Máxima']] }, { k: 'day', label: 'Dia do mês para guardar (1 a 28, de preferência o dia do pagamento)', type: 'number', value: g.day || '' }];
+const goalClean = r => { const o = { ...r }; o.day = Math.min(28, Math.max(0, Math.round(num(r.day)))) || ''; o.w = num(r.w) || 1; return o; };
+const goalDue = (g, k) => { const mo = k.slice(0, 7), d = num(g.day); return goalShare(g) > 0 && d >= 1 && +k.slice(8) >= d && !((S.goalPaid || {})[mo] || {})[g.id]; };
+const rendaVal = () => { const c = (typeof planCache === 'function') ? planCache(dkey().slice(0, 7)) : null, e = c && c.entradas ? c.entradas.filter(x => /SAL[ÁA]RIO/i.test(x.desc)).reduce((a, x) => a + x.valor, 0) : 0; return e || num(S.settings.renda) || 4000; };
 const PLAN_KEY = 'meudia_plan';
 const pdays = () => (S.planDays = S.planDays || {});
 const pkey = d => String(d).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
@@ -340,7 +354,7 @@ function petCard(k) {
   return `<div class="card">${sec('heart', 'Cuidados dos cachorros', `<button class="btn sm ghost" data-a="addpet">${ic('plus')}Item</button>`)}${S.pet.map(p => { const nx = petNext(p), left = nx ? dayDiff(k, nx) : null, due = left === null || left <= 0; return `<div class="item"><div class="t" data-a="editpet" data-v="${p.id}" role="button" tabindex="0">${esc(p.title)}<div class="mut">A cada ${p.every} dias · ${p.last ? 'último ' + sd2(p.last) : 'sem registro'}${left === null ? '' : left > 0 ? ' · faltam ' + left + ' dia' + (left > 1 ? 's' : '') : left === 0 ? ' · é hoje' : ' · atrasado ' + (-left) + ' dia' + (left < -1 ? 's' : '')}</div></div><button class="btn sm ${due ? '' : 'ghost'}" data-a="petdone" data-v="${p.id}">${ic('check')}Fiz hoje</button></div>`; }).join('')}</div>`;
 }
 const acc = (key, title, right, body, def) => `<details class="card" data-w="${key}" ${(ui.open[key] !== undefined ? ui.open[key] : def) ? 'open' : ''}><summary><span class="px">${title}</span><span class="mut">${right || ''}</span></summary>${body}</details>`;
-function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}, S.goals.map(g => [g.title, g.monthly, g.day])]); }
+function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}, S.goals.map(g => [g.title, g.day])]); }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -360,7 +374,7 @@ function vHoje() {
   out += `<div class="card slim"><div class="row sp"><div class="grow">${cur ? `<div class="mut">Agora · ${cur.s}–${cur.e}</div><b>${esc(bt(cur, dow))}</b>` : `<div class="mut">Agora</div><b>Nenhum bloco neste horário</b>`}${nxt ? `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>` : ''}</div><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div></div>`;
   if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
   const ba = billAlerts(); if (ba.length) out += `<div class="banner">${ic('wallet')}<span>Porkinho: ${ba.map(esc).join(' · ')}. <a href="#" data-a="loja_pork">Abrir</a></span></div>`;
-  S.goals.filter(g => goalDue(g, k)).forEach(g => { out += `<div class="banner">${ic('flag')}<span>Dia de guardar ${brl(num(g.monthly))} para ${esc(g.title)}.</span><button class="btn sm" data-a="goalpaid" data-v="${g.id}">Guardei</button></div>`; });
+  S.goals.filter(g => goalDue(g, k)).forEach(g => { out += `<div class="banner">${ic('flag')}<span>Dia de guardar ${brl(goalM(g, k.slice(0, 7)))} para ${esc(g.title)}.</span><button class="btn sm" data-a="goalpaid" data-v="${g.id}">Guardei</button></div>`; });
   const sig = icsSig();
   if (S.settings.icsHash !== sig && S.settings.icsSkip !== k) out += `<div class="banner">${ic('clock')}<span>${S.settings.icsHash ? 'Seus lembretes mudaram.' : 'Ative os avisos no iPhone (missões, contas e cachorros).'}</span><span class="row"><button class="btn sm" data-a="ics">${S.settings.icsHash ? 'Atualizar' : 'Ativar'}</button><button class="btn sm ghost" data-a="icsskip">Depois</button></span></div>`;
   /* 3) Missões em accordion */
@@ -648,11 +662,10 @@ function billAlerts() {
   return out;
 }
 function planoCard() {
-  const renda = num(S.settings.renda), pct = num(S.settings.pctGuardar) || 10, tot = S.goals.reduce((a, g) => a + num(g.monthly), 0), alvo = Math.round(renda * pct / 100);
-  let b;
-  if (!renda) b = `<div class="mut">Diga sua renda líquida e quanto quer guardar. O app divide entre as metas, mostra em quantos meses cada uma fica pronta e avisa no dia de guardar.</div>`;
-  else b = `<div class="grid3 sm"><div><b>${brl(renda)}</b><small>renda líquida</small></div><div><b>${brl(alvo)}</b><small>guardar (${pct}%)</small></div><div><b class="${tot > alvo ? 'warnc' : 'ok'}">${brl(tot)}</b><small>nas metas</small></div></div>${tot > alvo ? `<div class="mut">As metas pedem ${brl(tot - alvo)} a mais do que o plano. Reduza uma delas ou aumente a porcentagem.</div>` : tot < alvo ? `<div class="mut">Ainda dá para colocar ${brl(alvo - tot)} por mês em alguma meta.</div>` : ''}<div class="mut">Regra simples: no dia do pagamento, guarde primeiro, depois gaste o resto. Deixe o depósito automático no app do banco e use o Meu Dia só para conferir.</div>`;
-  return `<div class="card">${sec('trending-up', 'Plano de guardar', `<button class="btn sm ghost" data-a="plano">${ic('sliders')}${renda ? 'Ajustar' : 'Montar plano'}</button>`)}${b}</div>`;
+  const renda = rendaVal(), c = planCfg(), mo = dkey().slice(0, 7), tot = planTotal(mo), ev = Math.max(1, Math.round(num(c.every)) || 3);
+  const nxt = addMo(c.since, (Math.floor(Math.max(0, moNum(mo) - moNum(c.since)) / ev) + 1) * ev);
+  const b = `<div class="grid3 sm"><div><b>${brl(renda)}</b><small>renda (planilha)</small></div><div><b>${brl(tot)}</b><small>guardar por mês</small></div><div><b>${Math.round(tot / renda * 100)}%</b><small>da renda</small></div></div><div class="mut">Começa pouco e sobe ${brl(num(c.add))} a cada ${ev} meses. Próximo aumento: ${nxt.slice(5)}/${nxt.slice(0, 4)} (${brl(planTotal(nxt))}/mês).</div><div class="mut">Regra simples: no dia do pagamento, guarde primeiro, depois gaste o resto. Deixe o depósito automático no app do banco e use o Meu Dia só para conferir.</div>`;
+  return `<div class="card">${sec('trending-up', 'Plano de guardar', `<button class="btn sm ghost" data-a="plano">${ic('sliders')}Ajustar</button>`)}${b}</div>`;
 }
 function vGrana() {
   const mo = ui.mo, [y, m] = mo.split('-').map(Number), st = monthStats(mo);
@@ -667,7 +680,7 @@ function vGrana() {
   out += `<div class="card"><h3 class="px">Gastos por categoria</h3>${cats.map(([c, v]) => { const lim = num(S.budgets[c]); const w = lim ? Math.min(100, v / lim * 100) : (st.out ? v / st.out * 100 : 0); return `<div><div class="row sp"><span>${esc(c)}</span><span class="mut">${brl(v)}${lim ? ' / ' + brl(lim) : ''}</span></div><div class="bar ${lim && v > lim ? 'over' : ''}"><i style="width:${w}%"></i></div></div>`; }).join('') || '<div class="mut">Sem gastos ainda.</div>'}<button class="btn sm ghost" data-a="budget">Definir limite por categoria</button></div>`;
   out += `<div class="card"><h3 class="px">Lançamentos</h3>${[...st.t].sort((a, c) => c.date.localeCompare(a.date)).map(x => `<div class="item" data-a="edittx" data-v="${x.id}" role="button" tabindex="0"><div class="t">${esc(x.desc || x.cat)}<div class="mut">${sd2(x.date)} · ${esc(x.cat)}</div></div><b class="${x.type === 'in' ? 'ok' : 'warnc'}">${x.type === 'in' ? '+' : '−'}${brl(num(x.amount))}</b></div>`).join('') || '<div class="mut">Nada lançado neste mês.</div>'}</div>`;
   out += planoCard();
-  out += `<div class="card">${sec('flag', 'Metas', `<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`)}${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="mut">${num(g.monthly) ? brl(num(g.monthly)) + '/mês' + (g.day ? ', dia ' + g.day : '') + ' · ' : ''}${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Toque em Montar plano para criar a sua primeira meta (reserva de emergência).</div>'}</div>`;
+  out += `<div class="card">${sec('flag', 'Metas', `<button class="btn sm ghost" data-a="addgoal">${ic('plus')}Meta</button>`)}${S.goals.map(g => { const p = num(g.target) ? Math.min(100, num(g.saved) / num(g.target) * 100) : 0; return `<div><div class="row sp"><b>${esc(g.title)}</b><span class="mut">${brl(num(g.saved))} / ${brl(num(g.target))}</span></div><div class="bar"><i style="width:${p}%"></i></div><div class="mut">${goalShare(g) ? brl(goalM(g, dkey().slice(0, 7))) + '/mês' + (g.day ? ', dia ' + g.day : '') + ' · ' : ''}${goalEta(g)}</div><div class="row"><button class="btn sm" data-a="goaladd" data-v="${g.id}">+ guardar</button>${ib('edit', 'Editar meta', 'editgoal', g.id)}</div></div>`; }).join('') || '<div class="mut">Toque em Ajustar no Plano de guardar para criar a reserva, o PS5 e o celular.</div>'}</div>`;
   return out;
 }
 
@@ -876,36 +889,30 @@ const A = {
   addbill: () => { form('Nova conta fixa', billFields({ day: 5, cat: 'Moradia' }), r => S.bills.push({ id: uid(), ...r })); return false; },
   editbill: v => { const b = S.bills.find(x => x.id === v); form('Editar conta', billFields(b), r => Object.assign(b, r), () => { S.bills = S.bills.filter(x => x.id !== v); }); return false; },
   paybill: (v, mo) => { const b = S.bills.find(x => x.id === v), pm = S.billPaid[mo] = S.billPaid[mo] || {};
-    if (pm[v]) { S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; } else { const id = uid(), td = dkey(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount }); pm[v] = id; toast('Lançado como saída.'); }
+    if (pm[v]) { S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; } else { const id = uid(), td = dkey(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount }); pm[v] = id; toast('Lançado como saída.'); if (S.settings.sync.key && S.settings.sheetOn !== false) planQueue({ action: 'auto', month: mo, type: 'out', bill: true, cat: b.cat || 'Moradia', desc: b.title, valor: num(b.amount) }); }
     save(); },
   ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
   addtx: () => {
-    const pl = ui.plan && ui.plan.mo === ui.mo && !ui.plan.err ? ui.plan : null, on = S.settings.sync.key && S.settings.sheetOn !== false;
-    const opts = [['none', 'Não enviar'], ['nova', 'Saída: linha nova na planilha'], ...(pl ? pl.despesas.filter(x => !x.livre).map(x => ['r' + x.row + '|' + x.desc, 'Saída: somar em ' + x.desc]) : []), ...(pl ? pl.entradas.map(x => ['e' + x.row + '|' + x.desc, 'Entrada: somar em ' + x.desc]) : [])];
-    form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha (escolha a linha que combina com o tipo)', type: 'select', value: on ? 'nova' : 'none', options: opts }] : [])], r => {
+    const on = S.settings.sync.key && S.settings.sheetOn !== false;
+    form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha', type: 'select', value: on ? 'auto' : 'none', options: [['auto', 'Enviar automático (soma na linha certa)'], ['none', 'Não enviar']] }] : [])], r => {
       const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r }; S.tx.push(t);
-      if (!sh || sh === 'none') return;
-      const mo = String(t.date).slice(0, 7), v = num(t.amount), kind = sh[0], bar = sh.indexOf('|'), row = +sh.slice(1, bar), desc = sh.slice(bar + 1);
-      if (t.type === 'out' && sh === 'nova') planQueue({ action: 'nova', month: mo, desc: t.desc || t.cat, valor: v });
-      else if (t.type === 'out' && kind === 'r') planQueue({ action: 'soma', month: mo, row, desc, valor: v });
-      else if (t.type === 'in' && kind === 'e') planQueue({ action: 'entrada', month: mo, row, desc, valor: v });
-      else setTimeout(() => toast('Não enviei para a planilha: o tipo não combina com a linha escolhida.'), 300);
+      if (sh === 'auto') planQueue({ action: 'auto', month: String(t.date).slice(0, 7), type: t.type, cat: t.cat, desc: t.desc || t.cat, valor: num(t.amount) });
     }); return false;
   },
-
   edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
   addgoal: () => { form('Nova meta', goalFields({}), r => S.goals.push({ id: uid(), ...goalClean(r) })); return false; },
   editgoal: v => { const g = S.goals.find(x => x.id === v); form('Editar meta', goalFields(g), r => Object.assign(g, goalClean(r)), () => { S.goals = S.goals.filter(x => x.id !== v); }); return false; },
   plano: () => {
-    const pl = ui.plan && !ui.plan.err ? ui.plan : null, ess = pl ? pl.despesas.filter(x => /^ESSENC/i.test(x.grupo) && !/RESERVA|GUARDAR/i.test(x.desc)).reduce((a, x) => a + x.valor, 0) : 0, sal = pl ? pl.entradas.reduce((a, x) => a + x.valor, 0) : 0;
-    const renda0 = num(S.settings.renda) || sal || '';
-    form('Plano de guardar', [{ k: 'renda', label: 'Renda líquida por mês (R$)', type: 'number', value: renda0 }, { k: 'pct', label: 'Quanto guardar por mês (% da renda). Comece com 10', type: 'number', value: num(S.settings.pctGuardar) || 10 }, ...(S.goals.length ? [] : [{ k: 'reserva', label: `Criar a meta Reserva de emergência (R$). Sugestão: 6 meses de gastos essenciais${ess ? ' = ' + brl(ess * 6) : ''}`, type: 'number', value: ess ? Math.round(ess * 6) : '' }])], r => {
-      S.settings.renda = String(num(r.renda)); S.settings.pctGuardar = String(num(r.pct) || 10);
-      if (r.reserva && num(r.reserva) > 0 && !S.goals.length) S.goals.push({ id: uid(), title: 'Reserva de emergência', target: num(r.reserva), saved: 0, monthly: Math.round(num(r.renda) * (num(r.pct) || 10) / 100), day: 5 });
+    const c = planCfg(), first = !S.goals.length;
+    form('Plano de guardar', [{ k: 'renda', label: 'Renda líquida por mês (R$). Se a planilha tem a linha SALÁRIO, ela manda', type: 'number', value: rendaVal() }, { k: 'start', label: 'Começar guardando por mês (R$)', type: 'number', value: c.start }, { k: 'add', label: 'Subir quanto (R$)', type: 'number', value: c.add }, { k: 'every', label: 'A cada quantos meses', type: 'number', value: c.every },
+      ...(first ? [{ k: 'reserva', label: 'Criar meta Reserva de emergência (R$ alvo). Sugestão: 6 meses de gastos essenciais', type: 'number', value: '' }, { k: 'ps5', label: 'Criar meta PS5 (R$ alvo, deixe vazio se não quiser)', type: 'number', value: '' }, { k: 'cel', label: 'Criar meta Celular (R$ alvo, deixe vazio se não quiser)', type: 'number', value: '' }] : [])], r => {
+      S.settings.renda = String(num(r.renda) || 4000);
+      S.settings.plan = { start: num(r.start) || 0, add: num(r.add) || 0, every: Math.max(1, Math.round(num(r.every)) || 3), since: (S.settings.plan && S.settings.plan.since) || dkey().slice(0, 7) };
+      if (first) [['Reserva de emergência', r.reserva, 3], ['PS5', r.ps5, 1], ['Celular', r.cel, 1]].forEach(([t, v, w]) => { if (num(v) > 0) S.goals.push({ id: uid(), title: t, target: num(v), saved: 0, w, day: 5 }); });
     }); return false;
   },
-  goalpaid: v => { const g = S.goals.find(x => x.id === v), mo = dkey().slice(0, 7); if (!g) return false; S.goalPaid = S.goalPaid || {}; (S.goalPaid[mo] = S.goalPaid[mo] || {})[v] = true; g.saved = num(g.saved) + num(g.monthly); toast('Guardado. Boa!'); save(); },
+  goalpaid: v => { const g = S.goals.find(x => x.id === v), mo = dkey().slice(0, 7); if (!g) return false; const val = goalM(g, mo); S.goalPaid = S.goalPaid || {}; (S.goalPaid[mo] = S.goalPaid[mo] || {})[v] = true; g.saved = num(g.saved) + val; toast('Guardado. Boa!'); save(); if (S.settings.sync.key && S.settings.sheetOn !== false && val > 0) planQueue({ action: 'auto', month: mo, type: 'out', cat: 'Outros', desc: 'Guardar: ' + g.title, hint: 'RESERVA|GUARDAR', valor: val }); },
   goaladd: v => { const g = S.goals.find(x => x.id === v); form('Guardar para ' + esc(g.title), [{ k: 'a', label: 'Quanto? (R$)', type: 'number' }], r => { g.saved = num(g.saved) + num(r.a); }); return false; },
   mtab: v => { ui.mais = v; },
   wo: v => { ui.wo += +v; },
@@ -1136,7 +1143,7 @@ function downloadIcs(w) {
   (S.pet || []).forEach(p => { const nx = petNext(p) || dkey(now), d0 = new Date((nx < dkey(now) ? dkey(now) : nx) + 'T12:00'); add(p.title, d0, '09:00', `FREQ=DAILY;INTERVAL=${+p.every || 15}`, ['-PT12H', 'PT0S'], 30); });
   S.bills.forEach(b => { const dd = Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${b.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
   Object.values(pdays()).forEach(p => { const dd = p.day, d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${p.t}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
-  S.goals.filter(g => num(g.monthly) > 0 && num(g.day) >= 1).forEach(g => { const dd = num(g.day), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Guardar ${brl(num(g.monthly))}: ${g.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['PT0S'], 15); });
+  S.goals.filter(g => num(g.day) >= 1).forEach(g => { const dd = num(g.day), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Guardar para: ${g.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['PT0S'], 15); });
   { const d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > 20 ? 1 : 0), 20); add('DAS do MEI vence hoje (dia 20)', d0, '09:00', 'FREQ=MONTHLY;BYMONTHDAY=20', ['-P3D', 'PT0S'], 15);
     const y0 = new Date(now.getFullYear() + (now.getMonth() > 4 ? 1 : 0), 4, 15); add('Declaração anual do MEI (DASN-SIMEI) vence 31/05', y0, '09:00', 'FREQ=YEARLY;BYMONTH=5;BYMONTHDAY=15', ['-P7D', 'PT0S'], 15); }
   const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meu Dia//PT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
