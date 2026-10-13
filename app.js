@@ -25,6 +25,9 @@ let syncT = null;
 const KEY = 'meudia_v1';
 const VER = 4;
 let S;
+const PLAN_KEY = 'meudia_plan';
+const pdays = () => (S.planDays = S.planDays || {});
+const pkey = d => String(d).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
 const ui = { tab: 'hoje', hv: 'hoje', open: {}, mais: 'prog', corpo: 'treino', wo: 0, sd: null, mo: dkey().slice(0, 7), md: dkey(), flash: '', dt: 'detox', ju: 'nay', ix: 0, tm: null, es: 'plano', sub: 'mt', ls: null };
 
 function b(s, e, t, type, x) { return Object.assign({ id: uid(), s, e, t, type }, x || {}); }
@@ -333,7 +336,7 @@ function petCard(k) {
   return `<div class="card">${sec('heart', 'Cuidados dos cachorros', `<button class="btn sm ghost" data-a="addpet">${ic('plus')}Item</button>`)}${S.pet.map(p => { const nx = petNext(p), left = nx ? dayDiff(k, nx) : null, due = left === null || left <= 0; return `<div class="item"><div class="t" data-a="editpet" data-v="${p.id}" role="button" tabindex="0">${esc(p.title)}<div class="mut">A cada ${p.every} dias · ${p.last ? 'último ' + sd2(p.last) : 'sem registro'}${left === null ? '' : left > 0 ? ' · faltam ' + left + ' dia' + (left > 1 ? 's' : '') : left === 0 ? ' · é hoje' : ' · atrasado ' + (-left) + ' dia' + (left < -1 ? 's' : '')}</div></div><button class="btn sm ${due ? '' : 'ghost'}" data-a="petdone" data-v="${p.id}">${ic('check')}Fiz hoje</button></div>`; }).join('')}</div>`;
 }
 const acc = (key, title, right, body, def) => `<details class="card" data-w="${key}" ${(ui.open[key] !== undefined ? ui.open[key] : def) ? 'open' : ''}><summary><span class="px">${title}</span><span class="mut">${right || ''}</span></summary>${body}</details>`;
-function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount])]); }
+function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}]); }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -634,6 +637,7 @@ const billFields = b => [{ k: 'title', label: 'Nome', value: b.title }, { k: 'am
 function billAlerts() {
   const k = dkey(), mo = k.slice(0, 7), paid = S.billPaid[mo] || {}, out = [];
   S.bills.forEach(b => { if (paid[b.id]) return; const d = billDue(b, mo), diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); if (diff < 0) out.push(`${b.title} venceu dia ${d.slice(8)}`); else if (diff <= 3) out.push(`${b.title} vence ${diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias'}`); });
+  Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas; const row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const d = billDue({ day: p.day }, mo), diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); if (diff < 0) out.push(`${p.t} venceu dia ${d.slice(8)}`); else if (diff <= 3) out.push(`${p.t} vence ${diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias'}`); });
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) out.push('Faz uns dias sem lançar no Porkinho');
   return out;
@@ -1106,6 +1110,7 @@ function downloadIcs(w) {
   add('Revisar Porkinho: limites e metas', new Date(now.getFullYear(), now.getMonth() + 1, 1), '09:00', 'FREQ=MONTHLY;BYMONTHDAY=1', 'PT0S', 15);
   (S.pet || []).forEach(p => { const nx = petNext(p) || dkey(now), d0 = new Date((nx < dkey(now) ? dkey(now) : nx) + 'T12:00'); add(p.title, d0, '09:00', `FREQ=DAILY;INTERVAL=${+p.every || 15}`, ['-PT12H', 'PT0S'], 30); });
   S.bills.forEach(b => { const dd = Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${b.title}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
+  Object.values(pdays()).forEach(p => { const dd = p.day, d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${p.t}`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, ['-P3D', '-P1D', 'PT0S'], 15); });
   const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meu Dia//PT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/calendar' })); a.download = 'meu-dia-lembretes.ics'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   S.settings.icsHash = icsSig(); save();
@@ -1215,7 +1220,6 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && !d
 
 /* ---- Planilha financeira (Google Sheets, via função do Netlify) ---- */
 const planUrl = () => ((S.settings.sync.url || '/.netlify/functions/sync').replace(/sync$/, 'planilha'));
-const PLAN_KEY = 'meudia_plan';
 function planCache(mo) { try { const c = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); return c && c.mo === mo ? c : null; } catch (e) { return null; } }
 async function planLoad(mo, quiet) {
   const sy = S.settings.sync; if (!sy.key || ui.planBusy) return;
@@ -1259,11 +1263,12 @@ function planCard(mo) {
     const L2 = p.despesas.filter(x => !x.livre || x.valor > 0), pg = L2.filter(x => x.pago).reduce((a, x) => a + x.valor, 0), tt = L2.reduce((a, x) => a + x.valor, 0);
     b = `<div class="mut">${esc(p.tab)}${(S.sheetQ || []).length ? ' · ' + S.sheetQ.length + ' envio(s) pendente(s)' : ''} · pago ${brl(pg)} de ${brl(tt)}${typeof p.sobra === 'number' ? ' · sobra prevista ' + brl(p.sobra) : ''}</div><div class="bar"><i style="width:${tt ? Math.min(100, pg / tt * 100) : 0}%"></i></div>`;
     let g = '';
-    b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><button class="btn sm ${x.pago ? 'ghost' : ''}" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${x.pago ? 'Desfazer' : ic('check') + 'Paguei'}</button></div>`; }).join('');
+    b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><div class="row"><button class="btn sm ghost" data-a="plandia" data-v="${esc(x.desc)}" aria-label="Dia do vencimento de ${esc(x.desc)}">${pdays()[pkey(x.desc)] ? 'Dia ' + pdays()[pkey(x.desc)].day : '+ dia'}</button><button class="btn sm ${x.pago ? 'ghost' : ''}" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${x.pago ? 'Desfazer' : ic('check') + 'Paguei'}</button></div></div>`; }).join('');
   }
   return `<div class="card">${head}${b}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn !== false ? 'checked' : ''}><span>Sugerir envio de novos gastos para a planilha</span></label></div>`;
 }
 Object.assign(A, {
+  plandia: v => { const k = pkey(v), c = pdays()[k]; form('Dia do vencimento', [{ k: 'day', label: `${v}: dia do mês (1 a 28). Deixe vazio para tirar o aviso.`, type: 'number', value: c ? c.day : '' }], r => { const d = Math.round(num(r.day)); if (d >= 1 && d <= 28) pdays()[k] = { t: v, day: d }; else delete pdays()[k]; }); return false; },
   planload: v => { planLoad(v); return false; },
   planpago: async (v, d) => { const p = ui.plan, it = p && p.despesas.find(x => x.row === +v); if (!it) return false; const np = !it.pago; it.pago = np; render(); const ok = await planPost({ action: 'pago', month: ui.mo, row: +v, desc: d, paid: np }); if (!ok) it.pago = !np; planLoad(ui.mo, true); return false; }
 });
