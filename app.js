@@ -139,7 +139,7 @@ function defaults() {
     session: null, foods: FOODS(), water: {},
     challenges: [mkCh('Sem LoL'), mkCh('Sem TikTok')],
     ideas: { done: [], mine: [] },
-    spent: [], tx: [], budgets: {}, goals: [], reviews: {}
+    spent: [], tx: [], budgets: {}, goals: [], reviews: {}, bills: [], billPaid: {}
   };
 }
 function load() {
@@ -336,6 +336,7 @@ function vHoje() {
   if (nxt) out += `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>`;
   out += `</div>`;
   if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
+  const ba = billAlerts(); if (ba.length) out += `<div class="banner">${ic('wallet')}<span>Porkinho: ${ba.map(esc).join(' · ')}. <a href="#" data-a="loja_pork">Abrir</a></span></div>`;
   out += waterCard(k);
   ['m', 't', 'n'].forEach(w => {
     let items = habs.filter(h => h.when === w).map(h => ({ o: h.ord ?? 50, h }));
@@ -608,6 +609,20 @@ function porkSays(st) {
   if (top) msgs.push(`Maior gasto: ${top[0]} (${brl(top[1])}).`);
   return msgs.join(' ');
 }
+const billDue = (b, mo) => `${mo}-${pad(Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)))}`;
+function billsCard(mo) {
+  const paid = S.billPaid[mo] || {}, tot = S.bills.reduce((a, b) => a + num(b.amount), 0), pg = S.bills.filter(b => paid[b.id]).reduce((a, b) => a + num(b.amount), 0), today = dkey();
+  const rows = [...S.bills].sort((a, c) => num(a.day) - num(c.day)).map(b => { const d = billDue(b, mo), ok = !!paid[b.id], late = !ok && d < today; return `<div class="item"><div class="t">${esc(b.title)}<div class="mut">Dia ${Math.min(28, num(b.day) || 1)} · ${brl(num(b.amount))}${late ? ' · venceu' : ''}${ok ? ' · pago' : ''}</div></div><div class="row"><button class="btn sm ${ok ? 'ghost' : ''}" data-a="paybill" data-v="${b.id}" data-w="${mo}">${ok ? 'Desfazer' : ic('check') + 'Paguei'}</button>${ib('edit', 'Editar conta', 'editbill', b.id)}</div></div>`; }).join('');
+  return `<div class="card">${sec('calendar', 'Contas fixas', `<button class="btn sm ghost" data-a="addbill">${ic('plus')}Conta</button>`)}${S.bills.length ? `<div class="mut">Pago ${brl(pg)} de ${brl(tot)} neste mês.</div><div class="bar"><i style="width:${tot ? Math.min(100, pg / tot * 100) : 0}%"></i></div>` : '<div class="mut">Cadastre aluguel, internet, cartão e assinaturas. O app lembra perto do vencimento e, ao tocar Paguei, já lança a saída.</div>'}${rows}</div>`;
+}
+const billFields = b => [{ k: 'title', label: 'Nome', value: b.title }, { k: 'amount', label: 'Valor (R$)', type: 'number', value: b.amount }, { k: 'day', label: 'Dia do vencimento (1 a 28)', type: 'number', value: b.day }, { k: 'cat', label: 'Categoria', type: 'select', value: b.cat || 'Moradia', options: CATS }];
+function billAlerts() {
+  const k = dkey(), mo = k.slice(0, 7), paid = S.billPaid[mo] || {}, out = [];
+  S.bills.forEach(b => { if (paid[b.id]) return; const d = billDue(b, mo), diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); if (diff < 0) out.push(`${b.title} venceu dia ${d.slice(8)}`); else if (diff <= 3) out.push(`${b.title} vence ${diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias'}`); });
+  const last = S.tx.map(x => x.date).sort().pop();
+  if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) out.push('Faz uns dias sem lançar no Porkinho');
+  return out;
+}
 function vGrana() {
   const mo = ui.mo, [y, m] = mo.split('-').map(Number), st = monthStats(mo);
   const nm = new Date(y, m - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -615,6 +630,7 @@ function vGrana() {
   out += `<div class="card">${sec('wallet', 'Porkinho')}<div class="mut">${esc(porkSays(st))}</div><div class="mut">Esta versão usa regras simples. Dá para conectar uma IA depois.</div></div>`;
   out += `<div class="grid3"><div><b class="ok">${brl(st.inn)}</b><small>entradas</small></div><div><b class="warnc">${brl(st.out)}</b><small>saídas</small></div><div><b>${brl(st.inn - st.out)}</b><small>saldo</small></div></div>`;
   out += `<button class="btn full pri" data-a="addtx">${ic('plus')}Lançar</button>`;
+  out += billsCard(mo);
   const cats = Object.entries(st.by).sort((a, c) => c[1] - a[1]);
   out += `<div class="card"><h3 class="px">Gastos por categoria</h3>${cats.map(([c, v]) => { const lim = num(S.budgets[c]); const w = lim ? Math.min(100, v / lim * 100) : (st.out ? v / st.out * 100 : 0); return `<div><div class="row sp"><span>${esc(c)}</span><span class="mut">${brl(v)}${lim ? ' / ' + brl(lim) : ''}</span></div><div class="bar ${lim && v > lim ? 'over' : ''}"><i style="width:${w}%"></i></div></div>`; }).join('') || '<div class="mut">Sem gastos ainda.</div>'}<button class="btn sm ghost" data-a="budget">Definir limite por categoria</button></div>`;
   out += `<div class="card"><h3 class="px">Lançamentos</h3>${[...st.t].sort((a, c) => c.date.localeCompare(a.date)).map(x => `<div class="item" data-a="edittx" data-v="${x.id}" role="button" tabindex="0"><div class="t">${esc(x.desc || x.cat)}<div class="mut">${sd2(x.date)} · ${esc(x.cat)}</div></div><b class="${x.type === 'in' ? 'ok' : 'warnc'}">${x.type === 'in' ? '+' : '−'}${brl(num(x.amount))}</b></div>`).join('') || '<div class="mut">Nada lançado neste mês.</div>'}</div>`;
@@ -713,6 +729,7 @@ function vCfg() {
   return `<div class="card">${sec('clock', 'Rotina')}<div class="row sp"><span>Modo faculdade (aulas seg a sex, 19h–22h)</span><button class="chip ${s.college ? 'on' : ''}" data-a="college" aria-pressed="${!!s.college}">${s.college ? 'Ligado' : 'Desligado'}</button></div><div class="mut">Liga a agenda de dias de aula: treino mais curto, jantar rápido e sono até 22h45. O estudo das 06h às 07h continua. Seus blocos antigos de seg a sex são trocados (sábado e domingo não mudam).</div><button class="btn ghost full" data-a="newroutine">Aplicar minha rotina nova (06h–07h, treino 17h30)</button></div>
 <div class="card">${sec('coin', 'Moedas')}<div class="row sp"><span>Moedas e Loja</span><button class="chip ${s.gamify ? 'on' : ''}" data-a="gam" aria-pressed="${!!s.gamify}">${s.gamify ? 'Ligadas' : 'Desligadas'}</button></div><div class="mut">Só progresso acumulado: sem ranking, punição, sorteio ou perda de moedas.</div></div>
 <div class="card">${sec('sun', 'Aparência')}<div class="chips">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="chip ${(s.theme || 'auto') === v ? 'on' : ''}" data-a="theme" data-v="${v}">${l}</button>`).join('')}</div></div>
+<div class="card">${sec('clock', 'Lembretes no iPhone')}<div class="mut">O iPhone não deixa um app avisar com ele fechado. O jeito certo é pelo app Calendário: baixe o arquivo e abra para adicionar.</div><button class="btn full" data-a="ics">${ic('download')}Baixar lembretes (Calendário)</button></div>
 <div class="card">${sec('sync', 'Sincronizar com o Notion')}<div class="row sp"><span>Enviar o dia automaticamente</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}"><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'} Depois de configurar, o dia vai para o banco "Meu Dia, registro diário" no Notion.</div></div>
 <div class="card">${sec('link', 'Links')}<label>Notion (Career OS / Faculdade Miranda)</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}<div class="mut">O Notion segue como fonte principal. Use Mais, Progresso, Copiar resumo para registrar o dia via Claude (Sistema XP).</div></div>
 <div class="card">${sec('save', 'Backup')}<div class="mut">Seus dados ficam só neste aparelho. Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
@@ -815,6 +832,13 @@ const A = {
   addfood: () => { form('Salvar alimento', foodFields({}), r => S.foods.push({ id: uid(), ...r })); return false; },
   editfood: v => { const f = S.foods.find(x => x.id === v); form('Editar alimento', foodFields(f), r => Object.assign(f, r), () => { S.foods = S.foods.filter(x => x.id !== v); }); return false; },
   mo: v => { const [y, m] = ui.mo.split('-').map(Number), d = new Date(y, m - 1 + +v, 1); ui.mo = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`; },
+  loja_pork: () => { ui.tab = 'mais'; ui.mais = 'pork'; window.scrollTo(0, 0); },
+  addbill: () => { form('Nova conta fixa', billFields({ day: 5, cat: 'Moradia' }), r => S.bills.push({ id: uid(), ...r })); return false; },
+  editbill: v => { const b = S.bills.find(x => x.id === v); form('Editar conta', billFields(b), r => Object.assign(b, r), () => { S.bills = S.bills.filter(x => x.id !== v); }); return false; },
+  paybill: (v, mo) => { const b = S.bills.find(x => x.id === v), pm = S.billPaid[mo] = S.billPaid[mo] || {};
+    if (pm[v]) { S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; } else { const id = uid(), td = dkey(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount }); pm[v] = id; toast('Lançado como saída.'); }
+    save(); },
+  ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
   addtx: () => { form('Lançar', txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), r => S.tx.push({ id: uid(), ...r })); return false; },
   edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
@@ -1029,6 +1053,26 @@ const BADGES = () => {
   const pom = Object.values(S.pomo).reduce((a, x) => a + x, 0), rounds = S.challenges.reduce((a, c) => a + (c.rounds || 0), 0), best = Math.max(0, ...S.challenges.map(chDays));
   return [['Primeiro treino guiado', S.workouts.length >= 1], ['10 treinos', S.workouts.length >= 10], ['7 dias limpos em um desafio', best >= 7], ['Primeira rodada completa', rounds >= 1], ['7 estudos de manhã', sdays >= 7], ['30 estudos de manhã', sdays >= 30], ['Primeira lição', lw >= 1], ['10 lições', lw >= 10], ['Todas as lições de um nível', LEARN.subjects.some(s => s.data.some((lv, v) => lv.every((_, i) => S.learn.done[lid(s.id, v, i)])))], ['10 pomodoros', pom >= 10], ['Água na meta 7 dias', wd >= 7], ['Primeira foto de evolução', S.photos.length >= 1], ['Primeira roda da vida', Object.keys(S.vida).length >= 1], ['4 revisões semanais', Object.keys(S.reviews).length >= 4]];
 };
+
+function downloadIcs(w) {
+  const BY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'], now = new Date(), stamp = now.toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z', ev = [];
+  const D8 = d => dkey(d).replace(/-/g, ''), T = t => t.replace(':', '') + '00', esc2 = t => String(t).replace(/([,;\\])/g, '\\$1');
+  const add = (title, d, t, rrule, alarm, mins) => {
+    const [h, m] = t.split(':').map(Number), e = new Date(2000, 0, 1, h, m + (mins || 15)), et = pad(e.getHours()) + ':' + pad(e.getMinutes());
+    ev.push(['BEGIN:VEVENT', `UID:${uid()}${uid()}@meudia`, `DTSTAMP:${stamp}`, `DTSTART:${D8(d)}T${T(t)}`, `DTEND:${D8(d)}T${T(et)}`, `RRULE:${rrule}`, `SUMMARY:${esc2(title)}`, 'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${esc2(title)}`, `TRIGGER:${alarm || 'PT0S'}`, 'END:VALARM', 'END:VEVENT'].join('\r\n'));
+  };
+  if (w !== 'fin') S.habits.filter(h => h.at && h.days.length && (w === 'all' || h.hard)).forEach(h => {
+    const first = [0, 1, 2, 3, 4, 5, 6].map(i => addD(now, i)).find(d => h.days.includes(d.getDay()));
+    add(h.title.replace(/ \(.*\)/, ''), first, h.at, 'FREQ=WEEKLY;BYDAY=' + (h.days.length === 7 ? BY.join(',') : h.days.map(x => BY[x]).join(',')));
+  });
+  const sun = [0, 1, 2, 3, 4, 5, 6].map(i => addD(now, i)).find(d => d.getDay() === 0);
+  add('Lançar os gastos da semana no Porkinho', sun, '20:00', 'FREQ=WEEKLY;BYDAY=SU', 'PT0S', 10);
+  add('Revisar Porkinho: limites e metas', new Date(now.getFullYear(), now.getMonth() + 1, 1), '09:00', 'FREQ=MONTHLY;BYMONTHDAY=1', 'PT0S', 15);
+  S.bills.forEach(b => { const dd = Math.min(28, Math.max(1, Math.round(num(b.day)) || 1)), d0 = new Date(now.getFullYear(), now.getMonth() + (now.getDate() > dd ? 1 : 0), dd); add(`Conta: ${b.title} (${brl(num(b.amount))})`, d0, '09:00', `FREQ=MONTHLY;BYMONTHDAY=${dd}`, '-P1D', 15); });
+  const txt = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Meu Dia//PT', 'CALSCALE:GREGORIAN', ...ev, 'END:VCALENDAR'].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type: 'text/calendar' })); a.download = 'meu-dia-lembretes.ics'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  toast(`${ev.length} lembretes prontos. Abra o arquivo e toque em Adicionar tudo.`);
+}
 
 /* ---- Sync com o Notion (via função do Netlify) ---- */
 function reportData(k = dkey()) {
