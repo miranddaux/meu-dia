@@ -862,7 +862,17 @@ const A = {
     if (pm[v]) { S.tx = S.tx.filter(x => x.id !== pm[v]); delete pm[v]; } else { const id = uid(), td = dkey(); S.tx.push({ id, type: 'out', date: td.startsWith(mo) ? td : billDue(b, mo), cat: b.cat || 'Moradia', desc: b.title, amount: b.amount }); pm[v] = id; toast('Lançado como saída.'); }
     save(); },
   ics: () => { form('Lembretes no Calendário', [{ k: 'w', label: 'O que incluir', type: 'select', value: 'all', options: [['all', 'Missões com horário + contas e finanças'], ['hard', 'Só missões essenciais + contas e finanças'], ['fin', 'Só contas e finanças']] }], r => downloadIcs(r.w)); return false; },
-  addtx: () => { form('Lançar', txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), r => { const t = { id: uid(), ...r }; S.tx.push(t); if (t.type === 'out' && S.settings.sheetOn) planPost({ action: 'nova', month: String(t.date).slice(0, 7), desc: t.desc || t.cat, valor: num(t.amount) }, true); }); return false; },
+  addtx: () => {
+    const p = ui.plan && ui.plan.mo === ui.mo && !ui.plan.err ? ui.plan.despesas : [], on = S.settings.sync.key && S.settings.sheetOn !== false;
+    const opts = [['none', 'Não enviar'], ['nova', 'Linha nova na planilha'], ...p.filter(x => !x.livre).map(x => ['r' + x.row + '|' + x.desc, 'Somar em: ' + x.desc])];
+    form('Lançar', [...txFields({ type: 'out', date: dkey(), cat: 'Mercado' }), ...(S.settings.sync.key ? [{ k: 'sheet', label: 'Na planilha', type: 'select', value: on ? 'nova' : 'none', options: opts }] : [])], r => {
+      const sh = r.sheet; delete r.sheet; const t = { id: uid(), ...r }; S.tx.push(t);
+      if (t.type === 'out' && sh && sh !== 'none') {
+        const mo = String(t.date).slice(0, 7), v = num(t.amount);
+        planQueue(sh === 'nova' ? { action: 'nova', month: mo, desc: t.desc || t.cat, valor: v } : { action: 'soma', month: mo, row: +sh.slice(1, sh.indexOf('|')), desc: sh.slice(sh.indexOf('|') + 1), valor: v });
+      }
+    }); return false;
+  },
   edittx: v => { const x = S.tx.find(y => y.id === v); form('Editar lançamento', txFields(x), r => Object.assign(x, r), () => { S.tx = S.tx.filter(y => y.id !== v); }); return false; },
   budget: () => { form('Limite mensal por categoria (0 = sem limite)', CATS.map(c => ({ k: c, label: c, type: 'number', value: S.budgets[c] || '' })), r => { S.budgets = r; }); return false; },
   addgoal: () => { form('Nova meta', [{ k: 'title', label: 'Meta' }, { k: 'target', label: 'Valor alvo (R$)', type: 'number' }, { k: 'saved', label: 'Já guardado (R$)', type: 'number', value: 0 }], r => S.goals.push({ id: uid(), ...r })); return false; },
@@ -1199,47 +1209,63 @@ setInterval(() => {
 }, 1000);
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) planFlush(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.settings.sync.on && S.settings.sync.key) doSync(true); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render(); });
 
 /* ---- Planilha financeira (Google Sheets, via função do Netlify) ---- */
 const planUrl = () => ((S.settings.sync.url || '/.netlify/functions/sync').replace(/sync$/, 'planilha'));
-async function planLoad(mo) {
-  const sy = S.settings.sync; if (!sy.key) { toast('Defina a chave nos ajustes (ícone no topo).'); return; }
-  ui.planBusy = true; render();
+const PLAN_KEY = 'meudia_plan';
+function planCache(mo) { try { const c = JSON.parse(localStorage.getItem(PLAN_KEY) || 'null'); return c && c.mo === mo ? c : null; } catch (e) { return null; } }
+async function planLoad(mo, quiet) {
+  const sy = S.settings.sync; if (!sy.key || ui.planBusy) return;
+  ui.planBusy = true; if (!quiet) render();
   try {
+    await planFlush();
     const r = await fetch(`${planUrl()}?month=${mo}`, { headers: { 'x-app-key': sy.key } });
     if (!r.ok) throw new Error((await r.text()).slice(0, 160));
     ui.plan = Object.assign(await r.json(), { mo, at: Date.now(), err: '' });
-  } catch (e) { ui.plan = { mo, err: String(e.message || e), at: Date.now() }; }
-  ui.planBusy = false; render();
+    try { localStorage.setItem(PLAN_KEY, JSON.stringify(ui.plan)); } catch (e) { }
+  } catch (e) { ui.plan = Object.assign(planCache(mo) || { mo }, { err: String(e.message || e), at: Date.now() }); }
+  ui.planBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
 }
-async function planPost(b, quiet) {
-  const sy = S.settings.sync; if (!sy.key) return false;
-  try {
-    const r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify(b) });
-    if (!r.ok) throw new Error((await r.text()).slice(0, 160));
-    if (!quiet) toast('Planilha atualizada.'); else toast('Gasto enviado para a planilha.');
-    return true;
-  } catch (e) { toast('Planilha: ' + (e.message || e)); return false; }
+async function planSend(b) {
+  const sy = S.settings.sync;
+  const r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify(b) });
+  if (!r.ok) throw new Error((await r.text()).slice(0, 160));
+}
+async function planFlush() {
+  const q = S.sheetQ || []; if (!q.length || !S.settings.sync.key) return;
+  const rest = [];
+  for (const b of q) { try { await planSend(b); } catch (e) { if (/mudou|Sem linha|inválid/i.test(String(e.message))) { toast('Planilha: ' + e.message); } else rest.push(b); } }
+  S.sheetQ = rest; save();
+}
+async function planQueue(b) {
+  S.sheetQ = (S.sheetQ || []).concat([b]); save();
+  try { await planFlush(); toast(S.sheetQ.length ? 'Sem conexão. Envio na próxima vez que abrir.' : 'Gasto enviado para a planilha.'); if (!S.sheetQ.length) planLoad(b.month, true); } catch (e) { }
+}
+async function planPost(b) {
+  try { await planSend(b); toast('Planilha atualizada.'); return true; } catch (e) { toast('Planilha: ' + (e.message || e)); return false; }
 }
 function planCard(mo) {
-  const sy = S.settings.sync, p = ui.plan && ui.plan.mo === mo ? ui.plan : null;
-  const head = sec('calendar', 'Planilha do mês', `<button class="btn sm ghost" data-a="planload" data-v="${mo}" ${ui.planBusy ? 'disabled' : ''}>${ic('reload')}${p ? 'Atualizar' : 'Carregar'}</button>`);
+  const sy = S.settings.sync; if (!(ui.plan && ui.plan.mo === mo)) { const c = planCache(mo); if (c) ui.plan = c; } const p = ui.plan && ui.plan.mo === mo ? ui.plan : null;
+  if (sy.key && !ui.planBusy && (!p || Date.now() - (p.at || 0) > 300000)) setTimeout(() => planLoad(mo, true), 0);
+  const head = sec('calendar', 'Planilha do mês', `<button class="btn sm ghost" data-a="planload" data-v="${mo}" ${ui.planBusy ? 'disabled' : ''}>${ic('reload')}${ui.planBusy ? 'Atualizando' : 'Atualizar'}</button>`);
   if (!sy.key) return `<div class="card">${head}<div class="mut">Ligue o Notion nos ajustes (ícone no topo) para criar a chave do app. A planilha usa a mesma.</div></div>`;
   let b = '';
-  if (!p) b = `<div class="mut">${ui.planBusy ? 'Carregando…' : 'Toque em Carregar para ver as despesas da planilha e marcar o que pagou.'}</div>`;
+  if (!p) b = `<div class="mut">${ui.planBusy ? 'Carregando…' : 'Buscando na planilha…'}</div>`;
   else if (p.err) b = `<div class="banner warn"><span>${esc(p.err)}</span></div>`;
   else {
     const L2 = p.despesas.filter(x => !x.livre || x.valor > 0), pg = L2.filter(x => x.pago).reduce((a, x) => a + x.valor, 0), tt = L2.reduce((a, x) => a + x.valor, 0);
-    b = `<div class="mut">${esc(p.tab)} · pago ${brl(pg)} de ${brl(tt)}${typeof p.sobra === 'number' ? ' · sobra prevista ' + brl(p.sobra) : ''}</div><div class="bar"><i style="width:${tt ? Math.min(100, pg / tt * 100) : 0}%"></i></div>`;
+    b = `<div class="mut">${esc(p.tab)}${(S.sheetQ || []).length ? ' · ' + S.sheetQ.length + ' envio(s) pendente(s)' : ''} · pago ${brl(pg)} de ${brl(tt)}${typeof p.sobra === 'number' ? ' · sobra prevista ' + brl(p.sobra) : ''}</div><div class="bar"><i style="width:${tt ? Math.min(100, pg / tt * 100) : 0}%"></i></div>`;
     let g = '';
     b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><button class="btn sm ${x.pago ? 'ghost' : ''}" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${x.pago ? 'Desfazer' : ic('check') + 'Paguei'}</button></div>`; }).join('');
   }
-  return `<div class="card">${head}${b}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn ? 'checked' : ''}><span>Enviar novos gastos do app para a planilha (em uma linha variável livre)</span></label></div>`;
+  return `<div class="card">${head}${b}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn !== false ? 'checked' : ''}><span>Sugerir envio de novos gastos para a planilha</span></label></div>`;
 }
 Object.assign(A, {
   planload: v => { planLoad(v); return false; },
-  planpago: async (v, d) => { const p = ui.plan, it = p && p.despesas.find(x => x.row === +v); if (!it) return false; const ok = await planPost({ action: 'pago', month: ui.mo, row: +v, desc: d, paid: !it.pago }); if (ok) planLoad(ui.mo); return false; }
+  planpago: async (v, d) => { const p = ui.plan, it = p && p.despesas.find(x => x.row === +v); if (!it) return false; const np = !it.pago; it.pago = np; render(); const ok = await planPost({ action: 'pago', month: ui.mo, row: +v, desc: d, paid: np }); if (!ok) it.pago = !np; planLoad(ui.mo, true); return false; }
 });
 Object.assign(C, { sheettog: (v, i, el) => { S.settings.sheetOn = el.checked; save(); } });
+setTimeout(planFlush, 1500);
