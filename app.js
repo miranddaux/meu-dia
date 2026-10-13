@@ -33,7 +33,7 @@ const MORN = () => [
   b('05:55', '06:00', 'Arrumar a cama', 'flex'),
   b('06:00', '07:00', 'Estudo (1h)', 'flex', { study: 1 }),
   b('07:00', '07:30', 'Leitura e café da manhã', 'flex'),
-  b('07:30', '08:00', 'Remédio do cachorro e passeio', 'flex'),
+  b('07:30', '08:00', 'Tempo flexível (leitura, cachorro ou o que precisar)', 'flex'),
   b('08:00', '09:00', 'Higiene, me arrumar e preparar para trabalhar', 'flex')
 ];
 const MID = () => [
@@ -48,7 +48,7 @@ const MID = () => [
 ];
 function wk(gym) {
   return [...MORN(), ...MID(),
-    ...(gym ? [b('17:00', '17:30', 'Parar o trabalho e me arrumar para treinar', 'flex'), b('17:30', '18:40', 'Treino (com deslocamento)', 'flex')] : [b('17:00', '18:40', 'Fim do expediente: livre, caminhada ou ANIMAE', 'livre')]),
+    ...(gym ? [b('17:00', '18:40', 'Treino (parar o trabalho, me arrumar e treinar)', 'flex')] : [b('17:00', '18:40', 'Fim do expediente: livre, caminhada ou ANIMAE', 'livre')]),
     b('18:40', '19:15', 'Passear com o cachorro', 'flex'),
     b('19:15', '20:00', 'Banho e jantar', 'flex'),
     b('20:00', '21:15', 'Tempo livre (sem metas obrigatórias)', 'livre'),
@@ -57,7 +57,7 @@ function wk(gym) {
 }
 function college(gym) {
   return [...MORN(), ...MID(),
-    ...(gym ? [b('17:00', '17:15', 'Me arrumar para treinar', 'flex'), b('17:15', '18:10', 'Treino curto (55 min)', 'flex')] : [b('17:00', '18:10', 'Fim do expediente: livre ou cachorro', 'livre')]),
+    ...(gym ? [b('17:00', '18:10', 'Treino curto (parar o trabalho, me arrumar e treinar)', 'flex')] : [b('17:00', '18:10', 'Fim do expediente: livre ou cachorro', 'livre')]),
     b('18:10', '18:50', 'Banho e jantar (rápido)', 'flex'),
     b('18:50', '19:00', 'Ir para a aula', 'flex'),
     b('19:00', '22:00', 'Aula na UNIP (presencial)', 'fixo'),
@@ -92,14 +92,14 @@ function buildSchedule(col) {
   return s;
 }
 const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5];
-function hb(title, when, days, pts, hard, ord) { return { id: uid(), title, when, days, pts, hard, ord }; }
+function hb(title, when, days, pts, hard, ord, at) { return { id: uid(), title, when, days, pts, hard, ord, at: at || '' }; }
 const DEF_HABITS = () => [
-  hb('Oração e agradecimento', 'm', ALL, 0, 1, 1), hb('Arrumar a cama', 'm', ALL, 1, 0, 2), hb('Leitura', 'm', ALL, 1, 0, 4), hb('Café da manhã', 'm', ALL, 0, 1, 5),
-  hb('Remédio do cachorro (veterinário)', 'm', ALL, 1, 1, 6), hb('Passear com o cachorro (manhã)', 'm', ALL, 1, 1, 7),
-  hb('Almoço', 't', ALL, 0, 1, 1), hb('Cochilo com alarme', 't', WD, 0, 0, 2), hb('Lanche da tarde', 't', ALL, 0, 1, 3), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4),
-  hb('Quarto e organização', 't', [6], 1, 0, 5), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6), hb('Banho do cachorro (conforme necessidade)', 't', [6], 1, 0, 7), hb('Igreja', 'm', [0], 0, 0, 8), hb('Revisão semanal (20 min)', 't', [0], 1, 0, 9),
-  hb('Passear com o cachorro (noite)', 'n', ALL, 1, 1, 1), hb('Banho e jantar', 'n', ALL, 0, 1, 2), hb('Higiene e oração da noite', 'n', ALL, 0, 1, 3), hb('Preparar o dia seguinte', 'n', ALL, 1, 0, 4),
-  hb('Cuidado da orelha (ajuste a recorrência)', 'n', ALL, 1, 0, 5), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6)
+  hb('Oração e agradecimento', 'm', ALL, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', ALL, 1, 0, 2, '05:55'), hb('Leitura', 'm', ALL, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', ALL, 0, 1, 5, '07:15'),
+  hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
+  hb('Almoço', 't', ALL, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', ALL, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
+  hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Banho do cachorro (conforme necessidade)', 't', [6], 1, 0, 7, ''), hb('Igreja', 'm', [0], 0, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [0], 1, 0, 9, '15:00'),
+  hb('Passear com o cachorro', 'n', ALL, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', ALL, 0, 1, 2, '19:15'), hb('Higiene e oração da noite', 'n', ALL, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', ALL, 1, 0, 4, '21:45'),
+  hb('Cuidado da orelha (ajuste a recorrência)', 'n', ALL, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
 const STARTER = [
   ['Treino A — corpo inteiro (leve)', [['Leg press', 3, '10–12', 90], ['Supino com halteres', 3, '8–12', 90], ['Remada sentada (máquina ou cabo)', 3, '10–12', 90], ['Desenvolvimento com halteres', 2, '10–12', 75], ['Prancha', 3, '30–40 s', 60]]],
@@ -189,6 +189,18 @@ function migrate() {
     const g5 = (S.schedule[5] || []).some(x => x.t === 'Treino (com deslocamento)' || x.t === 'Treino curto (55 min)'), g2 = (S.schedule[2] || []).some(x => /^Treino/.test(x.t));
     if (g5 && !g2) { const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); }
     S.habits.forEach(h => { if (/^Treino \(o treino guiado/.test(h.title) && h.days.join() === '1,3,5') h.days = [1, 2, 3]; });
+  }
+  if (!f.v5) {
+    f.v5 = 1;
+    S.habits = S.habits.filter(h => h.title !== 'Passear com o cachorro (manhã)');
+    S.habits.forEach(h => {
+      if (h.title === 'Passear com o cachorro (noite)') h.title = 'Passear com o cachorro';
+      if (/^Remédio do cachorro/.test(h.title)) { h.title = 'Remédio do cachorro (quando precisar)'; h.days = []; }
+    });
+    const AT = {}; DEF_HABITS().forEach(d => { AT[d.title.toLowerCase()] = d.at; });
+    S.habits.forEach(h => { if (!h.at) h.at = AT[h.title.toLowerCase()] || ''; });
+    if (!S.habits.some(h => h.title === 'Passear com o cachorro')) S.habits.push(DEF_HABITS().find(h => h.title === 'Passear com o cachorro'));
+    if ((S.schedule[1] || []).some(x => x.t === 'Remédio do cachorro e passeio')) { const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); }
   }
   if (!f.detox6) {
     f.detox6 = 1;
@@ -285,7 +297,7 @@ function form(title, fields, onSave, onDel) {
 /* ---------- Hoje ---------- */
 function mRow(k, h) {
   const s = stOf(k, h.id);
-  return `<div class="hab"><div class="t">${esc(h.title)}</div>${stBtn(s, SI[s], 'cyc', h.id, `${h.title}: ${SL[s]}. Toque para mudar`)}</div>`;
+  return `<div class="hab"><div class="t">${h.at ? `<span class="hr">${h.at}</span>` : ''}${esc(h.title)}</div>${stBtn(s, SI[s], 'cyc', h.id, `${h.title}: ${SL[s]}. Toque para mudar`)}</div>`;
 }
 function waterCard(k) {
   const g = num(S.settings.waterGoal), ml = S.water[k] || 0, B = num(S.settings.bottle) || 1800, Cp = num(S.settings.cup) || 300;
@@ -320,11 +332,11 @@ function vHoje() {
     let items = habs.filter(h => h.when === w).map(h => ({ o: h.ord ?? 50, h }));
     if (w === 'm' && !hard && ((dow >= 1 && dow <= 5) || (st.theme && dow === 6))) items.push({ o: 3, study: 1 });
     if (!items.length) return;
-    items.sort((a, c) => a.o - c.o);
+    items.sort((a, c) => ((a.h ? a.h.at : '06:00') ? tm(a.h ? a.h.at : '06:00') : 5000 + a.o) - ((c.h ? c.h.at : '06:00') ? tm(c.h ? c.h.at : '06:00') : 5000 + c.o));
     const done = items.filter(i => i.study ? sl.done : stOf(k, i.h.id) === 'done').length;
     const hr = n.getHours(), curW = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
     const open = ui.open[w] !== undefined ? ui.open[w] : w === curW;
-    out += `<details class="card" data-w="${w}" ${open ? 'open' : ''}><summary><span class="px">${WH[w]}</span><span class="mut">${done}/${items.length}</span></summary>${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><b>Estudo 06h–07h:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}</details>`;
+    out += `<details class="card" data-w="${w}" ${open ? 'open' : ''}><summary><span class="px">${WH[w]}</span><span class="mut">${done}/${items.length}</span></summary>${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><span class="hr">06:00</span><b>Estudo:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}</details>`;
   });
   out += `<div class="card">${sec('bullseye', 'Prioridades')}${[0, 1, 2].map(i => `<div class="pri"><input type="checkbox" data-c="pd" data-v="${i}" ${pr[i] && pr[i].d ? 'checked' : ''} aria-label="Prioridade ${i + 1} feita"><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1}"></div>`).join('')}</div>`;
   if (!hard) {
@@ -810,7 +822,7 @@ function guessMeal() { const h = new Date().getHours(); return h < 10 ? 'Café d
 const mealFields = m => [{ k: 'meal', label: 'Refeição', type: 'select', value: m.meal, options: MEALS }, { k: 'text', label: 'O que comi', type: 'textarea', value: m.text }, { k: 'kcal', label: 'kcal', type: 'number', value: m.kcal }, { k: 'prot', label: 'Proteína (g)', type: 'number', value: m.prot }, { k: 'carb', label: 'Carboidrato (g, opcional)', type: 'number', value: m.carb }, { k: 'fat', label: 'Gordura (g, opcional)', type: 'number', value: m.fat }];
 const foodFields = f => [{ k: 'name', label: 'Alimento / porção', value: f.name }, { k: 'kcal', label: 'kcal', type: 'number', value: f.kcal }, { k: 'prot', label: 'Proteína (g)', type: 'number', value: f.prot }, { k: 'carb', label: 'Carboidrato (g, opcional)', type: 'number', value: f.carb }, { k: 'fat', label: 'Gordura (g, opcional)', type: 'number', value: f.fat }];
 const txFields = x => [{ k: 'type', label: 'Tipo', type: 'select', value: x.type, options: [['out', 'Saída'], ['in', 'Entrada']] }, { k: 'date', label: 'Data', type: 'date', value: x.date }, { k: 'cat', label: 'Categoria', type: 'select', value: x.cat, options: [...CATS, ...CATS_IN] }, { k: 'desc', label: 'Descrição', value: x.desc }, { k: 'amount', label: 'Valor (R$)', type: 'number', value: x.amount }];
-const habFields = h => [{ k: 'title', label: 'Nome', value: h.title }, { k: 'when', label: 'Período', type: 'select', value: h.when, options: [['m', 'Manhã'], ['t', 'Tarde'], ['n', 'Noite']] }, { k: 'days', label: 'Dias', type: 'days', value: h.days }, { k: 'pts', label: 'Dá moeda?', type: 'select', value: h.pts ? 1 : 0, options: [[1, 'Sim'], [0, 'Não']] }, { k: 'hard', label: 'Aparece no Dia difícil?', type: 'select', value: h.hard ? 1 : 0, options: [[1, 'Sim'], [0, 'Não']] }];
+const habFields = h => [{ k: 'title', label: 'Nome', value: h.title }, { k: 'when', label: 'Período', type: 'select', value: h.when, options: [['m', 'Manhã'], ['t', 'Tarde'], ['n', 'Noite']] }, { k: 'at', label: 'Horário (opcional)', type: 'time', value: h.at || '' }, { k: 'days', label: 'Dias', type: 'days', value: h.days }, { k: 'pts', label: 'Dá moeda?', type: 'select', value: h.pts ? 1 : 0, options: [[1, 'Sim'], [0, 'Não']] }, { k: 'hard', label: 'Aparece no Dia difícil?', type: 'select', value: h.hard ? 1 : 0, options: [[1, 'Sim'], [0, 'Não']] }];
 const hfix = h => Object.assign(h, { pts: +h.pts, hard: +h.hard });
 const expFields = x => [{ k: 'title', label: 'Título', value: x.title }, { k: 'subject', label: 'Assunto', value: x.subject, ph: 'História, biologia…' }, { k: 'link', label: 'Link', type: 'url', value: x.link }];
 function restore(txt) {
