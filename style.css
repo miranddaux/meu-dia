@@ -129,3 +129,6 @@ body{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
 
 .road{display:flex;flex-direction:column;gap:2px;padding:10px 12px;margin:6px 0;border:2px solid var(--soft);border-radius:12px;background:var(--card);color:var(--ink);text-decoration:none}
 .road .t{font-weight:700}
+.road .rt{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.road .rt .btn{flex:none}
+.road.dn .t{text-decoration:line-through;opacity:.6}

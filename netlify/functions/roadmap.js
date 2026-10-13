@@ -1,4 +1,4 @@
-// Lê (só lê) o Roadmap de Estudos no Notion e devolve o que importa para o app: atrasados, hoje e próximos dias.
+// GET: lê o Roadmap de Estudos no Notion (atrasados, hoje e próximos dias). POST: muda só o Status de uma tarefa.
 // Usa as mesmas variáveis do sync: NOTION_TOKEN e APP_KEY. O id do Roadmap pode ser trocado por NOTION_ROADMAP_DB.
 const N = 'https://api.notion.com/v1';
 const ROADMAP = '031745177d054d95832de5ae4188279e';
@@ -8,12 +8,26 @@ exports.handler = async event => {
   const { NOTION_TOKEN, APP_KEY, NOTION_ROADMAP_DB } = process.env;
   if (!NOTION_TOKEN || !APP_KEY) return { statusCode: 500, body: 'Faltam variáveis no Netlify' };
   if ((event.headers['x-app-key'] || '') !== APP_KEY) return { statusCode: 401, body: 'Chave inválida' };
+  const DB = (NOTION_ROADMAP_DB || ROADMAP).replace(/-/g, '');
+  if (event.httpMethod === 'POST') {
+    // Muda só o Status de uma tarefa do Roadmap (Concluído, Em andamento ou Não iniciado). Nunca apaga nada.
+    let d; try { d = JSON.parse(event.body); } catch (e) { return { statusCode: 400, body: 'JSON inválido' }; }
+    if (!/^[0-9a-f-]{32,36}$/i.test(d.id || '') || !['Concluído', 'Em andamento', 'Não iniciado'].includes(d.status)) return { statusCode: 400, body: 'Pedido inválido' };
+    try {
+      const g = await fetch(`${N}/pages/${d.id}`, { headers: H(NOTION_TOKEN) }); const gj = await g.json();
+      if (!g.ok) return { statusCode: 502, body: JSON.stringify(gj) };
+      if (((gj.parent && gj.parent.database_id) || '').replace(/-/g, '') !== DB) return { statusCode: 403, body: 'Essa página não é do Roadmap' };
+      const r = await fetch(`${N}/pages/${d.id}`, { method: 'PATCH', headers: H(NOTION_TOKEN), body: JSON.stringify({ properties: { Status: { select: { name: d.status } } } }) });
+      if (!r.ok) return { statusCode: 502, body: await r.text() };
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true }) };
+    } catch (e) { return { statusCode: 500, body: String(e.message) }; }
+  }
   const q = event.queryStringParameters || {};
   const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : new Date().toISOString().slice(0, 10);
   const lim = new Date(date + 'T12:00:00Z'); lim.setUTCDate(lim.getUTCDate() + 7);
   const until = lim.toISOString().slice(0, 10);
   try {
-    const r = await fetch(`${N}/databases/${NOTION_ROADMAP_DB || ROADMAP}/query`, {
+    const r = await fetch(`${N}/databases/${DB}/query`, {
       method: 'POST', headers: H(NOTION_TOKEN),
       body: JSON.stringify({
         filter: { and: [{ property: 'Status', select: { does_not_equal: 'Concluído' } }, { property: 'Data', date: { on_or_before: until } }] },

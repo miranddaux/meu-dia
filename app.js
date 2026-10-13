@@ -257,6 +257,8 @@ function earned() {
   const g = num(S.settings.waterGoal); if (g > 0) p += Object.keys(S.water).filter(k => S.water[k] >= g).length;
   S.challenges.forEach(c => { p += Object.values(c.log).filter(v => v === 'ok').length + (c.rounds || 0) * 10; });
   p += (S.ideas.done || []).length;
+  p += Object.keys((S.road && S.road.done) || {}).length * 3;
+  p += Object.keys(S.hardDay || {}).filter(k => S.hardDay[k] && minDone(k)).length * 3;
   p += Object.values(S.pomo || {}).reduce((a, n) => a + Math.min(4, n), 0);
   p += Object.values((S.learn && S.learn.days) || {}).reduce((a, n) => a + Math.min(3, n), 0);
   Object.values(S.vida || {}).forEach(w => { p += Object.values(w.d || {}).filter(Boolean).length; });
@@ -267,7 +269,7 @@ function pctWeek(ws) {
   const today = dkey(); let tot = 0, sc = 0;
   for (let i = 0; i < 7; i++) {
     const d = addD(ws, i), k = dkey(d); if (k > today) break;
-    S.habits.forEach(h => { if (!h.days.includes(d.getDay())) return; const s = stOf(k, h.id); if (s === 'na') return; tot++; if (s === 'done') sc++; else if (s === 'partial') sc += .5; });
+    S.habits.forEach(h => { if (!h.days.includes(d.getDay()) || (S.hardDay[k] && !isMin(h))) return; const s = stOf(k, h.id); if (s === 'na') return; tot++; if (s === 'done') sc++; else if (s === 'partial') sc += .5; });
   }
   return tot ? Math.round(100 * sc / tot) : null;
 }
@@ -316,6 +318,9 @@ function chRow(c, k) {
   else btns = `<div class="row"><button class="btn ${done ? 'ghost' : ''}" data-a="chok" data-v="${c.id}">${ic('check')}${done ? (det ? 'Hoje limpo (desfazer)' : 'Feito hoje (desfazer)') : (det ? 'Hoje estou limpo' : 'Fiz hoje')}</button>${det ? `<button class="btn ghost sm" data-a="chslip" data-v="${c.id}">Escorreguei</button>` : ''}</div>`;
   return `<div class="ch"><div class="row sp" data-a="editch" data-v="${c.id}" role="button" tabindex="0"><b>${esc(c.title)}</b><span class="mut">${n}/${c.days} dias${c.rounds ? ` · ${c.rounds} rodada(s)` : ''}</span></div><div class="sqs">${[...Array(c.days)].map((_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>${btns}</div>`;
 }
+const isMin = h => /^(Oração e agradecimento|Almoço|Higiene e oração da noite)/.test(h.title);
+const minHabs = dow => S.habits.filter(h => h.days.includes(dow) && isMin(h));
+function minDone(k) { const hs = minHabs(new Date(k + 'T12:00').getDay()); return hs.length >= 3 && hs.every(h => stOf(k, h.id) === 'done'); }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -323,14 +328,14 @@ function vHoje() {
   const bl = sched(dow), cur = bl.find(x => tm(x.s) <= mins && mins < tm(x.e)), nxt = bl.find(x => tm(x.s) > mins);
   const st = S.study[dow] || {}, sl = S.studyLog[k] || {};
   const pr = S.prios[k] || [{}, {}, {}];
-  const habs = S.habits.filter(h => h.days.includes(dow) && (!hard || h.hard));
+  const habs = S.habits.filter(h => h.days.includes(dow) && (!hard || isMin(h)));
   let out = seg;
   if (!S.settings.welcomed) out += `<div class="card"><h3 class="px">${ic('mood-happy')}<span>Oi!</span></h3><p class="mut">Tudo fica salvo só neste iPhone. Toque no quadrado para marcar: vazio = pendente, check = feito, meio = parcial, seta = adiado, traço = não se aplica. Moedas vêm de missões, treino, água, estudo e desafios; você troca na Loja (Mais, Loja). Nada vira dívida. Faça backup em <b>Mais, Config</b>.</p><button class="btn sm" data-a="welcome">Entendi</button></div>`;
   out += `<div class="card"><div class="row sp"><h3 class="px">${ic('clock')}<span>Agora</span></h3><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div>`;
   out += cur ? `<div class="h2">${esc(bt(cur, dow))}</div><div class="mut">${cur.s}–${cur.e} · ${TL[cur.type]}</div>` : `<div class="mut">Nenhum bloco neste horário.</div>`;
   if (nxt) out += `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>`;
   out += `</div>`;
-  if (hard) out += `<div class="banner">${ic('info-box')}<span>Hoje o mínimo basta. Só o essencial aparece abaixo; o resto fica para outro dia, sem dívida.</span></div>`;
+  if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
   out += waterCard(k);
   ['m', 't', 'n'].forEach(w => {
     let items = habs.filter(h => h.when === w).map(h => ({ o: h.ord ?? 50, h }));
@@ -637,11 +642,27 @@ function vLoja() {
 }
 function dayReport(k = dkey()) {
   const dt = new Date(k + 'T12:00'), dow = dt.getDay();
-  const hs = S.habits.filter(h => h.days.includes(dow)), dn = hs.filter(h => stOf(k, h.id) === 'done').length;
+  const hs = S.habits.filter(h => h.days.includes(dow) && (!S.hardDay[k] || isMin(h))), dn = hs.filter(h => stOf(k, h.id) === 'done').length;
   const wk = S.workouts.filter(w => w.date === k).map(w => w.name).join(', ');
   const ms = S.meals[k] || [], md = S.mood[k] || {}, st = S.study[dow] || {}, pr = (S.prios[k] || []).map(p => p && p.t).filter(Boolean);
   const wts = S.weights.find(x => x.date === k), ch = S.challenges.map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}${c.log[k] === 'ok' ? ' (hoje ok)' : ''}`).join('; ');
   return `Sistema XP · registro do dia ${k}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPomodoros: ${S.pomo[k] || 0} · Lições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
+}
+function weekSummary(ws) {
+  const days = [...Array(7)].map((_, i) => addD(ws, i)), ks = days.map(d => dkey(d)), today = dkey(), past = ks.filter(k => k <= today), a = ks[0], z = ks[6];
+  const pw = pctWeek(ws), sd = days.filter(d => d.getDay() >= 1 && d.getDay() <= 5 && S.studyLog[dkey(d)] && S.studyLog[dkey(d)].done).length, sdMax = days.filter(d => d.getDay() >= 1 && d.getDay() <= 5 && dkey(d) <= today).length;
+  const wk = S.workouts.filter(w => w.date >= a && w.date <= z).length, g = num(S.settings.waterGoal), wd = days.filter(d => g && (S.water[dkey(d)] || 0) >= g && dkey(d) <= today).length;
+  const pom = ks.reduce((t, k) => t + (S.pomo[k] || 0), 0), les = ks.reduce((t, k) => t + (S.learn.days[k] || 0), 0), hardN = ks.filter(k => S.hardDay[k]).length;
+  const rdn = Object.values((S.road && S.road.done) || {}).filter(d => d >= a && d <= z).length;
+  const wts = S.weights.filter(x => x.date >= a && x.date <= z).sort((p, q) => p.date.localeCompare(q.date)), dw = wts.length >= 2 ? num(wts[wts.length - 1].kg) - num(wts[0].kg) : null;
+  const wins = [], adj = [];
+  if (pw !== null && pw >= 70) wins.push(`Missões em ${pw}%`); if (sd >= 3) wins.push(`${sd} dias de estudo`); if (wk >= 3) wins.push(`${wk} treinos`); if (pom >= 4) wins.push(`${pom} pomodoros`); if (les >= 3) wins.push(`${les} lições`); if (rdn) wins.push(`${rdn} tarefa${rdn > 1 ? 's' : ''} do Roadmap concluída${rdn > 1 ? 's' : ''}`); if (hardN) wins.push(`${hardN} dia${hardN > 1 ? 's' : ''} difícil${hardN > 1 ? 'is' : ''} atravessado${hardN > 1 ? 's' : ''} sem zerar`);
+  if (sdMax >= 3 && sd < Math.ceil(sdMax / 2)) adj.push('Estudo da manhã ficou abaixo da metade. Tente começar só com 10 minutos.');
+  if (g && past.length >= 3 && wd < Math.ceil(past.length / 2)) adj.push('Água abaixo da meta na maior parte dos dias. Deixe uma garrafa à vista.');
+  if (pw !== null && pw < 50) adj.push('Poucas missões feitas. Escolha 3 que importam e deixe as outras como bônus.');
+  if (!adj.length) adj.push('Mantenha o ritmo. Escolha só uma coisa para melhorar na próxima semana.');
+  const txt = `Sistema XP · resumo da semana ${short(ws)} a ${short(addD(ws, 6))}\nMissões: ${pw === null ? '—' : pw + '%'} · Estudos: ${sd}/${sdMax || 5} · Treinos: ${wk} · Água na meta: ${wd} dias\nPomodoros: ${pom} · Lições: ${les} · Roadmap concluído: ${rdn} · Dias difíceis: ${hardN}\nPeso: ${dw === null ? '—' : (dw > 0 ? '+' : '') + r1(dw) + ' kg'}\nO que foi bem: ${wins.join('; ') || '—'}\nAjuste sugerido: ${adj[0]}`;
+  return { wins, adj, txt, pom, les, rdn, hardN, dw };
 }
 function vProg() {
   const ws = wkStart(addD(new Date(), 7 * ui.wo)), days = [...Array(7)].map((_, i) => addD(ws, i)), today = dkey();
@@ -651,7 +672,9 @@ function vProg() {
   const wkc = S.workouts.filter(w => w.date >= dkey(ws) && w.date <= dkey(addD(ws, 6))).length;
   const g = num(S.settings.waterGoal), wd = days.filter(d => g && (S.water[dkey(d)] || 0) >= g).length;
   const moods = days.map(d => S.mood[dkey(d)]).filter(x => x && x.m);
+  const wsum = weekSummary(ws);
   let out = `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
+  out += `<div class="card">${sec('trending-up', 'Resumo da semana')}<div class="grp">O que foi bem</div><div>${wsum.wins.length ? wsum.wins.map(x => '· ' + esc(x)).join('<br>') : '<span class="mut">Semana ainda começando.</span>'}</div><div class="grp">Ajuste sugerido</div><div>${esc(wsum.adj[0])}</div><div class="mut">Regras simples do app. Para uma análise completa, cole o resumo no Claude com Sistema XP.</div><button class="btn full" data-a="copyweek" data-v="${ui.wo}">${ic('copy')}Copiar resumo da semana</button></div>`;
   out += `<div class="grid3"><div><b>${pw === null ? '—' : pw + '%'}</b><small>missões</small></div><div><b>${sd}/5</b><small>estudos</small></div><div><b>${wkc}</b><small>treinos</small></div></div>`;
   out += `<div class="grid3"><div><b>${wd}/7</b><small>água na meta</small></div><div><b>${S.challenges.map(c => chDays(c)).reduce((a, x) => a + x, 0)}</b><small>dias de desafio</small></div><div><b>${S.settings.gamify ? coins() : '—'}</b><small>moedas</small></div></div>`;
   out += `<div class="card"><h3 class="px">Missões da semana</h3><div class="scroll"><table class="g"><tr><th></th>${days.map(d => `<th>${DN[d.getDay()][0]}</th>`).join('')}</tr>${hs.map(h => `<tr><td>${esc(h.title.replace(/ \(.*\)/, ''))}</td>${days.map(d => { const k = dkey(d); if (!h.days.includes(d.getDay())) return '<td class="mut">·</td>'; const s = stOf(k, h.id); return `<td>${k > today ? '' : (SI[s] ? ic(SI[s], 'sm') : '<span class="mut">○</span>')}</td>`; }).join('')}</tr>`).join('')}<tr><td>Estudo</td>${days.map(d => { const k = dkey(d), w = d.getDay(); if (w === 0) return '<td class="mut">·</td>'; return `<td>${k > today ? '' : (S.studyLog[k] && S.studyLog[k].done ? ic('check', 'sm') : '<span class="mut">○</span>')}</td>`; }).join('')}</tr><tr><td>Água</td>${days.map(d => { const k = dkey(d); return `<td>${k > today ? '' : (g && (S.water[k] || 0) >= g ? ic('check', 'sm') : '<span class="mut">○</span>')}</td>`; }).join('')}</tr></table></div><div class="mut">check feito · meio parcial · seta adiado · traço não se aplica · ○ em aberto. Sem sequência a perder.</div></div>`;
@@ -810,6 +833,7 @@ const A = {
   theme: v => { S.settings.theme = v; save(); applyTheme(); },
   college: () => { const on = !S.settings.college; if (!confirm(on ? 'Ligar o modo faculdade? Seus blocos de segunda a sexta serão trocados pela agenda de dias de aula.' : 'Desligar o modo faculdade e voltar à rotina sem aulas? Seus blocos de segunda a sexta serão trocados.')) return false; S.settings.college = on; const ns = buildSchedule(on); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); save(); },
   newroutine: () => { if (!confirm('Trocar os blocos de segunda a sexta pela rotina nova? Sábado e domingo não mudam.')) return false; const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); const have = t => S.habits.some(h => h.title === t); DEF_HABITS().forEach(h => { if (!have(h.title)) S.habits.push(h); }); save(); toast('Rotina nova aplicada.'); },
+  copyweek: async v => { const t = weekSummary(wkStart(addD(new Date(), 7 * (+v || 0)))).txt; try { await navigator.clipboard.writeText(t); toast('Resumo da semana copiado.'); } catch (e) { prompt('Copie o resumo:', t); } return false; },
   notion: async () => { const t = dayReport(); try { await navigator.clipboard.writeText(t); toast('Resumo copiado. Cole no chat com o Claude.'); } catch (e) { prompt('Copie o resumo:', t); } return false; },
   addrw: () => { form('Novo prêmio', [{ k: 'title', label: 'Prêmio' }, { k: 'at', label: 'Preço em moedas', type: 'number', value: 10 }], r => S.settings.rewards.push({ id: uid(), title: r.title, at: Math.max(1, Math.round(num(r.at))) })); return false; },
   editrw: v => { const r0 = S.settings.rewards.find(x => x.id === v); form('Editar prêmio', [{ k: 'title', label: 'Prêmio', value: r0.title }, { k: 'at', label: 'Preço em moedas', type: 'number', value: r0.at }], r => { r0.title = r.title; r0.at = Math.max(1, Math.round(num(r.at))); }, () => { S.settings.rewards = S.settings.rewards.filter(x => x.id !== v); }); return false; },
@@ -1008,13 +1032,13 @@ const BADGES = () => {
 
 /* ---- Sync com o Notion (via função do Netlify) ---- */
 function reportData(k = dkey()) {
-  const dt = new Date(k + 'T12:00'), dow = dt.getDay(), hs = S.habits.filter(h => h.days.includes(dow)), dn = hs.filter(h => stOf(k, h.id) === 'done').length;
+  const dt = new Date(k + 'T12:00'), dow = dt.getDay(), hs = S.habits.filter(h => h.days.includes(dow) && (!S.hardDay[k] || isMin(h))), dn = hs.filter(h => stOf(k, h.id) === 'done').length;
   const ms = S.meals[k] || [], md = S.mood[k] || {}, wts = S.weights.find(x => x.date === k), wv = vwk(), vi = S.vida[wv] || { s: {} };
   return {
     date: k, missoesPct: hs.length ? Math.round(100 * dn / hs.length) : 0, estudo: !!(S.studyLog[k] && S.studyLog[k].done), pomodoros: S.pomo[k] || 0, licoes: S.learn.days[k] || 0,
     aguaL: Math.round((S.water[k] || 0) / 100) / 10, treino: S.workouts.filter(w => w.date === k).map(w => w.name).join(', '), kcal: Math.round(sum(ms, 'kcal')), prot: Math.round(sum(ms, 'prot')),
     peso: wts ? num(wts.kg) : null, desafios: S.challenges.map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}`).join('; '), humor: md.m || null, energia: md.e || null, moedas: coins(),
-    vida: AREAS.map(a => `${a[1]} ${vi.s[a[0]] ?? '-'}`).join(' · '), resumo: dayReport(k)
+    vida: AREAS.map(a => `${a[1]} ${vi.s[a[0]] ?? '-'}`).join(' · '), resumo: (S.hardDay[k] ? 'DIA DIFÍCIL (mínimo de 3). ' : '') + dayReport(k)
   };
 }
 async function doSync(quiet) {
@@ -1052,7 +1076,7 @@ function roadCard() {
   const rd = roadLoad(); setTimeout(() => roadFetch(false), 0);
   const items = (rd.items || []).filter(x => x.date <= dkey(addD(k, 7)));
   const hoje = items.filter(x => x.date === k), atr = items.filter(x => x.date < k), prox = items.filter(x => x.date > k).slice(0, 4);
-  const row = (x, tag) => `<a class="road" href="${esc(x.url)}" target="_blank" rel="noopener"><span class="t">${esc(x.title)}</span><span class="mut">${esc([x.tipo, x.cat].filter(Boolean).join(' · '))}${tag ? ' · ' + tag : ''}${x.xp ? ' · ' + x.xp + ' XP' : ''}</span>${x.crit ? `<span class="mut">Pronto quando: ${esc(x.crit)}</span>` : ''}</a>`;
+  const row = (x, tag) => { const dn = x.status === 'Concluído'; return `<div class="road ${dn ? 'dn' : ''}"><div class="rt"><a class="t" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a><button class="btn sm ${dn ? 'ghost' : ''}" data-a="roaddone" data-v="${esc(x.id)}">${dn ? 'Desfazer' : ic('check') + 'Feito'}</button></div><span class="mut">${esc([x.tipo, x.cat].filter(Boolean).join(' · '))}${tag ? ' · ' + tag : ''}${x.xp ? ' · ' + x.xp + ' XP' : ''}</span>${x.crit && !dn ? `<span class="mut">Pronto quando: ${esc(x.crit)}</span>` : ''}</div>`; };
   const dd = d => d.split('-').reverse().slice(0, 2).join('/');
   let b = '';
   if (hoje.length) b += `<div class="grp">Hoje</div>` + hoje.map(x => row(x, '')).join('');
@@ -1060,9 +1084,23 @@ function roadCard() {
   if (prox.length) b += `<div class="grp">Próximos dias</div>` + prox.map(x => row(x, dd(x.date))).join('');
   if (!b) b = `<div class="mut">${rd.err ? 'Não consegui ler o Roadmap agora (' + esc(rd.err) + '). Mostrando o que tinha salvo.' : rd.at ? 'Nada marcado no Roadmap para hoje.' : 'Carregando…'}</div>`;
   else if (rd.err) b += `<div class="mut">Sem conexão agora. Mostrando o último que carregou.</div>`;
-  return `<div class="card">${sec('book-open', 'Estudo do Roadmap', `<button class="btn sm ghost" data-a="roadrefresh">${ic('refresh')}Atualizar</button>`)}${b}<div class="mut">Para concluir ou adiar, use o Sistema XP no Claude.</div></div>`;
+  return `<div class="card">${sec('book-open', 'Estudo do Roadmap', `<button class="btn sm ghost" data-a="roadrefresh">${ic('refresh')}Atualizar</button>`)}${b}<div class="mut">Feito marca como Concluído no Notion. Para adiar ou anotar, use o Sistema XP no Claude.</div></div>`;
 }
-Object.assign(A, { roadrefresh: () => { roadFetch(true); return false; } });
+async function roadSet(id, status) {
+  const sy = S.settings.sync, rd = roadLoad(), it = (rd.items || []).find(x => x.id === id); if (!it || ui.roadBusy) return;
+  ui.roadBusy = true;
+  try {
+    const base = (sy.url || '/.netlify/functions/sync').replace(/sync$/, 'roadmap');
+    const r = await fetch(base, { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify({ id, status }) });
+    if (!r.ok) throw new Error(r.status);
+    S.road = S.road || { done: {} };
+    if (status === 'Concluído') { it.prev = it.status; it.status = 'Concluído'; S.road.done[id] = dkey(); toast('Concluído no Notion. +3 moedas.'); }
+    else { it.status = it.prev && it.prev !== 'Concluído' ? it.prev : 'Não iniciado'; delete S.road.done[id]; toast('Voltou para aberto no Notion.'); }
+    try { localStorage.setItem(ROAD_KEY, JSON.stringify(rd)); } catch (e) { } save();
+  } catch (e) { toast('Não consegui falar com o Notion (' + (e.message || e) + ').'); }
+  ui.roadBusy = false; render();
+}
+Object.assign(A, { roadrefresh: () => { roadFetch(true); return false; }, roaddone: v => { const it = (roadLoad().items || []).find(x => x.id === v); if (it) roadSet(v, it.status === 'Concluído' ? (it.prev && it.prev !== 'Concluído' ? it.prev : 'Não iniciado') : 'Concluído'); return false; } });
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-a]'); if (!el || e.target.closest('.modal')) return;
