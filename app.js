@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v37';
+const APP_V = 'v38';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -1542,7 +1542,8 @@ function planoLinhas(mo) {
   const m = dinMonth(mo), L = [], cl = n => String(n).replace(/\s*\(exemplo\)/i, '');
   m.fixos.forEach(f => L.push({ nome: cl(f.nome), valor: f.valor }));
   const as = m.assin.reduce((a, x) => a + x.valor, 0); if (as > 0) L.push({ nome: 'Assinaturas', valor: as, hint: 'ADOBE|ASSINAT|FIGMA|CLAUDE|CRUNCHY' });
-  m.parc.forEach(x => L.push({ nome: cl(x.nome), valor: x.valor, sub: `${cl(x.nome)} (parcela ${x.i}/${x.n})` }));
+  const cardSum = m.parc.filter(x => x.card || isCardP(x)).reduce((a, x) => a + x.valor, 0); if (cardSum > 0) L.push({ nome: 'Cartão de crédito', valor: cardSum, hint: 'CARTAO|CREDITO', sub: 'CARTÃO DE CRÉDITO (parcelas)' });
+  m.parc.filter(x => !(x.card || isCardP(x))).forEach(x => L.push({ nome: cl(x.nome), valor: x.valor, sub: `${cl(x.nome)} (parcela ${x.i}/${x.n})` }));
   m.pont.forEach(x => { if (x.valor > 0) L.push({ nome: cl(x.nome), valor: x.valor }); });
   const VN = { mercado: ['Alimentação', 'ALIMENT|MERCADO'], gasolina: ['Gasolina', 'GASOLINA|COMBUST|TRANSP'], lazer: ['Lazer', 'LAZER'] };
   m.vars.forEach(v => { const t = VN[v.nome] || [v.nome, '']; if (v.plan > 0) L.push({ nome: t[0], valor: v.plan, hint: t[1] }); });

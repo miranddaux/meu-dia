@@ -9,7 +9,13 @@ const DIN_SKIP = ['Moradia', 'Assinaturas', 'Academia/Suplementos']; /* já est�
 const dinEx = () => { const m = dkey().slice(0, 7); return { exemplo: true, renda: { liquido: 3000, meta: [3500, 4000] }, cartao: { fecha: 19, vence: 25 }, fixos: [{ nome: 'Aluguel (exemplo)', valor: 900, prioridade: 1 }, { nome: 'Luz (exemplo)', valor: 120 }], assinaturas: [{ nome: 'Streaming (exemplo)', valor: 30 }], parcelas: [{ nome: 'Celular (exemplo)', valor: 150, total: 10, atual: 3, atualMes: m }], pontuais: [{ nome: 'Presente (exemplo)', valor: 80, mes: addMo(m, 1) }], variaveis: { mercado: 400, gasolina: 150, lazer: 150 }, colchao: { inicial: 0, programado: 100, folga: 50, metas: [{ valor: 500, ate: addMo(m, 5) }] }, sozinho: { mercado: 600, internet: 80 }, desejos: [{ nome: 'Fone (exemplo)', valor: 200, tipo: 'avista' }] }; };
 
 /* ---------- dados ---------- */
-const dinS = () => { if (!S.din) S.din = {}; const d = S.din; d.saved = d.saved || []; d.cards = d.cards || []; d.paid = d.paid || {}; d.fat = d.fat || {}; d.want = d.want || []; d.over = d.over || {}; d.extra = d.extra || {}; d.extra.fixos = d.extra.fixos || []; d.extra.parcelas = d.extra.parcelas || []; return d; };
+const DIN_AUTO = /praia|imposto de renda|\bir\b|irpf|imprevist/i; /* coisas que o Miranda disse que não vão mais acontecer */
+const DIN_NCARD = /serasa|empr[eé]st|jeitto|faccio|aline|nay|financ|casa|obra|mei/i; /* parcelas que NÃO são de cartão (padrão; dá para trocar em Parcelas) */
+const dinHid = k => !!((S.din || {}).hide || {})[k];
+const isCardP = p => { const o = (S.din || {}).cardP || {}; return o[p.nome] != null ? !!o[p.nome] : !DIN_NCARD.test(p.nome || ''); };
+const dinS = () => { if (!S.din) S.din = {}; const d = S.din; d.hide = d.hide || {}; d.cardP = d.cardP || {};
+  if (d.plan && !d.clean1) { d.clean1 = 1; const P = d.plan, h = (pre, a, f) => (a || []).forEach(x => { const n = f ? f(x) : x.nome; if (DIN_AUTO.test(n || '')) d.hide[pre + n] = 1; }); h('f:', P.fixos); h('a:', P.assinaturas); h('p:', P.parcelas); h('x:', P.pontuais); h('v:', Object.keys(P.variaveis || {}), x => x); }
+  d.saved = d.saved || []; d.cards = d.cards || []; d.paid = d.paid || {}; d.fat = d.fat || {}; d.want = d.want || []; d.over = d.over || {}; d.extra = d.extra || {}; d.extra.fixos = d.extra.fixos || []; d.extra.parcelas = d.extra.parcelas || []; return d; };
 /* plano efetivo = arquivo importado + ajustes e itens que você mexeu no app (sobrevivem a uma nova importação) */
 function dinEff() {
   const d = dinS(), P = d.plan; if (!P) return null; const o = d.over, ex = d.extra;
@@ -27,7 +33,7 @@ function dinPStart(p) {
 }
 function dinParcelas() {
   const P = dinEff(), out = [];
-  (P.parcelas || []).forEach(p => { const s = dinPStart(p); out.push({ nome: p.nome, valor: num(p.valor), total: p.total, start: s, end: addMo(s, p.total - 1), exi: p._ex }); });
+  (P.parcelas || []).forEach(p => { if (p._ex === undefined && dinHid('p:' + p.nome)) return; const s = dinPStart(p); out.push({ nome: p.nome, valor: num(p.valor), total: p.total, start: s, end: addMo(s, p.total - 1), exi: p._ex }); });
   dinS().cards.forEach(c => { const f = dinCardFlows(c); if (f[0].n > 1) out.push({ nome: c.desc || 'Compra no cartão', valor: f[0].v, total: f[0].n, start: f[0].mo, end: f[f.length - 1].mo, card: true }); });
   return out;
 }
@@ -37,20 +43,20 @@ function dinMonth(mo, o) {
   o = o || {}; const P = dinEff(), d = dinS(), r = {};
   const ln = (nome, valor, x) => Object.assign({ nome, valor }, x || {});
   const sum = a => a.reduce((s, x) => s + x.valor, 0);
-  r.fixos = (P.fixos || []).filter(f => (!f.de || mo >= f.de) && (!f.ate || mo <= f.ate)).map(f => ln(f.nome, f.porMes ? num(f.porMes[mo]) : num(f.valor), { pri: f.prioridade || 9, ex: f._ex })).filter(x => x.valor > 0);
+  r.fixos = (P.fixos || []).filter(f => f._ex !== undefined || !dinHid('f:' + f.nome)).filter(f => (!f.de || mo >= f.de) && (!f.ate || mo <= f.ate)).map(f => ln(f.nome, f.porMes ? num(f.porMes[mo]) : num(f.valor), { pri: f.prioridade || 9, ex: f._ex })).filter(x => x.valor > 0);
   if (o.extraFixo) r.fixos.push(ln('Internet (morando sozinho)', o.extraFixo, { pri: 9 }));
-  r.assin = (P.assinaturas || []).map(a => ln(a.nome, num(a.valor), { opc: !!a.opcional }));
+  r.assin = (P.assinaturas || []).filter(a => !dinHid('a:' + a.nome)).map(a => ln(a.nome, num(a.valor), { opc: !!a.opcional }));
   r.parc = [];
-  (P.parcelas || []).forEach(p => { const s = dinPStart(p), e = addMo(s, p.total - 1); if (mo >= s && mo <= e) r.parc.push(ln(p.nome, num(p.valor), { i: moNum(mo) - moNum(s) + 1, n: p.total, ex: p._ex })); });
+  (P.parcelas || []).forEach(p => { if (p._ex === undefined && dinHid('p:' + p.nome)) return; const s = dinPStart(p), e = addMo(s, p.total - 1); if (mo >= s && mo <= e) r.parc.push(ln(p.nome, num(p.valor), { i: moNum(mo) - moNum(s) + 1, n: p.total, ex: p._ex })); });
   d.cards.forEach(c => dinCardFlows(c).forEach(f => { if (f.mo === mo) r.parc.push(ln(c.desc || 'Compra no cartão', f.v, { i: f.i, n: f.n, card: true })); }));
-  r.pont = (P.pontuais || []).map((p, ix) => ({ p, ix })).filter(x => x.p.mes === mo).map(x => ln(x.p.nome, num(x.p.valor), { falta: x.p.valor == null || x.p.valor === '', ix: x.ix }));
+  r.pont = (P.pontuais || []).map((p, ix) => ({ p, ix })).filter(x => x.p.mes === mo && !dinHid('x:' + x.p.nome)).map(x => ln(x.p.nome, num(x.p.valor), { falta: x.p.valor == null || x.p.valor === '', ix: x.ix }));
   const real = {}, outros = []; let extras = 0;
   S.tx.filter(t => t.date.startsWith(mo)).forEach(t => {
     const v = num(t.amount);
     if (t.type === 'in') { if (t.cat !== 'Salário') extras += v; return; }
     const k = DIN_VAR[t.cat]; if (k) real[k] = (real[k] || 0) + v; else if (!DIN_SKIP.includes(t.cat)) outros.push(ln(t.desc || t.cat, v));
   });
-  const pv = P.variaveis || {};
+  const pv = Object.fromEntries(Object.entries(P.variaveis || {}).filter(([k]) => !dinHid('v:' + k)));
   r.vars = Object.keys(Object.assign({}, pv, real)).map(k => { const pl = k === 'mercado' && o.mercado != null ? o.mercado : num(pv[k]); return ln(k, Math.max(pl, real[k] || 0), { plan: pl, real: real[k] || 0 }); });
   r.ent = (P.entradas || []).filter(e => e.mes === mo).map(e => ln(e.nome, num(e.valor)));
   r.outros = outros; r.extras = extras + sum(r.ent);
@@ -122,10 +128,12 @@ function vDinheiro() {
   m.parc.forEach(x => items.push({ k: 'p:' + x.nome, nome: x.nome, valor: x.valor, sub: `parcela ${x.i} de ${x.n}${x.card ? ' · cartão' : ''}`, ed: x.ex !== undefined ? ['dineditparc', x.ex] : null }));
   if (m.assin.length) items.push({ k: 'a:todas', nome: `Assinaturas (${m.assin.length})`, valor: m.tot.assin, sub: m.assin.map(a => a.nome).join(', ') });
   const itot = items.reduce((a, x) => a + x.valor, 0), ipg = items.filter(x => paid[x.k]).reduce((a, x) => a + x.valor, 0);
-  out += acc('dcontas', 'Contas do mês', `${brl(ipg)} de ${brl(itot)}`, `<div class="bar"><i style="width:${itot ? Math.min(100, ipg / itot * 100) : 0}%"></i></div>${items.map(x => `<div class="item"><div class="t">${esc(x.nome)}<div class="mut">${x.falta ? 'falta definir o valor' : brl(x.valor)}${x.sub ? ' · ' + esc(x.sub) : ''}</div></div><div class="row">${x.falta ? `<button class="btn sm ghost" data-a="dineditpont" data-v="${x.ix}">Definir valor</button>` : paid[x.k] ? doneBtn('Pago', 'Desfazer', `data-a="dinpaid" data-v="${esc(x.k)}" data-w="${mo}"`) : `<button class="btn sm" data-a="dinpaid" data-v="${esc(x.k)}" data-w="${mo}">${ic('check')}Paguei</button>`}${x.ed ? ib('edit', 'Editar ' + x.nome, x.ed[0], x.ed[1]) : ''}</div></div>`).join('') || '<div class="mut">Nada para pagar neste mês.</div>'}<div class="row wrap"><button class="btn sm ghost" data-a="dinaddfixo">${ic('plus')}Conta fixa</button><button class="btn sm ghost" data-a="dinaddparc">${ic('plus')}Parcela</button></div><div class="mut">No 5º dia útil o sino lembra de pagar primeiro o terreno, a obra ou a casa. Os gastos do dia a dia entram pelo botão Lançar.</div>`, true);
+  out += acc('dcontas', 'Contas do mês', `${brl(ipg)} de ${brl(itot)}`, `<div class="bar"><i style="width:${itot ? Math.min(100, ipg / itot * 100) : 0}%"></i></div>${items.map(x => `<div class="item"><div class="t">${esc(x.nome)}<div class="mut">${x.falta ? 'falta definir o valor' : brl(x.valor)}${x.sub ? ' · ' + esc(x.sub) : ''}</div></div><div class="row">${x.falta ? `<button class="btn sm ghost" data-a="dineditpont" data-v="${x.ix}">Definir valor</button>` : paid[x.k] ? doneBtn('Pago', 'Desfazer', `data-a="dinpaid" data-v="${esc(x.k)}" data-w="${mo}"`) : `<button class="btn sm" data-a="dinpaid" data-v="${esc(x.k)}" data-w="${mo}">${ic('check')}Paguei</button>`}${x.ed ? ib('edit', 'Editar ' + x.nome, x.ed[0], x.ed[1]) : /^a:/.test(x.k) ? '' : `<button class="btn sm ghost" data-a="dinhide" data-v="${esc(x.k)}">Tirar</button>`}</div></div>`).join('') || '<div class="mut">Nada para pagar neste mês.</div>'}<div class="row wrap"><button class="btn sm ghost" data-a="dinaddfixo">${ic('plus')}Conta fixa</button><button class="btn sm ghost" data-a="dinaddparc">${ic('plus')}Parcela</button></div><div class="mut">No 5º dia útil o sino lembra de pagar primeiro o terreno, a obra ou a casa. Os gastos do dia a dia entram pelo botão Lançar.</div>`, true);
   /* 4) parcelas */
   const ps = dinParcelas().filter(p => p.end >= mo).sort((a, c) => a.end.localeCompare(c.end));
-  out += acc('dparc', 'Parcelas', ps.length ? brl(m.tot.parc) + '/mês' : '', `${ps.map(p => { const i = Math.max(0, moNum(mo) - moNum(p.start) + 1), restantes = Math.max(0, p.total - Math.max(0, i - 1)); return `<div class="item"><div class="t"><b>${esc(p.nome)}</b><div class="mut">${i > 0 ? `${i} de ${p.total}` : 'começa em ' + dMl(p.start)} · ${brl(p.valor)}/mês · faltam ${brl(restantes * p.valor)}</div><div class="bar thin"><i style="width:${Math.min(100, Math.max(0, i) / p.total * 100)}%"></i></div></div><span class="mut">acaba ${dMl(p.end)}</span>${p.exi !== undefined ? ib('edit', 'Editar parcela', 'dineditparc', p.exi) : ''}</div>`; }).join('') || '<div class="mut">Nenhuma parcela. Boa!</div>'}${ps.length ? `<div class="mut">Última parcela termina em ${dMl(ps[ps.length - 1].end)}. A cada fim, a sobra do mês sobe.</div>` : ''}`, false);
+  const pItem = p => { const i = Math.max(0, moNum(mo) - moNum(p.start) + 1), restantes = Math.max(0, p.total - Math.max(0, i - 1)); return `<div class="item"><div class="t"><b>${esc(p.nome)}</b><div class="mut">${i > 0 ? `${i} de ${p.total}` : 'começa em ' + dMl(p.start)} · ${brl(p.valor)}/mês · faltam ${brl(restantes * p.valor)}</div><div class="bar thin"><i style="width:${Math.min(100, Math.max(0, i) / p.total * 100)}%"></i></div></div><span class="mut">acaba ${dMl(p.end)}</span>${p.card ? '' : `<button class="btn sm ghost" data-a="dincardp" data-v="${esc(p.nome)}">${isCardP(p) ? 'É cartão' : 'Não é cartão'}</button>`}${p.exi !== undefined ? ib('edit', 'Editar parcela', 'dineditparc', p.exi) : ''}${p.exi === undefined && !p.card ? `<button class="btn sm ghost" data-a="dinhide" data-v="${esc('p:' + p.nome)}">Tirar</button>` : ''}</div>`; };
+  const pc = ps.filter(p => p.card || isCardP(p)), po = ps.filter(p => !(p.card || isCardP(p))), act = a => a.filter(p => p.start <= mo && p.end >= mo).reduce((t, p) => t + p.valor, 0);
+  out += acc('dparc', 'Parcelas', ps.length ? brl(m.tot.parc) + '/mês' : '', `${pc.length ? `<div class="grp">No cartão · ${brl(act(pc))} na fatura deste mês</div>${pc.map(pItem).join('')}` : ''}${po.length ? `<div class="grp">Fora do cartão · ${brl(act(po))} este mês</div>${po.map(pItem).join('')}` : ''}${ps.length ? '' : '<div class="mut">Nenhuma parcela. Boa!</div>'}${ps.length ? `<div class="mut">Última parcela termina em ${dMl(ps[ps.length - 1].end)}. A cada fim, a sobra do mês sobe. “É cartão” junta as parcelas numa linha só (fatura) na planilha.</div>` : ''}<button class="btn sm ghost" data-a="dinaddparc">${ic('plus')}Parcela</button>`, false);
   /* 5) linha do tempo */
   const tl = []; for (let i = 0; i < dinSpan(); i++) { const mm = addMo(mo, i), x = dinMonth(mm); tl.push([mm, x]); }
   out += acc('dlinha', 'Linha do tempo', `até ${dMl(tl[tl.length - 1][0])}`, `<div class="mut">Sobra de cada mês depois de pagar tudo e separar o colchão programado.</div>${tl.map(([mm, x]) => `<div class="item"><div class="t"><span class="sem ${dinSem(x.sobra)}"></span><b>${dMl(mm)}</b><div class="mut">${x.fixos.filter(f => f.pri === 1).map(f => esc(f.nome.split(' (')[0]) + ' ' + brl(f.valor)).join(' · ') || 'sem casa/obra'} · parcelas ${brl(x.tot.parc)}${x.pont.some(p => p.falta) ? ' · falta valor de gasto pontual' : ''}</div></div><b class="${x.sobra < 0 ? 'neg' : ''}">${brl(x.sobra)}</b></div>`).join('')}`, false);
@@ -149,6 +157,10 @@ function vDinheiro() {
   /* 10) lançamentos do mês */
   const G = granaParts();
   out += G.cat + G.tx + G.metas + (S.bills.length ? G.bills : '');
+  /* 10b) gerenciar plano: tirar / voltar itens */
+  const hd = d.hide, mg = (pre, arr, f) => (arr || []).map(x => { const n = f ? f(x) : x.nome, k = pre + n; return `<div class="item"><div class="t">${esc(n)}${f ? '' : `<div class="mut">${brl(num(x.valor))}${x.total ? ' · ' + x.total + 'x' : ''}${x.mes ? ' · ' + dMl(x.mes) : ''}</div>`}</div>${hd[k] ? `<button class="btn sm" data-a="dinshow" data-v="${esc(k)}">Voltar</button>` : `<button class="btn sm ghost" data-a="dinhide" data-v="${esc(k)}">Tirar</button>`}</div>`; }).join('');
+  const PL = d.plan || {};
+  out += acc('dger', 'Tirar ou adicionar no plano', Object.keys(hd).length ? Object.keys(hd).length + ' tirado(s)' : '', `<div class="mut">“Tirar” some do plano em todos os meses (e da planilha no próximo envio). “Voltar” traz de volta.</div><div class="grp">Contas fixas</div>${mg('f:', PL.fixos)}<div class="grp">Assinaturas</div>${mg('a:', PL.assinaturas)}<div class="grp">Parcelas</div>${mg('p:', PL.parcelas)}<div class="grp">Gastos pontuais</div>${mg('x:', PL.pontuais)}<div class="grp">Gastos do mês (mercado, gasolina…)</div>${mg('v:', Object.keys(PL.variaveis || {}), x => x)}<div class="row wrap"><button class="btn sm ghost" data-a="dinaddfixo">${ic('plus')}Conta fixa</button><button class="btn sm ghost" data-a="dinaddparc">${ic('plus')}Parcela</button><button class="btn sm ghost" data-a="dinaddpont">${ic('plus')}Gasto pontual</button></div>`, false);
   /* 11) dados */
   out += acc('ddados', 'Dados', P.exemplo ? 'exemplo' : '', `<div class="mut">Versão do app: ${APP_V}. Tudo fica só neste aparelho. Para atualizar o plano, importe o arquivo novo: seus lançamentos, pagamentos e o que guardou continuam.</div><label>Importar dados financeiros</label><input type="file" accept=".json,application/json" data-c="dinimport"><button class="btn full" data-a="dincopy">${ic('copy')}Copiar resumo do mês (para o Claude)</button><button class="btn ghost full" data-a="dinexport">${ic('download')}Exportar tudo do Dinheiro</button><button class="btn danger full" data-a="dinwipe">${ic('trash')}Apagar dados do Dinheiro</button>`, false);
   return out;
@@ -189,6 +201,8 @@ function dinInit() {
         const o = dinS().over; o.renda = num(r.renda); o.vars = { mercado: num(r.mercado), gasolina: num(r.gasolina), lazer: num(r.lazer) }; o.colch = { programado: num(r.prog), folga: num(r.folga) };
       }); return false;
     },
+    dinhide: v => { dinS().hide[v] = 1; save(); toast('Tirei do plano.'); }, dinshow: v => { delete dinS().hide[v]; save(); },
+    dincardp: v => { const d = dinS(), p = (d.plan.parcelas || []).concat(d.extra.parcelas).find(x => x.nome === v); d.cardP[v] = !(p ? isCardP(p) : true); save(); },
     dinaddfixo: () => { dinFixoForm(-1); return false; }, dineditfixo: v => { dinFixoForm(+v); return false; },
     dinaddparc: () => { dinParcForm(-1); return false; }, dineditparc: v => { dinParcForm(+v); return false; },
     dinex: () => { dinS().plan = dinEx(); save(); },
