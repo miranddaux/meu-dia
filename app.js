@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v36';
+const APP_V = 'v37';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -1532,7 +1532,7 @@ function anoCard() {
   }
   return `<div class="card">${sec('calendar', 'Ano a ano (planilha)', `<button class="btn sm ghost" data-a="anoload" ${ui.anoBusy ? 'disabled' : ''}>${ic('reload')}${ui.anoBusy ? 'Atualizando' : 'Atualizar'}</button>`)}${head}${b}</div>`;
 }
-Object.assign(A, { anoy: v => { ui.year = (ui.year || +ui.mo.slice(0, 4)) + Number(v); return true; }, anomes: v => { ui.mo = v; return true; }, anoload: () => { anoLoad(ui.year || +ui.mo.slice(0, 4)); return false; } });
+Object.assign(A, { anoy: v => { ui.year = (ui.year || +ui.mo.slice(0, 4)) + Number(v); return true; }, anomes: v => { ui.mo = v; ui.dv = 'm'; return true; }, dv: v => { ui.dv = v; if (v === 'y') ui.year = +ui.mo.slice(0, 4); return true; }, anoload: () => { anoLoad(ui.year || +ui.mo.slice(0, 4)); return false; } });
 
 
 
@@ -1549,8 +1549,8 @@ function planoLinhas(mo) {
   if (m.colch > 0) L.push({ nome: 'Reserva de emergência', valor: m.colch, hint: 'RESERVA|COLCH' });
   return { linhas: L, renda: m.renda };
 }
-async function planoPost(mo, apply) {
-  const x = planoLinhas(mo), r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: JSON.stringify({ action: 'plano', month: mo, renda: x.renda, linhas: x.linhas, apply })});
+async function planoPost(mo, apply, zerar) {
+  const x = planoLinhas(mo), r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: JSON.stringify({ action: 'plano', month: mo, renda: x.renda, linhas: x.linhas, apply, zerar: !!zerar && mo > dkey().slice(0, 7) })});
   if (!r.ok) throw new Error((await r.text()).slice(0, 200)); return r.json();
 }
 Object.assign(A, {
@@ -1560,16 +1560,29 @@ Object.assign(A, {
     m.innerHTML = '<div class="sheet"><h3 class="px">Plano do app → planilha</h3><div class="mut">Conferindo a planilha…</div></div>'; document.body.appendChild(m);
     m.addEventListener('click', e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); });
     try {
-      const j = await planoPost(mo, false), up = j.atualizar, nv = j.novas, tot = up.length + nv.length + (j.renda ? 1 : 0);
+      const zr = () => { const c = m.querySelector('[data-zr]'); return c ? c.checked : S.din && S.din.zerar !== false; };
+      const j = await planoPost(mo, false, S.din && S.din.zerar !== false), up = j.atualizar, nv = j.novas, tot = up.length + nv.length + (j.renda ? 1 : 0) + (j.saem || []).length;
       const li = (a, b) => `<div class="row sp"><span>${esc(a)}</span><span class="mut">${b}</span></div>`;
-      m.querySelector('.sheet').innerHTML = `<h3 class="px">Plano do app → planilha</h3><div class="mut">${esc(j.tab)} · ${tot ? tot + ' mudança(s). Nada é apagado.' : 'A planilha já está igual ao plano.'}</div>${j.renda ? li('Salário', `${brl(j.renda.de)} → <b>${brl(j.renda.para)}</b>`) : ''}${up.length ? '<div class="grp">Valores que mudam</div>' + up.map(u => li(u.nome, `${brl(u.de)} → <b>${brl(u.para)}</b>${u.pago ? ' · já pago' : ''}`)).join('') : ''}${nv.length ? '<div class="grp">Linhas novas</div>' + nv.map(n => li(n.nome, `<b>${brl(n.para)}</b>`)).join('') : ''}${j.semLugar.length ? `<div class="banner warn"><span>Sem linha livre para: ${esc(j.semLugar.join(', '))}. Inclua na planilha.</span></div>` : ''}${j.soPlanilha.length ? `<div class="grp">Só na planilha (não mexo)</div>` + j.soPlanilha.map(u => li(u.nome, brl(u.valor))).join('') : ''}<div class="row act"><button class="btn ghost" data-x>Fechar</button>${tot ? '<button class="btn" data-ok>Enviar este mês</button><button class="btn ghost" data-ok3>Este mês + 3 próximos</button>' : ''}</div>`;
+      m.querySelector('.sheet').innerHTML = `<h3 class="px">Plano do app → planilha</h3><div class="mut">${esc(j.tab)} · ${tot ? tot + ' mudança(s). Nada é apagado.' : 'A planilha já está igual ao plano.'}</div>${j.renda ? li('Salário', `${brl(j.renda.de)} → <b>${brl(j.renda.para)}</b>`) : ''}${up.length ? '<div class="grp">Valores que mudam</div>' + up.map(u => li(u.nome, `${brl(u.de)} → <b>${brl(u.para)}</b>${u.pago ? ' · já pago' : ''}`)).join('') : ''}${nv.length ? '<div class="grp">Linhas novas</div>' + nv.map(n => li(n.nome, `<b>${brl(n.para)}</b>`)).join('') : ''}${(j.saem || []).length || (j.troca || []).length ? '<div class="grp">Linhas antigas que saem do mês</div>' + (j.saem || []).concat(j.troca || []).map(u => li(u.nome, `<span class="neg">${brl(u.valor)}</span>`)).join('') : ''}${j.semLugar.length ? `<div class="banner warn"><span>Sem linha livre para: ${esc(j.semLugar.join(', '))}. Inclua na planilha.</span></div>` : ''}${j.soPlanilha.length ? `<div class="grp">Só na planilha (não mexo)</div>` + j.soPlanilha.map(u => li(u.nome, brl(u.valor))).join('') : ''}${mo > dkey().slice(0, 7) ? `<label class="row"><input type="checkbox" data-zr ${S.din.zerar !== false ? 'checked' : ''}><span>Limpar da planilha as linhas antigas que não estão no plano (nunca as já pagas)</span></label>` : ''}<div class="row act"><button class="btn ghost" data-x>Fechar</button>${tot ? '<button class="btn" data-ok>Enviar este mês</button><button class="btn" data-ok3>Deste mês até dezembro</button>' : ''}</div>`;
       const go = async n => {
+        const zz = (S.din || {}).zerar !== false; if (S.din) { S.din.autoPlano = n > 1; save(); }
         const out = []; m.querySelector('.sheet').innerHTML = '<h3 class="px">Enviando…</h3>';
-        for (let i = 0; i < n; i++) { const mm = addMo(mo, i); try { const r = await planoPost(mm, true); out.push(`${r.tab}: ${r.atualizar.length + r.novas.length + (r.renda ? 1 : 0)} mudança(s)`); } catch (e) { out.push(`${mm}: ${String(e.message || e).slice(0, 80)}`); } }
+        for (let i = 0; i < n; i++) { const mm = addMo(mo, i); try { const r = await planoPost(mm, true, zz); out.push(`${r.tab}: ${r.atualizar.length + r.novas.length + (r.renda ? 1 : 0)} mudança(s)`); } catch (e) { out.push(`${mm}: ${String(e.message || e).slice(0, 80)}`); } }
         m.querySelector('.sheet').innerHTML = `<h3 class="px">Pronto</h3>${out.map(o => `<div class="mut">${esc(o)}</div>`).join('')}<div class="row act"><button class="btn" data-x>Fechar</button></div>`; planLoad(mo, true);
       };
-      const ok = m.querySelector('[data-ok]'), ok3 = m.querySelector('[data-ok3]'); if (ok) ok.onclick = () => go(1); if (ok3) ok3.onclick = () => go(4);
+      const zc = m.querySelector('[data-zr]'); if (zc) zc.onchange = () => { S.din.zerar = zc.checked; save(); m.remove(); A.planenviar(mo); };
+      const ok = m.querySelector('[data-ok]'), ok3 = m.querySelector('[data-ok3]'); if (ok) ok.onclick = () => go(1); if (ok3) ok3.onclick = () => go(Math.max(1, 13 - +mo.slice(5, 7)));
     } catch (e) { m.querySelector('.sheet').innerHTML = `<h3 class="px">Não deu</h3><div class="banner warn"><span>${esc(String(e.message || e))}</span></div><div class="row act"><button class="btn" data-x>Fechar</button></div>`; }
     return false;
   }
 });
+
+/* envio automático do plano para a planilha (1x por dia, só depois que o Miranda aprovar "Deste mês até dezembro") */
+async function planoAuto() {
+  const d = S.din; if (!d || !d.autoPlano || !S.settings.sync.key || !dinPlanOk()) return;
+  const t = dkey(); if (d.autoPlanoDia === t) return; d.autoPlanoDia = t; save();
+  const mo = t.slice(0, 7);
+  for (let m = +mo.slice(5, 7); m <= 12; m++) { const mm = mo.slice(0, 4) + '-' + String(m).padStart(2, '0'); try { await planoPost(mm, true, d.zerar !== false); } catch (e) { } }
+  planLoad(ui.mo, true); anoLoad(+ui.mo.slice(0, 4), true);
+}
+setTimeout(planoAuto, 4000);

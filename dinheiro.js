@@ -100,13 +100,18 @@ function dinEmpty() {
 }
 function vDinheiro() {
   const d = dinS(); if (!d.plan) return dinEmpty();
-  const P = dinEff(), mo = dkey().slice(0, 7), m = dinMonth(mo), sem = dinSem(m.sobra), folga = dinFolga(), paid = d.paid[mo] || {};
-  let out = P.exemplo ? `<div class="banner warn">${ic('info-box')}<span>Dados de exemplo. Importe o seu arquivo em “Dados” lá embaixo.</span></div>` : '';
+  const P = dinEff(), mo = ui.mo, m = dinMonth(mo), sem = dinSem(m.sobra), folga = dinFolga(), paid = d.paid[mo] || {};
+  const dv = ui.dv === 'y' ? 'y' : 'm';
+  const seg = `<div class="chips"><button class="chip ${dv === 'm' ? 'on' : ''}" data-a="dv" data-v="m">Mês</button><button class="chip ${dv === 'y' ? 'on' : ''}" data-a="dv" data-v="y">Ano</button></div>`;
+  if (dv === 'y') return seg + dinAnoCard(P);
+  let out = seg + `<div class="row sp card slim">${ib('chevron-left', 'Mês anterior', 'mo', -1)}<b class="cap1">${new Date(+mo.slice(0, 4), +mo.slice(5, 7) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</b>${ib('chevron-right', 'Próximo mês', 'mo', 1)}</div>`;
+  out += P.exemplo ? `<div class="banner warn">${ic('info-box')}<span>Dados de exemplo. Importe o seu arquivo em “Dados” lá embaixo.</span></div>` : '';
   /* 1) posso gastar? */
   const can = num(ui.dinCan), after = m.sobra - can;
   let cr = '';
   if (can > 0) { const fit = after >= folga ? '' : dinFit({ valor: can, tipo: 'avista' }, addMo(mo, 1)); cr = after >= folga ? `Pode. Sobra ${brl(after)} no mês.` : after >= 0 ? `Cabe, mas aperta: sobra só ${brl(after)}.` : `Não cabe neste mês (faltam ${brl(-after)}).${fit ? ' Primeiro mês que cabe: ' + dMl(fit) + '.' : ' Não cabe até o fim do plano.'}`; }
   out += `<div class="card"><div class="row"><div class="dsem ${sem}" role="img" aria-label="${dTxt[sem]}"></div><div class="grow"><b>${dTxt[sem]}</b><div class="mut">Sobra prevista em ${dMl(mo)}: <b class="${m.sobra < 0 ? 'neg' : ''}">${brl(m.sobra)}</b></div>${m.ent.length ? `<div class="mut">Entra a mais: ${m.ent.map(e => esc(e.nome) + ' ' + brl(e.valor)).join(', ')}</div>` : ''}</div></div><div class="grid3 sm"><div><b>${brl(m.renda + m.extras)}</b><small>entra</small></div><div><b>${brl(m.saidas)}</b><small>sai (com colchão)</small></div><div><b class="${m.sobra < 0 ? 'neg' : ''}">${brl(m.sobra)}</b><small>sobra</small></div></div><label>Posso gastar? Quanto custa (R$)</label><input data-c="dincan" inputmode="decimal" value="${can ? esc(String(ui.dinCan)) : ''}" placeholder="0,00">${cr ? `<div class="banner ${after >= folga ? '' : 'warn'}"><span>${cr}</span></div>` : ''}<button class="btn pri full" data-a="addtx">${ic('plus')}Lançar gasto ou entrada</button><button class="btn sm ghost" data-a="dinplano">${ic('sliders')}Ajustar renda, mercado, gasolina e colchão</button></div>`;
+  out += planCard(mo) + '<div class="grp">Mais detalhes</div>';
   /* 2) semana */
   const w = dinWeek(), warn = w.pct >= 100 ? 'Passou do dinheiro da semana.' : w.pct >= 80 ? 'Você já usou mais de 80% da semana.' : '';
   out += `<div class="card">${sec('calendar-week', 'Dinheiro da semana', `<b>${brl(w.plan)}</b>`)}<div class="mut">Mercado, gasolina e lazer. Gastou ${brl(w.spent)} · ${w.left >= 0 ? 'ainda tem ' + brl(w.left) : 'passou ' + brl(-w.left)}.</div><div class="bar ${w.pct > 100 ? 'over' : ''}"><i style="width:${Math.min(100, w.pct)}%"></i></div>${warn ? `<div class="banner warn"><span>${warn}</span></div>` : ''}${w.last > 1 ? `<div class="mut">Semana passada sobrou ${brl(w.last)}. Pode ir para o colchão.</div>` : ''}${m.vars.map(v => `<div><div class="row sp"><span>${esc(v.nome)}</span><span class="mut">${brl(v.real)} / ${brl(v.plan)} no mês</span></div><div class="bar thin ${v.real > v.plan ? 'over' : ''}"><i style="width:${v.plan ? Math.min(100, v.real / v.plan * 100) : 0}%"></i></div></div>`).join('')}</div>`;
@@ -141,10 +146,9 @@ function vDinheiro() {
   out += acc('dcard', 'Cartão parado', `fecha dia ${cf.fecha} · vence dia ${cf.vence}`, `<div class="mut">Meta: não usar o cartão. Se precisar, lance aqui e o app mostra em qual fatura cai.</div><div class="mut">Novas compras na fatura de ${dMl(mo)}: <b>${brl(nowCard)}</b>.</div>${d.cards.map(cd => { const f = dinCardFlows(cd); return `<div class="item"><div class="t">${esc(cd.desc || 'Compra')}<div class="mut">${sd2(cd.date)} · ${brl(num(cd.valor))}${f[0].n > 1 ? ` em ${f[0].n}x` : ''} · 1ª fatura ${dMl(f[0].mo)}</div></div>${ib('edit', 'Editar compra no cartão', 'dineditcard', cd.id)}</div>`; }).join('')}<div class="row">${d.fat[mo] ? doneBtn('Fatura paga', 'Desfazer', `data-a="dinfat" data-v="${mo}"`) : `<button class="btn" data-a="dinfat" data-v="${mo}">${ic('check')}Paguei a fatura (vence ${sd2(vd)})</button>`}</div><button class="btn sm ghost" data-a="dincard">${ic('plus')}Compra no cartão</button>`, false);
   const pont = (P.pontuais || []).map((p, ix) => ({ p, ix })).filter(x => x.p.mes >= mo).sort((a, c) => a.p.mes.localeCompare(c.p.mes));
   out += acc('dpont', 'Gastos pontuais futuros', pont.length + '', `<div class="mut">Presentes, viagens, anuais. Entram na sobra do mês marcado.</div>${pont.map(x => `<div class="item"><div class="t">${esc(x.p.nome)}<div class="mut">${dMl(x.p.mes)} · ${x.p.valor == null || x.p.valor === '' ? 'falta definir o valor' : brl(num(x.p.valor))}</div></div>${ib('edit', 'Editar gasto pontual', 'dineditpont', x.ix)}</div>`).join('') || '<div class="mut">Nada marcado.</div>'}<button class="btn sm ghost" data-a="dinaddpont">${ic('plus')}Gasto pontual</button>`, false);
-  /* 10) histórico, metas e planilha (antes ficavam no Porkinho) */
-  const G = granaParts(), [gy, gm] = ui.mo.split('-').map(Number), gnm = new Date(gy, gm - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }), gst = monthStats(ui.mo);
-  out += `<div class="grp">Histórico, metas e planilha</div><div class="row sp card slim">${ib('chevron-left', 'Mês anterior', 'mo', -1)}<b class="cap1">${gnm}</b>${ib('chevron-right', 'Próximo mês', 'mo', 1)}</div><div class="grid3 sm"><div><b class="ok">${brl(gst.inn)}</b><small>entradas lançadas</small></div><div><b class="warnc">${brl(gst.out)}</b><small>saídas lançadas</small></div><div><b>${brl(gst.inn - gst.out)}</b><small>saldo lançado</small></div></div>`;
-  out += G.cat + G.tx + G.metas + G.plan + anoCard() + (S.bills.length ? G.bills : '');
+  /* 10) lançamentos do mês */
+  const G = granaParts();
+  out += G.cat + G.tx + G.metas + (S.bills.length ? G.bills : '');
   /* 11) dados */
   out += acc('ddados', 'Dados', P.exemplo ? 'exemplo' : '', `<div class="mut">Versão do app: ${APP_V}. Tudo fica só neste aparelho. Para atualizar o plano, importe o arquivo novo: seus lançamentos, pagamentos e o que guardou continuam.</div><label>Importar dados financeiros</label><input type="file" accept=".json,application/json" data-c="dinimport"><button class="btn full" data-a="dincopy">${ic('copy')}Copiar resumo do mês (para o Claude)</button><button class="btn ghost full" data-a="dinexport">${ic('download')}Exportar tudo do Dinheiro</button><button class="btn danger full" data-a="dinwipe">${ic('trash')}Apagar dados do Dinheiro</button>`, false);
   return out;
@@ -245,4 +249,17 @@ function dinParcForm(ix) {
     const o = { nome: r.nome.trim() || 'Parcela', valor: num(r.valor), total: Math.round(num(r.total)), atual: Math.max(1, Math.round(num(r.atual)) || 1), atualMes: p.atualMes || dkey().slice(0, 7) };
     if (ix >= 0) d.extra.parcelas[ix] = o; else d.extra.parcelas.push(o);
   }, ix >= 0 ? () => { d.extra.parcelas.splice(ix, 1); } : null);
+}
+
+/* visão do ano: plano do app mês a mês + o que foi lançado + o que está na planilha */
+function dinAnoCard(P) {
+  const y = ui.year || +ui.mo.slice(0, 4), sy = S.settings.sync;
+  if (!(ui.ano && ui.ano.year === y)) { const c = anoCache(y); if (c) ui.ano = c; }
+  const a = ui.ano && ui.ano.year === y ? ui.ano : null;
+  if (sy.key && !ui.anoBusy && (!a || Date.now() - (a.at || 0) > 300000)) setTimeout(() => anoLoad(y, true), 0);
+  const rows = []; for (let k = 1; k <= 12; k++) { const mm = `${y}-${pad(k)}`, x = dinMonth(mm), st = monthStats(mm), sh = a && (a.meses || []).find(z => z.mes === mm); rows.push({ mm, k, entra: x.renda + x.extras, sai: x.saidas, sobra: x.sobra, gastei: st.out, sh }); }
+  const T = rows.reduce((o, r) => ({ e: o.e + r.entra, s: o.s + r.sai, so: o.so + r.sobra, g: o.g + r.gastei }), { e: 0, s: 0, so: 0, g: 0 });
+  const head = `<div class="row sp card slim"><button class="chip" data-a="anoy" data-v="-1" aria-label="Ano anterior">‹</button><b class="cap1">${y}</b><button class="chip" data-a="anoy" data-v="1" aria-label="Próximo ano">›</button></div>`;
+  const body = `<div class="grid3 sm"><div><b class="ok">${brl(T.e)}</b><small>entra no ano</small></div><div><b class="warnc">${brl(T.s)}</b><small>sai (plano)</small></div><div><b class="${T.so < 0 ? 'neg' : ''}">${brl(T.so)}</b><small>sobra</small></div></div><table class="g"><tr><th>Mês</th><th>Plano sai</th><th>Gastei</th><th>Sobra</th></tr>${rows.map(r => `<tr data-a="anomes" data-v="${r.mm}" role="button" tabindex="0" style="cursor:pointer${r.mm === dkey().slice(0, 7) ? ';font-weight:700' : ''}"><td>${ANO_MES[r.k - 1]}</td><td>${brl(r.sai)}</td><td>${r.gastei ? brl(r.gastei) : '–'}</td><td class="${r.sobra < 0 ? 'neg' : ''}">${brl(r.sobra)}</td></tr>`).join('')}</table><div class="mut">Toque num mês para abrir. “Gastei” é o que você lançou no app.${a ? ' Na planilha, a sobra de ' + (a.meses || []).map(z => ANO_MES[+z.mes.slice(5, 7) - 1] + ' ' + brl(z.sobra)).join(' · ') + '.' : ''}</div>`;
+  return head + `<div class="card">${sec('calendar', 'Ano a ano', sy.key ? `<button class="btn sm ghost" data-a="anoload" ${ui.anoBusy ? 'disabled' : ''}>${ic('reload')}${ui.anoBusy ? 'Atualizando' : 'Planilha'}</button>` : '')}${body}</div>`;
 }

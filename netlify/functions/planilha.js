@@ -42,26 +42,30 @@ exports.handler = async event => {
     if (ac === 'plano') { // manda o plano do app para a aba do mês: atualiza valores das linhas que já existem e usa "LINHA VARIÁVEL" para as novas. Nunca apaga nada.
       const key = t => norm(String(t || '').replace(/\(?\s*parcela\s*\d+\s*\/\s*\d+[^)]*\)?/i, '').replace(/\([^)]*\)/g, '').replace(/parcela\s*\d+\s*\/\s*\d+/i, '')).replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
       const L = (Array.isArray(body.linhas) ? body.linhas : []).slice(0, 60).map(x => ({ nome: String(x.nome || '').slice(0, 80), valor: Math.round(Number(x.valor) * 100) / 100, hint: String(x.hint || '').slice(0, 60), sub: String(x.sub || '').slice(0, 80) })).filter(x => x.nome && isFinite(x.valor) && x.valor > 0);
-      const used = new Set(), upd = [], nov = [], semLugar = [], mudou = []; const data2 = [];
-      const free = data.despesas.filter(x => x.livre && !x.valor); let fi = 0;
+      const used = new Set(), upd = [], nov = [], semLugar = [], pend = [], data2 = [];
       for (const l of L) {
         const k = key(l.nome);
         let it = k.length >= 3 ? data.despesas.find(x => !x.livre && !used.has(x.row) && (key(x.desc) === k || (key(x.desc).length >= 4 && (key(x.desc).includes(k) || k.includes(key(x.desc)))))) : null;
         if (!it && l.hint) it = data.despesas.find(x => !x.livre && !used.has(x.row) && new RegExp(l.hint.replace(/[^\p{L}|^ ]/gu, ''), 'i').test(norm(x.desc)));
-        if (it) { used.add(it.row); if (Math.abs(it.valor - l.valor) > 0.004 || (l.sub && key(it.desc) === k && norm(it.desc) !== norm(l.sub))) { upd.push({ row: it.row, nome: it.desc, de: it.valor, para: l.valor, pago: it.pago, novoNome: l.sub && !it.pago ? l.sub : null }); } }
-        else if (fi < free.length) { const sl = free[fi++]; nov.push({ row: sl.row, nome: l.sub || l.nome, para: l.valor }); }
-        else semLugar.push(l.nome);
+        if (it) { used.add(it.row); if (Math.abs(it.valor - l.valor) > 0.004 || (l.sub && key(it.desc) === k && norm(it.desc) !== norm(l.sub))) upd.push({ row: it.row, nome: it.desc, de: it.valor, para: l.valor, pago: it.pago, novoNome: l.sub && !it.pago ? l.sub : null }); }
+        else pend.push(l);
       }
+      const rest = data.despesas.filter(x => !x.livre && !used.has(x.row) && x.valor > 0);
+      const limpar = body.zerar === true ? rest.filter(x => !x.pago) : [];
+      const soPlanilha = rest.filter(x => !limpar.includes(x)).map(x => ({ nome: x.desc, valor: x.valor }));
+      const free = data.despesas.filter(x => x.livre && !x.valor).concat(limpar); let fi = 0;
+      for (const l of pend) { if (fi < free.length) { const sl = free[fi++]; nov.push({ row: sl.row, nome: l.sub || l.nome, para: l.valor }); } else semLugar.push(l.nome); }
+      const reuse = new Set(nov.map(n => n.row)), saem = limpar.filter(x => !reuse.has(x.row)).map(x => ({ row: x.row, nome: x.desc, valor: x.valor })), troca = limpar.filter(x => reuse.has(x.row)).map(x => ({ nome: x.desc, valor: x.valor }));
       const sal = data.entradas.find(x => /^SAL/i.test(norm(x.desc))); let renda = null;
       if (Number.isFinite(Number(body.renda)) && Number(body.renda) > 0 && sal && Math.abs(sal.valor - Number(body.renda)) > 0.004) renda = { row: sal.row, nome: sal.desc, de: sal.valor, para: Math.round(Number(body.renda) * 100) / 100 };
-      const soPlanilha = data.despesas.filter(x => !x.livre && !used.has(x.row) && x.valor > 0).map(x => ({ nome: x.desc, valor: x.valor }));
       if (body.apply === true) {
         upd.forEach(u => { data2.push({ range: `'${tab}'!G${u.row}`, values: [[u.para]] }); if (u.novoNome) data2.push({ range: `'${tab}'!F${u.row}`, values: [[u.novoNome + (u.pago ? ' PAGO' : '')]] }); });
+        saem.forEach(x => { data2.push({ range: `'${tab}'!F${x.row}`, values: [['LINHA VARIÁVEL']] }); data2.push({ range: `'${tab}'!G${x.row}`, values: [[0]] }); });
         nov.forEach(n => { data2.push({ range: `'${tab}'!F${n.row}`, values: [[n.nome]] }); data2.push({ range: `'${tab}'!G${n.row}`, values: [[n.para]] }); });
         if (renda) data2.push({ range: `'${tab}'!C${renda.row}`, values: [[renda.para]] });
         if (data2.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data2 }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); }
       }
-      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, applied: body.apply === true, renda, atualizar: upd, novas: nov, semLugar, soPlanilha }) };
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, applied: body.apply === true, renda, atualizar: upd, novas: nov, semLugar, soPlanilha, saem, troca }) };
     }
     const CATX = { Mercado: 'ALIMENT|MERCADO', Transporte: 'GASOLINA|TRANSP|COMBUST', Lazer: 'LAZER', Assinaturas: 'ASSINAT', 'Academia/Suplementos': 'ACADEMIA', Saúde: 'FARM|SAUDE', Pet: 'PET|ANIMA', Estudos: 'CURSO|ESTUD', Moradia: 'ALUGUEL|MORADIA|CONDOM' };
     const CATIN = { Salário: '^SAL', Freelance: 'FREELA', 'Outras entradas': 'OUTRAS|EXTRA' };
