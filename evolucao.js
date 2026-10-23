@@ -118,3 +118,14 @@ function euInit() {
     }
   });
 }
+
+/* ---------- Estudos: resumo que se atualiza sozinho com o que você marca na Home ---------- */
+function estudoSemana() {
+  const ws = wkStart(), today = dkey(), days = [...Array(6)].map((_, i) => addD(ws, i)), ks = days.map(d => dkey(d));
+  const done = k => !!(S.studyLog[k] && S.studyLog[k].done), nDone = ks.filter(done).length, plan = ks.filter(k => k <= today && new Date(k + 'T12:00').getDay() >= 1 && new Date(k + 'T12:00').getDay() <= 5).length;
+  let streak = 0; for (let i = (done(today) ? 0 : 1); i < 60; i++) { const d = addD(new Date(), -i), g = d.getDay(); if (g === 0 || g === 6) continue; if (done(dkey(d))) streak++; else break; }
+  const mo = today.slice(0, 7), nMo = Object.keys(S.studyLog).filter(k => k.startsWith(mo) && done(k)).length;
+  const pom = ks.reduce((t, k) => t + (S.pomo[k] || 0), 0), rd = Object.values((S.road && S.road.done) || {}).filter(d => d >= ks[0] && d <= ks[5]).length;
+  const dots = days.map(d => { const k = dkey(d), st = S.study[d.getDay()] || {}, on = done(k); return `<div class="sdot ${on ? 'on' : ''} ${k === today ? 'hoje' : ''}" title="${esc(st.theme || '')}"><b>${DN[d.getDay()][0]}</b>${on ? ic('check') : (k < today && d.getDay() >= 1 && d.getDay() <= 5 ? '·' : '')}</div>`; }).join('');
+  return `<div class="card">${sec('trending-up', 'Estudo desta semana', `<span class="mut">${nDone}/${plan || 5} dias</span>`)}<div class="sdots">${dots}</div><div class="grid3 sm"><div><b>${streak}</b><small>dias seguidos</small></div><div><b>${nMo}</b><small>dias no mês</small></div><div><b>${pom}</b><small>pomodoros</small></div></div><div class="mut">Atualiza sozinho quando você marca o estudo na Home. Roadmap concluído na semana: ${rd}.</div></div>`;
+}

@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v31';
+const APP_V = 'v32';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -441,6 +441,7 @@ function vEstudos() { return vPlano(); }
 function vPlano() {
   const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '' }, k = dkey(), sl = S.studyLog[k] || {};
   let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
+  out += estudoSemana();
   out += roadCard();
   out += histCard();
   out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>
@@ -526,6 +527,7 @@ function vDieta() {
   out += gk ? `<div class="bar ${kc > gk ? 'over' : ''}"><i style="width:${Math.min(100, kc / gk * 100)}%"></i></div>${gp ? `<div class="bar thin"><i style="width:${Math.min(100, pt / gp * 100)}%"></i></div>` : ''}` : `<div class="banner">${ic('info-box')}<span>Defina sua meta em Metas e peso. Falta só a idade para calcular.</span></div>`;
   if (cb || ft) out += `<div class="mut">Carboidrato ${Math.round(cb)} g · Gordura ${Math.round(ft)} g</div>`;
   out += `<div class="row"><button class="btn pri" data-a="build" data-v="${guessMeal()}">${ic('plus')}Montar refeição</button>${yms.length && !ms.length ? `<button class="btn" data-a="repday">${ic('repeat')}Repetir ontem</button>` : ''}</div></div>`;
+  out += dietExtra(ms);
   MEALS.forEach(m => {
     const items = ms.filter(x => x.meal === m); const yi = yms.filter(x => x.meal === m);
     if (!items.length && m === 'Outro') return;
@@ -1336,7 +1338,7 @@ async function roadSet(id, status) {
     const r = await fetch(base, { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify({ id, status }) });
     if (!r.ok) throw new Error(r.status);
     S.road = S.road || { done: {} };
-    if (status === 'Concluído') { it.prev = it.status; it.status = 'Concluído'; S.road.done[id] = dkey(); toast('Concluído no Notion. +3 moedas.'); }
+    if (status === 'Concluído') { it.prev = it.status; it.status = 'Concluído'; S.road.done[id] = dkey(); if (!(S.studyLog[dkey()] && S.studyLog[dkey()].done)) S.studyLog[dkey()] = { done: true }; toast('Concluído no Notion. +3 moedas.'); }
     else { it.status = it.prev && it.prev !== 'Concluído' ? it.prev : 'Não iniciado'; delete S.road.done[id]; toast('Voltou para aberto no Notion.'); }
     try { localStorage.setItem(ROAD_KEY, JSON.stringify(rd)); } catch (e) { } save();
   } catch (e) { toast('Não consegui falar com o Notion (' + (e.message || e) + ').'); }
@@ -1392,7 +1394,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
-dinInit(); euInit(); load(); applyTheme(); save(); render();
+dinInit(); euInit(); dietInit(); load(); applyTheme(); save(); render();
 if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');
