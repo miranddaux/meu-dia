@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v28';
+const APP_V = 'v29';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -717,10 +717,10 @@ function vGrana() {
 
 /* ---------- Mais ---------- */
 function vMais() {
-  const tabs = [['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['pork', 'wallet', 'Porkinho'], ['vida', 'heart', 'Evolução'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
+  const tabs = [['din', 'coin', 'Dinheiro'], ['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['pork', 'wallet', 'Porkinho'], ['vida', 'heart', 'Evolução'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
   if (ui.mais !== 'cfg' && !tabs.find(t => t[0] === ui.mais)) ui.mais = 'prog';
   const out = `<div class="chips">${tabs.map(([i, c, l]) => `<button class="chip ${ui.mais === i ? 'on' : ''}" data-a="mtab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
-  return out + ({ vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
+  return out + ({ din: vDinheiro, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
 }
 function vLoja() {
   const bal = coins(), rw = [...S.settings.rewards].sort((a, c) => a.at - c.at);
@@ -1350,6 +1350,7 @@ function notifs() {
   const paid = S.billPaid[mo] || {}, rel = d => { const diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); return diff < 0 ? 'venceu dia ' + d.slice(8) : diff <= 3 ? 'vence ' + (diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias') : ''; };
   S.bills.forEach(b => { if (paid[b.id]) return; const r = rel(billDue(b, mo)); if (r) add(`b:${b.id}:${mo}`, 'wallet', `${b.title} ${r} (${brl(num(b.amount))}).`, [['Paguei', 'paybill', b.id, mo]]); });
   Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas, row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const r = rel(billDue({ day: p.day }, mo)); if (r) add(`p:${pkey(p.t)}:${mo}`, 'wallet', `${p.t} ${r}.`, [['Abrir Porkinho', 'loja_pork', '', '']]); });
+  dinNotifs(add, k, mo);
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) add(`t:${k}`, 'wallet', 'Faz uns dias sem lançar gastos no Porkinho.', [['Lançar', 'addtx', '', '']]);
   if (S.settings.icsHash !== icsSig()) add(`i:${k}`, 'clock', S.settings.icsHash ? 'Seus lembretes mudaram. Atualize no Calendário.' : 'Ative os avisos no iPhone (missões, contas, cachorros).', [[S.settings.icsHash ? 'Atualizar' : 'Ativar', 'ics', '', '']]);
@@ -1389,7 +1390,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
-load(); applyTheme(); save(); render();
+dinInit(); load(); applyTheme(); save(); render();
 if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');

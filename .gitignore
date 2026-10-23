@@ -1,0 +1,3 @@
+# dados financeiros pessoais: nunca versionar
+dados-financeiros*.json
+dinheiro-backup*.json
