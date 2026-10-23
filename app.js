@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v29';
+const APP_V = 'v30';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -437,11 +437,7 @@ const blkFields = x => [
 ];
 
 /* ---------- Estudos ---------- */
-function vEstudos() {
-  const seg = `<div class="chips"><button class="chip ${ui.es === 'plano' ? 'on' : ''}" data-a="es" data-v="plano">${ic('calendar-week')}Plano</button><button class="chip ${ui.es === 'aprender' ? 'on' : ''}" data-a="es" data-v="aprender">${ic('zap')}Aprender</button></div>`;
-  if (ui.es === 'aprender') return seg + vAprender();
-  return seg + vPlano();
-}
+function vEstudos() { return vPlano(); }
 function vPlano() {
   const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '' }, k = dkey(), sl = S.studyLog[k] || {};
   let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
@@ -496,8 +492,7 @@ function suggestKg(ex) {
 function vTreino() {
   const ws = dkey(wkStart()), cnt = S.workouts.filter(w => w.date >= ws).length;
   let out = `<div class="banner">${ic('info-box')}<span>Treinos de corpo inteiro às segundas, terças e quartas (mude em Missões e Semana). Pelo menos 2 por semana já funciona. Pare com 1 a 3 repetições de folga. Mostre a um instrutor ou médico antes, principalmente no começo.</span></div>`;
-  const ph = S.settings.phase || 1, first = [...S.workouts].map(w => w.date).sort()[0], wks = first ? Math.floor((Date.now() - new Date(first + 'T12:00')) / 6048e5) : 0;
-  out += `<div class="card">${sec('trending-up', 'Evolução do treino')}<div>${PHASES[ph - 1]}</div>${ph < 3 && wks >= 4 ? '<div class="banner">' + ic('info-box') + '<span>Já faz ' + wks + ' semanas. Se os treinos estão confortáveis, pode avançar de fase.</span></div>' : ''}${ph < 3 ? `<button class="btn sm ghost" data-a="nextphase">Avançar de fase (+1 série em cada exercício)</button>` : ''}</div>`;
+  out += phaseCard();
   out += `<div class="card"><div class="row sp"><div><div class="big">${cnt}<small>/2–3</small></div><div class="mut">treinos nesta semana</div></div><button class="btn sm ghost" data-a="addplan">${ic('plus')}Modelo</button></div></div>`;
   out += S.plans.map(p => `<div class="card"><h3 class="px">${esc(p.name)}</h3><div class="mut">${p.ex.map(e => esc(e.name)).join(' · ')}</div><div class="row"><button class="btn" data-a="startplan" data-v="${p.id}">${ic('play')}Começar</button>${ib('edit', 'Editar treino', 'editplan', p.id)}</div></div>`).join('');
   const pg = progressOf(), names = Object.keys(pg).filter(n => pg[n].length);
@@ -634,7 +629,8 @@ const IDEAS = {
 const JT = { nay: 'Com a Nayara', casa: 'Em casa', fam: 'Família', eu: 'Eu melhorando' };
 const SUG = ['Caminhar 20 minutos', 'Ler 10 páginas', 'Beber a meta de água', 'Sem refrigerante', 'Elogiar a Nayara uma vez', 'Alongar 10 minutos', 'Dormir antes das 23h', 'Escrever 3 coisas boas do dia', 'Meditar ou orar 5 minutos extras', 'Ligar para alguém da família'];
 function vDesafios() {
-  let out = `<div class="chips">${[['detox', 'shield', 'Detox'], ['melhorar', 'trending-up', 'Melhorar'], ['juntos', 'heart', 'Juntos']].map(([i, c, l]) => `<button class="chip ${ui.dt === i ? 'on' : ''}" data-a="dt" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
+  if (ui.dt === 'juntos') ui.dt = 'detox';
+  let out = `<div class="chips">${[['detox', 'shield', 'Detox'], ['melhorar', 'trending-up', 'Melhorar']].map(([i, c, l]) => `<button class="chip ${ui.dt === i ? 'on' : ''}" data-a="dt" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
   const k = dkey();
   if (ui.dt === 'juntos') {
     const key = ui.ju, list = [...IDEAS[key], ...(S.ideas.mine || []).filter(x => x.w === key).map(x => x.t)], idea = list[ui.ix % list.length];
@@ -717,10 +713,10 @@ function vGrana() {
 
 /* ---------- Mais ---------- */
 function vMais() {
-  const tabs = [['din', 'coin', 'Dinheiro'], ['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['pork', 'wallet', 'Porkinho'], ['vida', 'heart', 'Evolução'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
+  const tabs = [['din', 'coin', 'Dinheiro'], ['eu', 'mood-happy', 'Eu'], ['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['pork', 'wallet', 'Porkinho'], ['vida', 'heart', 'Roda da vida'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
   if (ui.mais !== 'cfg' && !tabs.find(t => t[0] === ui.mais)) ui.mais = 'prog';
   const out = `<div class="chips">${tabs.map(([i, c, l]) => `<button class="chip ${ui.mais === i ? 'on' : ''}" data-a="mtab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
-  return out + ({ din: vDinheiro, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
+  return out + ({ din: vDinheiro, eu: vEu, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
 }
 function vLoja() {
   const bal = coins(), rw = [...S.settings.rewards].sort((a, c) => a.at - c.at);
@@ -757,7 +753,9 @@ function weekSummary(ws) {
   const txt = `Sistema XP · resumo da semana ${short(ws)} a ${short(addD(ws, 6))}\nMissões: ${pw === null ? '—' : pw + '%'} · Estudos: ${sd}/${sdMax || 5} · Treinos: ${wk} · Água na meta: ${wd} dias\nPomodoros: ${pom} · Lições: ${les} · Roadmap concluído: ${rdn} · Dias difíceis: ${hardN}\nPeso: ${dw === null ? '—' : (dw > 0 ? '+' : '') + r1(dw) + ' kg'}\nO que foi bem: ${wins.join('; ') || '—'}\nAjuste sugerido: ${adj[0]}`;
   return { wins, adj, txt, pom, les, rdn, hardN, dw };
 }
-function vProg() {
+const pvSeg = () => `<div class="chips">${[['sem', 'Semana'], ['mes', 'Mês']].map(([i, l]) => `<button class="chip ${(ui.pv || 'sem') === i ? 'on' : ''}" data-a="pv" data-v="${i}">${l}</button>`).join('')}</div>`;
+function vProg() { return pvSeg() + ((ui.pv || 'sem') === 'mes' ? vMes() : vProgSem()); }
+function vProgSem() {
   const ws = wkStart(addD(new Date(), 7 * ui.wo)), days = [...Array(7)].map((_, i) => addD(ws, i)), today = dkey();
   const hs = S.habits.filter(h => days.some(d => h.days.includes(d.getDay())));
   const pw = pctWeek(ws);
@@ -821,7 +819,7 @@ function vCfg() {
 const TABS = [['hoje', 'sun', 'Hoje'], ['corpo', 'human-run', 'Corpo'], ['estudos', 'book-open', 'Estudos'], ['desafios', 'shield', 'Desafios'], ['mais', 'more-horizontal', 'Mais']];
 function render() {
   const n = new Date(), k = dkey(n), hr = n.getHours();
-  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino, dieta, metas e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox, melhorar e fazer coisas juntos'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
+  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino, dieta, metas e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
   const [h, p] = titles[ui.tab];
   const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   $('#top').innerHTML = `${hud}<h1 class="px">${h}</h1><p>${p}</p>`;
@@ -895,7 +893,7 @@ const A = {
   skiprest: () => { S.session.restEnd = null; save(); },
   skipex: () => { const s = S.session; s.i++; s.set = 1; s.restEnd = null; if (s.i >= s.ex.length) finishSession(); save(); },
   endsess: () => { if (!confirm('Encerrar o treino agora? O que você já fez fica salvo.')) return false; finishSession(); save(); },
-  nextphase: () => { if (!confirm('Avançar de fase? Cada exercício ganha +1 série (máximo 4).')) return false; S.plans.forEach(p => p.ex.forEach(e => { e.sets = Math.min(4, +e.sets + 1); })); S.settings.phase = Math.min(3, (S.settings.phase || 1) + 1); save(); },
+  nextphase: () => { if (!confirm('Avançar de fase? Cada exercício ganha +1 série (máximo 4).')) return false; S.plans.forEach(p => p.ex.forEach(e => { e.sets = Math.min(4, +e.sets + 1); })); S.settings.phase = Math.min(3, (S.settings.phase || 1) + 1); S.settings.phaseSince = dkey(); save(); },
   addplan: () => { form('Novo modelo de treino', planFields({ name: '' }), r => S.plans.push({ id: uid(), name: r.name || 'Treino', ex: parsePlan(r.ex) })); return false; },
   editplan: v => { const p = S.plans.find(x => x.id === v); form('Editar treino', planFields(p), r => { p.name = r.name; p.ex = parsePlan(r.ex); }, () => { S.plans = S.plans.filter(x => x.id !== v); }); return false; },
   addwk: () => { form('Registrar treino', [{ k: 'date', label: 'Dia', type: 'date', value: dkey() }, { k: 'name', label: 'Nome', ph: 'Ex.: Treino A' }, { k: 'dur', label: 'Duração (min)', type: 'number' }, { k: 'notes', label: 'Exercícios, séries, cargas', type: 'textarea', ph: 'Supino 3x10 40kg…' }], r => S.workouts.push({ id: uid(), ...r })); return false; },
@@ -1288,7 +1286,7 @@ function roadCard() {
   if (!b) b = `<div class="mut">${rd.err ? 'Não consegui ler o Roadmap agora (' + esc(rd.err) + '). Mostrando o que tinha salvo.' : rd.at ? 'Nada marcado no Roadmap para hoje.' : 'Carregando…'}</div>`;
   else if (rd.err) b += `<div class="mut">Sem conexão agora. Mostrando o último que carregou.</div>`;
   const pend = hoje.filter(x => x.status !== 'Concluído').length;
-  return acc('road', 'Estudo do Roadmap', hoje.length ? `${hoje.length - pend}/${hoje.length} hoje` : (atr.length ? `${atr.length} p/ retomar` : ''), `${b}<div class="row"><button class="btn sm ghost" data-a="roadrefresh">${ic('reload')}Atualizar</button><button class="btn sm ghost" data-a="gotolearn">${ic('zap')}Aprender e foco</button></div><div class="mut">Feito marca como Concluído no Notion. Para adiar ou anotar, use o Sistema XP no Claude.</div>`, !!pend);
+  return acc('road', 'Estudo do Roadmap', hoje.length ? `${hoje.length - pend}/${hoje.length} hoje` : (atr.length ? `${atr.length} p/ retomar` : ''), `${b}<div class="row"><button class="btn sm ghost" data-a="roadrefresh">${ic('reload')}Atualizar</button></div><div class="mut">Feito marca como Concluído no Notion. Para adiar ou anotar, use o Sistema XP no Claude.</div>`, !!pend);
 }
 /* ---- Histórico: aulas feitas (Roadmap Concluído + log de inglês), só leitura ---- */
 const HIST_KEY = 'meudia_hist';
@@ -1390,7 +1388,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
-dinInit(); load(); applyTheme(); save(); render();
+dinInit(); euInit(); load(); applyTheme(); save(); render();
 if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');
