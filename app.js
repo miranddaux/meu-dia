@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v35';
+const APP_V = 'v36';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -1487,7 +1487,7 @@ function planCard(mo) {
     let g = '';
     b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><div class="row"><button class="btn sm ghost" data-a="plandia" data-v="${esc(x.desc)}" aria-label="Dia do vencimento de ${esc(x.desc)}">${pdays()[pkey(x.desc)] ? 'Dia ' + pdays()[pkey(x.desc)].day : '+ dia'}</button>${x.pago ? doneBtn('Pago', 'Desfazer', `data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}"`) : `<button class="btn sm" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${ic('check')}Paguei</button>`}</div></div>`; }).join('');
   }
-  return `<div class="card">${head}${b}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn !== false ? 'checked' : ''}><span>Sugerir envio de novos gastos para a planilha</span></label></div>`;
+  return `<div class="card">${head}${b}${typeof dinMonth === 'function' && dinPlanOk() ? `<button class="btn full" data-a="planenviar" data-v="${mo}">${ic('upload')}Atualizar a planilha com o plano do app</button>` : ''}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn !== false ? 'checked' : ''}><span>Sugerir envio de novos gastos para a planilha</span></label></div>`;
 }
 Object.assign(A, {
   plandia: v => { const k = pkey(v), c = pdays()[k]; form('Dia do vencimento', [{ k: 'day', label: `${v}: dia do mês (1 a 28). Deixe vazio para tirar o aviso.`, type: 'number', value: c ? c.day : '' }], r => { const d = Math.round(num(r.day)); if (d >= 1 && d <= 28) pdays()[k] = { t: v, day: d }; else delete pdays()[k]; }); return false; },
@@ -1534,3 +1534,42 @@ function anoCard() {
 }
 Object.assign(A, { anoy: v => { ui.year = (ui.year || +ui.mo.slice(0, 4)) + Number(v); return true; }, anomes: v => { ui.mo = v; return true; }, anoload: () => { anoLoad(ui.year || +ui.mo.slice(0, 4)); return false; } });
 
+
+
+/* ---------- plano do app -> planilha (valores e parcelas de cada mês) ---------- */
+const dinPlanOk = () => { try { const P = dinEff(); return !!(P && P.renda && !P.exemplo); } catch (e) { return false; } };
+function planoLinhas(mo) {
+  const m = dinMonth(mo), L = [], cl = n => String(n).replace(/\s*\(exemplo\)/i, '');
+  m.fixos.forEach(f => L.push({ nome: cl(f.nome), valor: f.valor }));
+  const as = m.assin.reduce((a, x) => a + x.valor, 0); if (as > 0) L.push({ nome: 'Assinaturas', valor: as, hint: 'ADOBE|ASSINAT|FIGMA|CLAUDE|CRUNCHY' });
+  m.parc.forEach(x => L.push({ nome: cl(x.nome), valor: x.valor, sub: `${cl(x.nome)} (parcela ${x.i}/${x.n})` }));
+  m.pont.forEach(x => { if (x.valor > 0) L.push({ nome: cl(x.nome), valor: x.valor }); });
+  const VN = { mercado: ['Alimentação', 'ALIMENT|MERCADO'], gasolina: ['Gasolina', 'GASOLINA|COMBUST|TRANSP'], lazer: ['Lazer', 'LAZER'] };
+  m.vars.forEach(v => { const t = VN[v.nome] || [v.nome, '']; if (v.plan > 0) L.push({ nome: t[0], valor: v.plan, hint: t[1] }); });
+  if (m.colch > 0) L.push({ nome: 'Reserva de emergência', valor: m.colch, hint: 'RESERVA|COLCH' });
+  return { linhas: L, renda: m.renda };
+}
+async function planoPost(mo, apply) {
+  const x = planoLinhas(mo), r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: JSON.stringify({ action: 'plano', month: mo, renda: x.renda, linhas: x.linhas, apply })});
+  if (!r.ok) throw new Error((await r.text()).slice(0, 200)); return r.json();
+}
+Object.assign(A, {
+  planenviar: async mo => {
+    if (!S.settings.sync.key) { toast('Ligue a sincronização primeiro.'); return false; }
+    const m = document.createElement('div'); m.className = 'modal'; m.setAttribute('role', 'dialog');
+    m.innerHTML = '<div class="sheet"><h3 class="px">Plano do app → planilha</h3><div class="mut">Conferindo a planilha…</div></div>'; document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m || e.target.dataset.x !== undefined) m.remove(); });
+    try {
+      const j = await planoPost(mo, false), up = j.atualizar, nv = j.novas, tot = up.length + nv.length + (j.renda ? 1 : 0);
+      const li = (a, b) => `<div class="row sp"><span>${esc(a)}</span><span class="mut">${b}</span></div>`;
+      m.querySelector('.sheet').innerHTML = `<h3 class="px">Plano do app → planilha</h3><div class="mut">${esc(j.tab)} · ${tot ? tot + ' mudança(s). Nada é apagado.' : 'A planilha já está igual ao plano.'}</div>${j.renda ? li('Salário', `${brl(j.renda.de)} → <b>${brl(j.renda.para)}</b>`) : ''}${up.length ? '<div class="grp">Valores que mudam</div>' + up.map(u => li(u.nome, `${brl(u.de)} → <b>${brl(u.para)}</b>${u.pago ? ' · já pago' : ''}`)).join('') : ''}${nv.length ? '<div class="grp">Linhas novas</div>' + nv.map(n => li(n.nome, `<b>${brl(n.para)}</b>`)).join('') : ''}${j.semLugar.length ? `<div class="banner warn"><span>Sem linha livre para: ${esc(j.semLugar.join(', '))}. Inclua na planilha.</span></div>` : ''}${j.soPlanilha.length ? `<div class="grp">Só na planilha (não mexo)</div>` + j.soPlanilha.map(u => li(u.nome, brl(u.valor))).join('') : ''}<div class="row act"><button class="btn ghost" data-x>Fechar</button>${tot ? '<button class="btn" data-ok>Enviar este mês</button><button class="btn ghost" data-ok3>Este mês + 3 próximos</button>' : ''}</div>`;
+      const go = async n => {
+        const out = []; m.querySelector('.sheet').innerHTML = '<h3 class="px">Enviando…</h3>';
+        for (let i = 0; i < n; i++) { const mm = addMo(mo, i); try { const r = await planoPost(mm, true); out.push(`${r.tab}: ${r.atualizar.length + r.novas.length + (r.renda ? 1 : 0)} mudança(s)`); } catch (e) { out.push(`${mm}: ${String(e.message || e).slice(0, 80)}`); } }
+        m.querySelector('.sheet').innerHTML = `<h3 class="px">Pronto</h3>${out.map(o => `<div class="mut">${esc(o)}</div>`).join('')}<div class="row act"><button class="btn" data-x>Fechar</button></div>`; planLoad(mo, true);
+      };
+      const ok = m.querySelector('[data-ok]'), ok3 = m.querySelector('[data-ok3]'); if (ok) ok.onclick = () => go(1); if (ok3) ok3.onclick = () => go(4);
+    } catch (e) { m.querySelector('.sheet').innerHTML = `<h3 class="px">Não deu</h3><div class="banner warn"><span>${esc(String(e.message || e))}</span></div><div class="row act"><button class="btn" data-x>Fechar</button></div>`; }
+    return false;
+  }
+});
