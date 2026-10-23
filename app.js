@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v33';
+const APP_V = 'v34';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -22,7 +22,7 @@ const ic = (n, c = '') => `<svg class="ic ${c}" aria-hidden="true"><use href="#i
 const ib = (n, label, a, v, cls = 'ghost') => `<button class="btn ico ${cls}" aria-label="${esc(label)}" data-a="${a}" ${v !== undefined ? `data-v="${esc(v)}"` : ''}>${ic(n)}</button>`;
 
 /* ---------- estado ---------- */
-let syncT = null;
+let syncT = null, cloudT = null;
 const KEY = 'meudia_v1';
 const VER = 4;
 let S;
@@ -272,7 +272,7 @@ function backfill(c, n) {
   c.start = dkey(addD(new Date(), -n)); c.log = c.log || {};
   for (let i = n; i >= 1; i--) c.log[dkey(addD(new Date(), -i))] = 'ok';
 }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { alert('Não consegui salvar. Faça um backup agora.'); } if (S.settings.sync && S.settings.sync.on && S.settings.sync.key) { clearTimeout(syncT); syncT = setTimeout(() => doSync(true), 30000); } }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { alert('Não consegui salvar. Faça um backup agora.'); } if (S.settings.sync && S.settings.sync.on && S.settings.sync.key) { clearTimeout(syncT); syncT = setTimeout(() => doSync(true), 30000); } if (S.settings.sync && S.settings.sync.key) { clearTimeout(cloudT); cloudT = setTimeout(() => doBackup(true), 60000); } }
 
 /* ---------- fotos (IndexedDB) ---------- */
 const idb = () => new Promise((res, rej) => { const r = indexedDB.open('meudia_photos', 1); r.onupgradeneeded = () => r.result.createObjectStore('p'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
@@ -814,7 +814,7 @@ function vCfg() {
 <div class="card">${sec('clock', 'Avisos no iPhone')}<div class="mut">O iPhone não deixa um app avisar com ele fechado. O jeito certo é o app Calendário: ele avisa missões, prioridades, contas do Porkinho e cuidados dos cachorros. Baixe, abra e toque em Adicionar tudo. Quando algo mudar, o app avisa na Home para atualizar (não duplica).</div><button class="btn full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros (só avisam)</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button></div>
 <div class="card">${sec('sync', 'Sincronizar com o Notion')}<div class="row sp"><span>Enviar o dia automaticamente</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}"><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'} Depois de configurar, o dia vai para o banco "Meu Dia, registro diário" no Notion.</div><div class="mut">Versão do app: ${APP_V}</div></div>
 <div class="card">${sec('link', 'Links')}<label>Notion (Career OS / Faculdade Miranda)</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}<div class="mut">O Notion segue como fonte principal. Use Mais, Progresso, Copiar resumo para registrar o dia via Claude (Sistema XP).</div></div>
-<div class="card">${sec('save', 'Backup')}<div class="mut">Seus dados ficam só neste aparelho. Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
+<div class="card">${sec('save', 'Backup')}<div class="banner">${ic('upload')}<span>${s.sync.key ? (s.cloudLast ? 'Backup na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Ele se atualiza sozinho depois que você registra algo.' : 'Backup na nuvem ainda não feito. Toque em Fazer backup agora.') : 'Para ligar o backup na nuvem, coloque a chave do app no card do Notion (acima).'}</span></div><button class="btn pri full" data-a="cbk">${ic('upload')}Fazer backup na nuvem agora</button><button class="btn ghost full" data-a="crest">${ic('download')}Restaurar da nuvem</button><div class="mut">Seus dados também ficam neste aparelho. Exporte de vez em quando um arquivo (as fotos não entram no backup). Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
 <button class="btn full" data-a="export">${ic('download')}Exportar backup</button>
 <button class="btn ghost full" data-a="copy">${ic('copy')}Copiar backup (texto)</button>
 <label>Restaurar de arquivo</label><input type="file" accept=".json,application/json" data-c="restore">
@@ -1261,7 +1261,30 @@ async function doSync(quiet) {
   } catch (e) { if (!quiet) toast('Não consegui enviar. Veja Ajustes, Notion.'); }
   if (ui.tab === 'mais' && ui.mais === 'cfg') render();
 }
-Object.assign(A, { syncnow: () => { doSync(false); return false; }, synctog: () => { S.settings.sync.on = !S.settings.sync.on; save(); } });
+const cloudUrl = () => (S.settings.sync.url || '/.netlify/functions/sync').replace(/sync$/, 'backup');
+async function doBackup(quiet) {
+  const sy = S.settings.sync; if (!sy.key) { if (!quiet) toast('Defina a chave do app no card do Notion.'); return false; }
+  try {
+    const copy = JSON.parse(JSON.stringify(S)); copy.settings.sync.key = '';
+    const r = await fetch(cloudUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify({ json: JSON.stringify(copy) }), keepalive: false });
+    if (!r.ok) throw new Error(r.status + ' ' + (await r.text()).slice(0, 120));
+    S.settings.cloudLast = new Date().toISOString(); S.settings.cloudErr = ''; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+    if (!quiet) toast('Backup salvo na nuvem.');
+  } catch (e) { S.settings.cloudErr = String(e.message || e); if (!quiet) alert('Não consegui salvar o backup na nuvem: ' + S.settings.cloudErr); }
+  if (ui.tab === 'mais' && ui.mais === 'cfg') render();
+}
+async function doCloudRestore() {
+  const sy = S.settings.sync; if (!sy.key) { alert('Primeiro coloque a chave do app no card do Notion.'); return; }
+  try {
+    const r = await fetch(cloudUrl(), { headers: { 'x-app-key': sy.key } });
+    if (!r.ok) throw new Error(r.status === 404 ? 'Ainda não existe backup na nuvem.' : 'Erro ' + r.status);
+    const j = await r.json(), d = JSON.parse(j.json);
+    d.settings = d.settings || {}; d.settings.sync = Object.assign({}, d.settings.sync, { key: sy.key, url: sy.url, on: true });
+    d.settings.cloudLast = j.at;
+    restore(JSON.stringify(d));
+  } catch (e) { alert('Não consegui restaurar da nuvem: ' + (e.message || e)); }
+}
+Object.assign(A, { cbk: () => { doBackup(false); return false; }, crest: () => { doCloudRestore(); return false; }, syncnow: () => { doSync(false); return false; }, synctog: () => { S.settings.sync.on = !S.settings.sync.on; save(); } });
 Object.assign(C, { syncurl: v => { S.settings.sync.url = v.trim(); save(); }, synckey: v => { S.settings.sync.key = v.trim(); save(); } });
 
 /* ---- Estudo do dia vindo do Roadmap (Notion, só leitura) ---- */
@@ -1361,7 +1384,7 @@ function notifs() {
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) add(`t:${k}`, 'wallet', 'Faz uns dias sem lançar gastos no Porkinho.', [['Lançar', 'addtx', '', '']]);
   if (S.settings.icsHash !== icsSig()) add(`i:${k}`, 'clock', S.settings.icsHash ? 'Seus lembretes mudaram. Atualize no Calendário.' : 'Ative os avisos no iPhone (missões, contas, cachorros).', [[S.settings.icsHash ? 'Atualizar' : 'Ativar', 'ics', '', '']]);
-  const lb = S.settings.lastBackup; if (!lb || (new Date(k) - new Date(lb)) / 864e5 > 14) add(`k:${k}`, 'save', 'Faz um tempo sem backup. Ajustes (ícone no topo), Exportar backup.', []);
+  const lb = S.settings.lastBackup, cl = S.settings.cloudLast ? S.settings.cloudLast.slice(0, 10) : null; if ((!lb || (new Date(k) - new Date(lb)) / 864e5 > 14) && (!cl || (new Date(k) - new Date(cl)) / 864e5 > 3)) add(`k:${k}`, 'save', 'Faz um tempo sem backup. Ajustes (ícone no topo), Fazer backup na nuvem agora.', []);
   return out;
 }
 function notifHtml() {
