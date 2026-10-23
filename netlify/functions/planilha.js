@@ -41,13 +41,13 @@ exports.handler = async event => {
 
     if (ac === 'plano') { // manda o plano do app para a aba do mês: atualiza valores das linhas que já existem e usa "LINHA VARIÁVEL" para as novas. Nunca apaga nada.
       const key = t => norm(String(t || '').replace(/\(?\s*parcela\s*\d+\s*\/\s*\d+[^)]*\)?/i, '').replace(/\([^)]*\)/g, '').replace(/parcela\s*\d+\s*\/\s*\d+/i, '')).replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim();
-      const L = (Array.isArray(body.linhas) ? body.linhas : []).slice(0, 60).map(x => ({ nome: String(x.nome || '').slice(0, 80), valor: Math.round(Number(x.valor) * 100) / 100, hint: String(x.hint || '').slice(0, 60), sub: String(x.sub || '').slice(0, 80) })).filter(x => x.nome && isFinite(x.valor) && x.valor > 0);
-      const used = new Set(), upd = [], nov = [], semLugar = [], pend = [], data2 = [];
+      const L = (Array.isArray(body.linhas) ? body.linhas : []).slice(0, 60).map(x => ({ nome: String(x.nome || '').slice(0, 80), valor: Math.round(Number(x.valor) * 100) / 100, hint: String(x.hint || '').slice(0, 60), sub: String(x.sub || '').slice(0, 80), id: String(x.id || '').slice(0, 90) })).filter(x => x.nome && isFinite(x.valor) && x.valor > 0);
+      const used = new Set(), upd = [], nov = [], semLugar = [], pend = [], data2 = [], casados = [], ult = (body.ultimo && typeof body.ultimo === 'object') ? body.ultimo : {}, resp = body.respeitar === true;
       for (const l of L) {
         const k = key(l.nome);
         let it = k.length >= 3 ? data.despesas.find(x => !x.livre && !used.has(x.row) && (key(x.desc) === k || (key(x.desc).length >= 4 && (key(x.desc).includes(k) || k.includes(key(x.desc)))))) : null;
         if (!it && l.hint) it = data.despesas.find(x => !x.livre && !used.has(x.row) && new RegExp(l.hint.replace(/[^\p{L}|^ ]/gu, ''), 'i').test(norm(x.desc)));
-        if (it) { used.add(it.row); if (Math.abs(it.valor - l.valor) > 0.004 || (l.sub && key(it.desc) === k && norm(it.desc) !== norm(l.sub))) upd.push({ row: it.row, nome: it.desc, de: it.valor, para: l.valor, pago: it.pago, novoNome: l.sub && !it.pago ? l.sub : null }); }
+        if (it) { used.add(it.row); casados.push({ id: l.id, nome: it.desc, row: it.row, sheet: it.valor, pago: it.pago }); const editado = resp && l.id && ult[l.id] != null && Math.abs(it.valor - Number(ult[l.id])) > 0.004; if (editado) continue; if (Math.abs(it.valor - l.valor) > 0.004 || (l.sub && key(it.desc) === k && norm(it.desc) !== norm(l.sub))) upd.push({ row: it.row, nome: it.desc, de: it.valor, para: l.valor, pago: it.pago, novoNome: l.sub && !it.pago ? l.sub : null }); }
         else pend.push(l);
       }
       const rest = data.despesas.filter(x => !x.livre && !used.has(x.row) && x.valor > 0);
@@ -57,7 +57,8 @@ exports.handler = async event => {
       for (const l of pend) { if (fi < free.length) { const sl = free[fi++]; nov.push({ row: sl.row, nome: l.sub || l.nome, para: l.valor }); } else semLugar.push(l.nome); }
       const reuse = new Set(nov.map(n => n.row)), saem = limpar.filter(x => !reuse.has(x.row)).map(x => ({ row: x.row, nome: x.desc, valor: x.valor })), troca = limpar.filter(x => reuse.has(x.row)).map(x => ({ nome: x.desc, valor: x.valor }));
       const sal = data.entradas.find(x => /^SAL/i.test(norm(x.desc))); let renda = null;
-      if (Number.isFinite(Number(body.renda)) && Number(body.renda) > 0 && sal && Math.abs(sal.valor - Number(body.renda)) > 0.004) renda = { row: sal.row, nome: sal.desc, de: sal.valor, para: Math.round(Number(body.renda) * 100) / 100 };
+      const rEd = resp && ult.renda != null && sal && Math.abs(sal.valor - Number(ult.renda)) > 0.004; const sheetRenda = sal ? sal.valor : null;
+      if (!rEd && Number.isFinite(Number(body.renda)) && Number(body.renda) > 0 && sal && Math.abs(sal.valor - Number(body.renda)) > 0.004) renda = { row: sal.row, nome: sal.desc, de: sal.valor, para: Math.round(Number(body.renda) * 100) / 100 };
       if (body.apply === true) {
         upd.forEach(u => { data2.push({ range: `'${tab}'!G${u.row}`, values: [[u.para]] }); if (u.novoNome) data2.push({ range: `'${tab}'!F${u.row}`, values: [[u.novoNome + (u.pago ? ' PAGO' : '')]] }); });
         saem.forEach(x => { data2.push({ range: `'${tab}'!F${x.row}`, values: [['LINHA VARIÁVEL']] }); data2.push({ range: `'${tab}'!G${x.row}`, values: [[0]] }); });
@@ -65,7 +66,14 @@ exports.handler = async event => {
         if (renda) data2.push({ range: `'${tab}'!C${renda.row}`, values: [[renda.para]] });
         if (data2.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data2 }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); }
       }
-      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, applied: body.apply === true, renda, atualizar: upd, novas: nov, semLugar, soPlanilha, saem, troca }) };
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, applied: body.apply === true, renda, sheetRenda, casados, atualizar: upd, novas: nov, semLugar, soPlanilha, saem, troca }) };
+    }
+    if (ac === 'marcar') { // marca ou desmarca "PAGO" numa linha que já existe (nunca cria linha)
+      const kk = t => norm(String(t || '').replace(/\([^)]*\)/g, '').replace(/parcela\s*\d+\s*\/\s*\d+/i, '')).replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim(), k = kk(body.desc);
+      const it = k.length >= 3 ? data.despesas.find(x => !x.livre && (kk(x.desc) === k || (kk(x.desc).length >= 4 && (kk(x.desc).includes(k) || k.includes(kk(x.desc)))))) : null;
+      if (!it) return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, achou: false }) };
+      if (it.pago !== (body.paid === true)) await put('F' + it.row, it.desc + (body.paid === true ? ' PAGO' : ''));
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, achou: true }) };
     }
     const CATX = { Mercado: 'ALIMENT|MERCADO', Transporte: 'GASOLINA|TRANSP|COMBUST', Lazer: 'LAZER', Assinaturas: 'ASSINAT', 'Academia/Suplementos': 'ACADEMIA', Saúde: 'FARM|SAUDE', Pet: 'PET|ANIMA', Estudos: 'CURSO|ESTUD', Moradia: 'ALUGUEL|MORADIA|CONDOM' };
     const CATIN = { Salário: '^SAL', Freelance: 'FREELA', 'Outras entradas': 'OUTRAS|EXTRA' };

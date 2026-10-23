@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v38';
+const APP_V = 'v39';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -682,6 +682,7 @@ function billAlerts() {
   const k = dkey(), mo = k.slice(0, 7), paid = S.billPaid[mo] || {}, out = [];
   S.bills.forEach(b => { if (paid[b.id]) return; const d = billDue(b, mo), diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); if (diff < 0) out.push(`${b.title} venceu dia ${d.slice(8)}`); else if (diff <= 3) out.push(`${b.title} vence ${diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias'}`); });
   Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas; const row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const d = billDue({ day: p.day }, mo), diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); if (diff < 0) out.push(`${p.t} venceu dia ${d.slice(8)}`); else if (diff <= 3) out.push(`${p.t} vence ${diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias'}`); });
+  if (S.settings.sync.key && pushSupported() && !(S.settings.push && S.settings.push.on)) add('pu:' + mo, 'bell', 'Ligue os avisos no iPhone para eu te lembrar das contas nos dias certos.', [['Ligar', 'pushon', '', '']]);
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) out.push('Faz uns dias sem lançar no Porkinho');
   return out;
@@ -814,7 +815,7 @@ function vCfg() {
 <div class="card">${sec('clock', 'Avisos no iPhone')}<div class="mut">O iPhone não deixa um app avisar com ele fechado. O jeito certo é o app Calendário: ele avisa missões, prioridades, contas do Porkinho e cuidados dos cachorros. Baixe, abra e toque em Adicionar tudo. Quando algo mudar, o app avisa na Home para atualizar (não duplica).</div><button class="btn full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros (só avisam)</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button></div>
 <div class="card">${sec('sync', 'Sincronizar com o Notion')}<div class="row sp"><span>Enviar o dia automaticamente</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}"><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'} Depois de configurar, o dia vai para o banco "Meu Dia, registro diário" no Notion.</div><div class="mut">Versão do app: ${APP_V}</div></div>
 <div class="card">${sec('link', 'Links')}<label>Notion (Career OS / Faculdade Miranda)</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}<div class="mut">O Notion segue como fonte principal. Use Mais, Progresso, Copiar resumo para registrar o dia via Claude (Sistema XP).</div></div>
-<div class="card">${sec('save', 'Backup')}<div class="banner">${ic('upload')}<span>${s.sync.key ? (s.cloudLast ? 'Backup na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Ele se atualiza sozinho depois que você registra algo.' : 'Backup na nuvem ainda não feito. Toque em Fazer backup agora.') : 'Para ligar o backup na nuvem, coloque a chave do app no card do Notion (acima).'}</span></div><button class="btn pri full" data-a="cbk">${ic('upload')}Fazer backup na nuvem agora</button><button class="btn ghost full" data-a="crest">${ic('download')}Restaurar da nuvem</button><div class="mut">Seus dados também ficam neste aparelho. Exporte de vez em quando um arquivo (as fotos não entram no backup). Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
+${pushCard()}<div class="card">${sec('save', 'Backup')}<div class="banner">${ic('upload')}<span>${s.sync.key ? (s.cloudLast ? 'Backup na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Ele se atualiza sozinho depois que você registra algo.' : 'Backup na nuvem ainda não feito. Toque em Fazer backup agora.') : 'Para ligar o backup na nuvem, coloque a chave do app no card do Notion (acima).'}</span></div><button class="btn pri full" data-a="cbk">${ic('upload')}Fazer backup na nuvem agora</button><button class="btn ghost full" data-a="crest">${ic('download')}Restaurar da nuvem</button><div class="mut">Seus dados também ficam neste aparelho. Exporte de vez em quando um arquivo (as fotos não entram no backup). Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
 <button class="btn full" data-a="export">${ic('download')}Exportar backup</button>
 <button class="btn ghost full" data-a="copy">${ic('copy')}Copiar backup (texto)</button>
 <label>Restaurar de arquivo</label><input type="file" accept=".json,application/json" data-c="restore">
@@ -1271,6 +1272,7 @@ async function doBackup(quiet) {
     S.settings.cloudLast = new Date().toISOString(); S.settings.cloudErr = ''; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
     if (!quiet) toast('Backup salvo na nuvem.');
   } catch (e) { S.settings.cloudErr = String(e.message || e); if (!quiet) alert('Não consegui salvar o backup na nuvem: ' + S.settings.cloudErr); }
+  if (S.settings.push && S.settings.push.on) pushAgenda(true);
   if (ui.tab === 'mais' && ui.mais === 'cfg') render();
 }
 async function doCloudRestore() {
@@ -1452,6 +1454,7 @@ async function planLoad(mo, quiet) {
     ui.plan = Object.assign(await r.json(), { mo, at: Date.now(), err: '' });
     if (ui.plan.created) toast(`Criei a aba ${ui.plan.tab} a partir de ${ui.plan.from}. Revise os valores.`);
     try { localStorage.setItem(PLAN_KEY, JSON.stringify(ui.plan)); } catch (e) { }
+    try { if (typeof planoPull === 'function') planoPull(mo).then(ch => { if (ch && !document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render(); }).catch(() => { }); } catch (e) { }
   } catch (e) { ui.plan = Object.assign(planCache(mo) || { mo }, { err: String(e.message || e), at: Date.now() }); }
   ui.planBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
 }
@@ -1487,14 +1490,14 @@ function planCard(mo) {
     let g = '';
     b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><div class="row"><button class="btn sm ghost" data-a="plandia" data-v="${esc(x.desc)}" aria-label="Dia do vencimento de ${esc(x.desc)}">${pdays()[pkey(x.desc)] ? 'Dia ' + pdays()[pkey(x.desc)].day : '+ dia'}</button>${x.pago ? doneBtn('Pago', 'Desfazer', `data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}"`) : `<button class="btn sm" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${ic('check')}Paguei</button>`}</div></div>`; }).join('');
   }
-  return `<div class="card">${head}${b}${typeof dinMonth === 'function' && dinPlanOk() ? `<button class="btn full" data-a="planenviar" data-v="${mo}">${ic('upload')}Atualizar a planilha com o plano do app</button>` : ''}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn !== false ? 'checked' : ''}><span>Sugerir envio de novos gastos para a planilha</span></label></div>`;
+  return `<div class="card">${head}${b}${typeof dinMonth === 'function' && dinPlanOk() ? `<button class="btn full" data-a="planenviar" data-v="${mo}">${ic('upload')}Atualizar a planilha com o plano do app</button>` : ''}${typeof dinPlanOk === 'function' && dinPlanOk() ? `<label class="row"><input type="checkbox" data-c="autoplano" ${(S.din || {}).autoPlano ? 'checked' : ''}><span>Sincronizar sozinho com a planilha (todo dia e ao abrir o mês)</span></label>` : ''}<label class="row"><input type="checkbox" data-c="sheettog" ${S.settings.sheetOn !== false ? 'checked' : ''}><span>Sugerir envio de novos gastos para a planilha</span></label></div>`;
 }
 Object.assign(A, {
   plandia: v => { const k = pkey(v), c = pdays()[k]; form('Dia do vencimento', [{ k: 'day', label: `${v}: dia do mês (1 a 28). Deixe vazio para tirar o aviso.`, type: 'number', value: c ? c.day : '' }], r => { const d = Math.round(num(r.day)); if (d >= 1 && d <= 28) pdays()[k] = { t: v, day: d }; else delete pdays()[k]; }); return false; },
   planload: v => { planLoad(v); return false; },
   planpago: async (v, d) => { const p = ui.plan, it = p && p.despesas.find(x => x.row === +v); if (!it) return false; const np = !it.pago; it.pago = np; render(); const ok = await planPost({ action: 'pago', month: ui.mo, row: +v, desc: d, paid: np }); if (!ok) it.pago = !np; planLoad(ui.mo, true); return false; }
 });
-Object.assign(C, { sheettog: (v, i, el) => { S.settings.sheetOn = el.checked; save(); } });
+Object.assign(C, { sheettog: (v, i, el) => { S.settings.sheetOn = el.checked; save(); }, autoplano: (v, i, el) => { dinS().autoPlano = el.checked; save(); if (el.checked) planoAuto(true); } });
 setTimeout(planFlush, 1500);
 
 /* ---------- planilha: mês a mês e ano a ano ---------- */
@@ -1540,19 +1543,41 @@ Object.assign(A, { anoy: v => { ui.year = (ui.year || +ui.mo.slice(0, 4)) + Numb
 const dinPlanOk = () => { try { const P = dinEff(); return !!(P && P.renda && !P.exemplo); } catch (e) { return false; } };
 function planoLinhas(mo) {
   const m = dinMonth(mo), L = [], cl = n => String(n).replace(/\s*\(exemplo\)/i, '');
-  m.fixos.forEach(f => L.push({ nome: cl(f.nome), valor: f.valor }));
-  const as = m.assin.reduce((a, x) => a + x.valor, 0); if (as > 0) L.push({ nome: 'Assinaturas', valor: as, hint: 'ADOBE|ASSINAT|FIGMA|CLAUDE|CRUNCHY' });
-  const cardSum = m.parc.filter(x => x.card || isCardP(x)).reduce((a, x) => a + x.valor, 0); if (cardSum > 0) L.push({ nome: 'Cartão de crédito', valor: cardSum, hint: 'CARTAO|CREDITO', sub: 'CARTÃO DE CRÉDITO (parcelas)' });
-  m.parc.filter(x => !(x.card || isCardP(x))).forEach(x => L.push({ nome: cl(x.nome), valor: x.valor, sub: `${cl(x.nome)} (parcela ${x.i}/${x.n})` }));
-  m.pont.forEach(x => { if (x.valor > 0) L.push({ nome: cl(x.nome), valor: x.valor }); });
+  m.fixos.forEach(f => L.push({ id: 'f:' + f.nome, nome: cl(f.nome), valor: f.valor }));
+  const as = m.assin.reduce((a, x) => a + x.valor, 0); if (as > 0) L.push({ id: 'a:todas', nome: 'Assinaturas', valor: as, hint: 'ADOBE|ASSINAT|FIGMA|CLAUDE|CRUNCHY' });
+  m.parc.forEach(x => L.push({ id: 'p:' + x.nome, nome: cl(x.nome), valor: x.valor, sub: `${cl(x.nome)} (parcela ${x.i}/${x.n})` }));
+  m.pont.forEach(x => { if (x.valor > 0) L.push({ id: 'x:' + x.nome, nome: cl(x.nome), valor: x.valor }); });
   const VN = { mercado: ['Alimentação', 'ALIMENT|MERCADO'], gasolina: ['Gasolina', 'GASOLINA|COMBUST|TRANSP'], lazer: ['Lazer', 'LAZER'] };
-  m.vars.forEach(v => { const t = VN[v.nome] || [v.nome, '']; if (v.plan > 0) L.push({ nome: t[0], valor: v.plan, hint: t[1] }); });
-  if (m.colch > 0) L.push({ nome: 'Reserva de emergência', valor: m.colch, hint: 'RESERVA|COLCH' });
+  m.vars.forEach(v => { const t = VN[v.nome] || [v.nome, '']; if (v.plan > 0) L.push({ id: 'v:' + v.nome, nome: t[0], valor: v.plan, hint: t[1] }); });
+  if (m.colch > 0) L.push({ id: 'c:colchao', nome: 'Reserva de emergência', valor: m.colch, hint: 'RESERVA|COLCH' });
   return { linhas: L, renda: m.renda };
 }
-async function planoPost(mo, apply, zerar) {
-  const x = planoLinhas(mo), r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: JSON.stringify({ action: 'plano', month: mo, renda: x.renda, linhas: x.linhas, apply, zerar: !!zerar && mo > dkey().slice(0, 7) })});
-  if (!r.ok) throw new Error((await r.text()).slice(0, 200)); return r.json();
+async function planoPost(mo, apply, zerar, opt) {
+  const x = planoLinhas(mo), d = dinS(), ult = Object.assign({}, (d.pushed || {})[mo] || {}), body = { action: 'plano', month: mo, renda: x.renda, linhas: x.linhas, apply, zerar: !!zerar && mo > dkey().slice(0, 7) };
+  if (opt && opt.respeitar) { body.respeitar = true; body.ultimo = ult; }
+  const r = await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+  const j = await r.json();
+  if (apply) { d.pushed = d.pushed || {}; const o = {}; x.linhas.forEach(l => { o[l.id] = l.valor; }); o.renda = x.renda; d.pushed[mo] = o; save(); }
+  return j;
+}
+/* puxa da planilha: o que você mudou lá (valores, pagos, linhas novas) passa a valer no app */
+async function planoPull(mo) {
+  const d = dinS(); if (!S.settings.sync.key || !dinPlanOk() || !(d.pushed || {})[mo]) return false;
+  const j = await planoPost(mo, false, false, { respeitar: true }), pu = d.pushed[mo]; let ch = false;
+  d.shOv = d.shOv || {}; d.shOv[mo] = d.shOv[mo] || {}; d.paid[mo] = d.paid[mo] || {};
+  (j.casados || []).forEach(c => {
+    if (!c.id) return;
+    if (!/^v:|^c:/.test(c.id) && pu[c.id] != null && Math.abs(c.sheet - num(pu[c.id])) > 0.004) { d.shOv[mo][c.id] = c.sheet; pu[c.id] = c.sheet; ch = true; }
+    if (/^[fpxa]:/.test(c.id) && !!d.paid[mo][c.id] !== !!c.pago) { if (c.pago) d.paid[mo][c.id] = 1; else delete d.paid[mo][c.id]; ch = true; }
+  });
+  if (j.sheetRenda != null && pu.renda != null && Math.abs(j.sheetRenda - num(pu.renda)) > 0.004) { d.shOv[mo].renda = j.sheetRenda; pu.renda = j.sheetRenda; ch = true; }
+  d.shExtra = d.shExtra || {}; const ex = (j.soPlanilha || []).map(x => ({ nome: x.nome, valor: x.valor })); if (JSON.stringify(d.shExtra[mo] || []) !== JSON.stringify(ex)) { d.shExtra[mo] = ex; ch = true; }
+  if (ch) save(); return ch;
+}
+async function planMarcar(k, mo, paid) {
+  const sy = S.settings.sync; if (!sy.key || !/^[fpx]:/.test(k)) return;
+  try { await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': sy.key }, body: JSON.stringify({ action: 'marcar', month: mo, desc: k.slice(2), paid }) }); } catch (e) { }
 }
 Object.assign(A, {
   planenviar: async mo => {
@@ -1579,11 +1604,63 @@ Object.assign(A, {
 });
 
 /* envio automático do plano para a planilha (1x por dia, só depois que o Miranda aprovar "Deste mês até dezembro") */
-async function planoAuto() {
+async function planoAuto(force) {
   const d = S.din; if (!d || !d.autoPlano || !S.settings.sync.key || !dinPlanOk()) return;
-  const t = dkey(); if (d.autoPlanoDia === t) return; d.autoPlanoDia = t; save();
+  const t = dkey(); if (!force && d.autoPlanoDia === t) return; d.autoPlanoDia = t; save();
   const mo = t.slice(0, 7);
-  for (let m = +mo.slice(5, 7); m <= 12; m++) { const mm = mo.slice(0, 4) + '-' + String(m).padStart(2, '0'); try { await planoPost(mm, true, d.zerar !== false); } catch (e) { } }
-  planLoad(ui.mo, true); anoLoad(+ui.mo.slice(0, 4), true);
+  for (let m = +mo.slice(5, 7); m <= 12; m++) { const mm = mo.slice(0, 4) + '-' + String(m).padStart(2, '0'); try { await planoPull(mm); await planoPost(mm, true, false, { respeitar: true }); } catch (e) { } }
+  planLoad(ui.mo, true); anoLoad(+ui.mo.slice(0, 4), true); render();
 }
 setTimeout(planoAuto, 4000);
+
+
+/* ---------- avisos no iPhone (Web Push) ---------- */
+const pushUrl = () => ((S.settings.sync.url || '/.netlify/functions/sync').replace(/sync$/, 'push'));
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const pushCall = async (method, body) => { const r = await fetch(pushUrl(), { method, headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: body ? JSON.stringify(body) : undefined }); const t = await r.text(); if (!r.ok) throw new Error(t.slice(0, 160)); try { return JSON.parse(t); } catch (e) { return {}; } };
+function pushCard() {
+  const on = S.settings.push && S.settings.push.on, k = S.settings.sync.key;
+  const msg = !k ? 'Primeiro coloque a chave do app no card do Notion.' : !pushSupported() ? 'Para receber avisos, abra o app pelo ícone da tela inicial (iPhone com iOS 16.4 ou mais novo).' : on ? 'Ligados. Eu aviso no dia certo (8h, 12h ou 18h): dia do pagamento, fatura do cartão, contas que vencem e metas.' + (S.settings.push.err ? ' Último erro: ' + esc(S.settings.push.err) : '') : 'Desligados. Ligue para eu te lembrar das contas nos dias que importam.';
+  return `<div class="card">${sec('bell', 'Avisos no iPhone')}<div class="banner">${ic('info-box')}<span>${msg}</span></div>${k && pushSupported() ? (on ? `<div class="row wrap"><button class="btn" data-a="pushtest">${ic('bell')}Enviar aviso de teste</button><button class="btn ghost" data-a="pushoff">Desligar</button></div>` : `<button class="btn full" data-a="pushon">${ic('bell')}Ligar avisos</button>`) : ''}</div>`;
+}
+const b64u8 = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = (s + p).replace(/-/g, '+').replace(/_/g, '/'), r = atob(b); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
+async function pushOn() {
+  if (!S.settings.sync.key) { toast('Primeiro coloque a chave do app.'); return; }
+  if (!pushSupported()) { alert('Abra o app pelo ícone da tela inicial. Precisa de iPhone com iOS 16.4 ou mais novo.'); return; }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { alert('O iPhone não deixou. Vá em Ajustes > Notificações > Meu Dia e ligue.'); return; }
+    const reg = await navigator.serviceWorker.ready, k = await pushCall('GET');
+    let sub = await reg.pushManager.getSubscription(); if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u8(k.pub) });
+    await pushCall('POST', { action: 'sub', sub: sub.toJSON() });
+    S.settings.push = { on: true, err: '' }; save(); await pushAgenda(true); await pushCall('POST', { action: 'teste' }); toast('Avisos ligados. Mandei um teste.');
+  } catch (e) { S.settings.push = { on: false, err: String(e.message || e) }; save(); alert('Não consegui ligar os avisos: ' + (e.message || e)); }
+  render();
+}
+/* tudo que merece aviso nos próximos dias; o servidor manda no dia certo */
+function agendaAvisos() {
+  const out = [], today = dkey(), d = dinS(), plan = d.plan && !d.plan.exemplo;
+  const add = (id, date, hour, title, body) => out.push({ id, date, hour, title, body });
+  const rel = (dt, k) => Math.round((new Date(dt + 'T12:00') - new Date(k + 'T12:00')) / 864e5);
+  for (let i = 0; i < 10; i++) {
+    const k = dkey(addD(new Date(today + 'T12:00'), i)), mo = k.slice(0, 7);
+    if (k === payDay(mo)) {
+      const f = plan ? dinMonth(mo).fixos.filter(x => x.pri === 1 && !((d.paid[mo] || {})['f:' + x.nome])).map(x => `${x.nome} (${brl(x.valor)})`) : [];
+      add('pay:' + mo, k, 8, 'Dia do pagamento', f.length ? 'Pague primeiro: ' + f.join(', ') + '.' : 'Separe o que vai para as metas e pague as contas principais.');
+    }
+    if (plan && !d.fat[mo]) { const df = rel(`${mo}-${pad(dinCardCfg().vence)}`, k); if (df === 1 || df === 0) add('fat:' + mo + ':' + df, k, 8, 'Fatura do cartão', df ? 'Vence amanhã.' : 'Vence hoje.'); }
+    const bp = S.billPaid[mo] || {}; S.bills.forEach(b => { if (bp[b.id]) return; const df = rel(billDue(b, mo), k); if (df === 1 || df === 0) add('b:' + b.id + ':' + mo + ':' + df, k, 8, b.title, (df ? 'Vence amanhã' : 'Vence hoje') + ` (${brl(num(b.amount))}).`); });
+    Object.values(pdays()).forEach(p => { const pc = (planCache(mo) || {}).despesas, row = pc && pc.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const df = rel(billDue({ day: p.day }, mo), k); if (df === 1 || df === 0) add('pd:' + pkey(p.t) + ':' + mo + ':' + df, k, 8, p.t, df ? 'Vence amanhã.' : 'Vence hoje.'); });
+  }
+  const seen = new Set(); return out.filter(x => !seen.has(x.id) && seen.add(x.id));
+}
+async function pushAgenda(quiet) {
+  if (!(S.settings.push && S.settings.push.on) || !S.settings.sync.key) return;
+  try { await pushCall('POST', { action: 'agenda', items: agendaAvisos() }); S.settings.push.err = ''; } catch (e) { S.settings.push.err = String(e.message || e); if (!quiet) toast('Avisos: ' + S.settings.push.err); }
+}
+Object.assign(A, {
+  pushon: () => { pushOn(); return false; },
+  pushtest: async () => { try { await pushAgenda(true); const r = await pushCall('POST', { action: 'teste' }); toast(r.enviados ? 'Aviso de teste enviado.' : 'Nenhum aparelho recebeu. Desligue e ligue de novo.'); } catch (e) { toast('Teste: ' + (e.message || e)); } return false; },
+  pushoff: async () => { try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) { await pushCall('POST', { action: 'off', endpoint: sub.endpoint }); await sub.unsubscribe(); } } catch (e) { } S.settings.push = { on: false, err: '' }; save(); toast('Avisos desligados.'); return true; }
+});
+setTimeout(() => pushAgenda(true), 6000);
