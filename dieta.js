@@ -119,7 +119,7 @@ const fscale = (f, g) => { const o = {}; FKEYS.forEach(k => { o[k] = f[k] === nu
 /* ---------- buscador ---------- */
 let FS = null;
 function foodSearch(meal) {
-  FS = { meal, q: '', cat: '', sel: null, g: 100 };
+  FS = { meal, q: '', cat: '', sel: null, g: 100, mode: 'g', n: 1 };
   const m = document.createElement('div'); m.className = 'modal'; m.id = 'fsmodal'; m.setAttribute('role', 'dialog'); document.body.appendChild(m);
   paintFS();
   m.addEventListener('click', e => {
@@ -127,25 +127,37 @@ function foodSearch(meal) {
     if (el === m || (t && t.dataset.fx !== undefined)) { m.remove(); FS = null; return; }
     if (!t) return;
     if (t.dataset.fcat !== undefined) { FS.cat = FS.cat === t.dataset.fcat ? '' : t.dataset.fcat; paintFS(); return; }
-    if (t.dataset.fpick) { FS.sel = FOOD_DB.find(f => f.id === t.dataset.fpick) || S.foods.find(f => f.id === t.dataset.fpick.slice(2)) && fromMine(S.foods.find(f => f.id === t.dataset.fpick.slice(2))); FS.g = FS.sel.g || 100; paintFS(); return; }
+    if (t.dataset.fpick) { FS.sel = FOOD_DB.find(f => f.id === t.dataset.fpick) || S.foods.find(f => f.id === t.dataset.fpick.slice(2)) && fromMine(S.foods.find(f => f.id === t.dataset.fpick.slice(2))); FS.g = FS.sel.g || 100; FS.n = 1; FS.mode = fsUnitLike(FS.sel) ? 'u' : 'g'; paintFS(); return; }
     if (t.dataset.fback !== undefined) { FS.sel = null; paintFS(); return; }
-    if (t.dataset.fg) { FS.g = Math.round(FS.sel.g * Number(t.dataset.fg)) || 100; paintFS(); return; }
+    if (t.dataset.fmode) { FS.mode = t.dataset.fmode; paintFS(); return; }
+    if (t.dataset.fset) { FS.g = Number(t.dataset.fset); paintFS(); return; }
+    if (t.dataset.fstep) { FS.g = Math.max(0, Math.round((FS.g + Number(t.dataset.fstep)) * 10) / 10); paintFS(); return; }
+    if (t.dataset.fnstep) { const st = fsUnitLike(FS.sel) ? 1 : 0.5; FS.n = Math.max(st, Math.round((FS.n + Number(t.dataset.fnstep) * st) * 10) / 10); paintFS(); return; }
     if (t.dataset.fadd !== undefined) { fsAdd(); m.remove(); FS = null; }
   });
   m.addEventListener('input', e => {
     if (e.target.id === 'fsq') { FS.q = e.target.value; paintFS(true); }
-    if (e.target.id === 'fsg') { FS.g = Math.max(0, num(e.target.value)); paintFS(true); }
+    if (e.target.id === 'fsg') { FS.g = Math.max(0, num(e.target.value)); const r = $('#fsres'); if (r) r.innerHTML = fsRes(FS.sel); document.querySelectorAll('#fsmodal [data-fset]').forEach(b => b.classList.toggle('on', Number(b.dataset.fset) === FS.g)); }
   });
   m.addEventListener('change', e => { if (e.target.id === 'fsmeal') FS.meal = e.target.value; });
 }
 const fromMine = f => ({ id: 'my' + f.id, cat: 'Meus alimentos', name: f.name, por: '1 porção', g: null, kcal: num(f.kcal), prot: num(f.prot), carb: f.carb === '' ? null : num(f.carb), fat: f.fat === '' ? null : num(f.fat), fib: null, ca: null, fe: null, k: null, na: null, mine: true });
+const fsUnitLike = f => !f.mine && !!f.g && /^\s*(\d+([.,]\d+)?|\d\/\d)\s*(unidade|unidades|fatia|fatias|pote|lata|dose|copo|filé|bife|posta|espiga)/i.test(f.por);
+const fsG = () => FS.mode === 'u' && FS.sel.g ? Math.round(FS.n * FS.sel.g * 10) / 10 : FS.g;
+function fsRes(f) {
+  const s = f.mine ? { kcal: f.kcal, prot: f.prot, carb: f.carb, fat: f.fat, fib: null, ca: null, fe: null, k: null, na: null } : fscale(f, fsG());
+  return `<div class="grid3 sm"><div><b>${fmt(s.kcal)}</b><small>kcal</small></div><div><b>${fmt(s.prot, 1)}</b><small>proteína g</small></div><div><b>${fmt(s.carb, 1)}</b><small>carbo g</small></div></div><div class="grid3 sm"><div><b>${fmt(s.fat, 1)}</b><small>gordura g</small></div><div><b>${fmt(s.fib, 1)}</b><small>fibra g</small></div><div><b>${fmt(s.ca)}</b><small>cálcio mg</small></div></div><div class="mut">Ferro ${fmt(s.fe, 1)} mg · Potássio ${fmt(s.k)} mg · Sódio ${fmt(s.na)} mg</div>`;
+}
 function paintFS(keepFocus) {
   const m = $('#fsmodal'); if (!m || !FS) return;
   if (FS.sel) {
-    const f = FS.sel, base = f.mine ? 1 : 100, g = f.mine ? 1 : FS.g, s = f.mine ? { kcal: f.kcal, prot: f.prot, carb: f.carb, fat: f.fat, fib: null, ca: null, fe: null, k: null, na: null } : fscale(f, FS.g);
+    const f = FS.sel, u = FS.mode === 'u' && !f.mine, ul = fsUnitLike(f);
+    const ctl = f.mine ? '' : `<label>Quanto você comeu?</label><div class="chips"><button type="button" class="chip ${u ? '' : 'on'}" data-fmode="g">Gramas</button><button type="button" class="chip ${u ? 'on' : ''}" data-fmode="u">${ul ? 'Unidades' : 'Porções'}</button></div>` + (u
+      ? `<div class="stepr"><button type="button" class="btn ghost ico" data-fnstep="-1" aria-label="Menos uma">−</button><div class="big stepn">${fmt(FS.n, 1)}</div><button type="button" class="btn ghost ico" data-fnstep="1" aria-label="Mais uma">+</button></div><div class="mut">1 ${ul ? 'unidade' : 'porção'} = ${esc(f.por)} ≈ ${fmt(f.g)} g · total ≈ ${fmt(fsG())} g</div>`
+      : `<div class="stepr"><button type="button" class="btn ghost ico" data-fstep="-10" aria-label="Menos 10 gramas">−</button><input id="fsg" inputmode="decimal" value="${FS.g}" aria-label="Gramas"><span class="mut">g</span><button type="button" class="btn ghost ico" data-fstep="10" aria-label="Mais 10 gramas">+</button></div><div class="chips wrapc">${[50, 100, 150, 200, 250].map(x => `<button type="button" class="chip ${FS.g === x ? 'on' : ''}" data-fset="${x}">${x} g</button>`).join('')}</div><div class="mut">Toque nos botões ou digite os gramas. 1 porção = ${esc(f.por)} ≈ ${fmt(f.g)} g.</div>`);
     m.innerHTML = `<div class="sheet"><h3 class="px">${esc(f.name)}</h3><div class="mut">${f.mine ? 'Seu alimento: valores por porção.' : `Por 100 g: ${fmt(f.kcal)} kcal · ${fmt(f.prot, 1)} g prot. · ${fmt(f.carb, 1)} g carbo · ${fmt(f.fat, 1)} g gord.`}</div>
-${f.mine ? '' : `<label>Quanto você comeu? (gramas)</label><div class="chips wrapc">${[0.5, 1, 1.5, 2].map(x => `<button type="button" class="chip ${FS.g === Math.round(f.g * x) ? 'on' : ''}" data-fg="${x}">${x === 1 ? '1 porção' : x + ' porção'} (${Math.round(f.g * x)} g)</button>`).join('')}</div><input id="fsg" inputmode="decimal" value="${FS.g}" aria-label="Gramas"><div class="mut">1 porção = ${esc(f.por)} ≈ ${f.g} g</div>`}
-<div class="grid3 sm"><div><b>${fmt(s.kcal)}</b><small>kcal</small></div><div><b>${fmt(s.prot, 1)}</b><small>proteína g</small></div><div><b>${fmt(s.carb, 1)}</b><small>carbo g</small></div></div><div class="grid3 sm"><div><b>${fmt(s.fat, 1)}</b><small>gordura g</small></div><div><b>${fmt(s.fib, 1)}</b><small>fibra g</small></div><div><b>${fmt(s.ca)}</b><small>cálcio mg</small></div></div><div class="mut">Ferro ${fmt(s.fe, 1)} mg · Potássio ${fmt(s.k)} mg · Sódio ${fmt(s.na)} mg</div>
+${ctl}
+<div id="fsres">${fsRes(f)}</div>
 <label>Refeição</label><select id="fsmeal">${MEALS.map(x => `<option ${x === FS.meal ? 'selected' : ''}>${x}</option>`).join('')}</select>
 <div class="row act"><button type="button" class="btn ghost" data-fback>Voltar</button><button type="button" class="btn" data-fadd>${ic('check')}Adicionar</button></div></div>`;
     return;
@@ -161,9 +173,9 @@ ${f.mine ? '' : `<label>Quanto você comeu? (gramas)</label><div class="chips wr
   if (keepFocus) { const i = $('#fsq'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
 function fsAdd() {
-  const f = FS.sel, k = ui.md, mine = f.mine, g = FS.g, s = mine ? { kcal: f.kcal, prot: f.prot, carb: f.carb, fat: f.fat } : fscale(f, g), r1d = v => v === null || v === undefined ? '' : Math.round(v * 10) / 10;
+  const f = FS.sel, k = ui.md, mine = f.mine, g = fsG(), s = mine ? { kcal: f.kcal, prot: f.prot, carb: f.carb, fat: f.fat } : fscale(f, g), r1d = v => v === null || v === undefined ? '' : Math.round(v * 10) / 10;
   S.meals[k] = S.meals[k] || [];
-  S.meals[k].push({ id: uid(), meal: FS.meal, text: mine ? f.name : `${f.name} · ${g} g`, kcal: r1d(s.kcal), prot: r1d(s.prot), carb: r1d(s.carb), fat: r1d(s.fat), fib: mine ? '' : r1d(s.fib), ca: mine ? '' : r1d(s.ca), fe: mine ? '' : r1d(s.fe), k: mine ? '' : r1d(s.k), na: mine ? '' : r1d(s.na) });
+  S.meals[k].push({ id: uid(), meal: FS.meal, text: mine ? f.name : (FS.mode === 'u' ? `${f.name} · ${fmt(FS.n, 1)} × ${f.por} (${fmt(g)} g)` : `${f.name} · ${fmt(g)} g`), kcal: r1d(s.kcal), prot: r1d(s.prot), carb: r1d(s.carb), fat: r1d(s.fat), fib: mine ? '' : r1d(s.fib), ca: mine ? '' : r1d(s.ca), fe: mine ? '' : r1d(s.fe), k: mine ? '' : r1d(s.k), na: mine ? '' : r1d(s.na) });
   save(); ui.flash = `${f.name} adicionado em ${FS.meal}.`; render();
 }
 

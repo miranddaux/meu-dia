@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v32';
+const APP_V = 'v33';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -583,9 +583,10 @@ function vMetas() {
   let out = `<div class="banner warn">${ic('alert')}<span>Estimativa de ponto de partida (Mifflin-St Jeor). Não é prescrição. Combine com médico ou nutricionista, principalmente pelo seu peso, o treino e qualquer condição de saúde.</span></div>`;
   out += `<div class="card">${sec('scale', 'Peso e evolução', `<button class="btn sm" data-a="addweight">${ic('plus')}Pesar</button>`)}`;
   if (ws.length) {
-    const first = num(ws[0].kg), diff = cur - first, last8 = ws.slice(-8), mn = Math.min(...last8.map(x => num(x.kg))) - 1, mx = Math.max(...last8.map(x => num(x.kg))) + 1;
+    const first = num(ws[0].kg), diff = cur - first;
     out += `<div class="grid3"><div><b>${r1(cur)}</b><small>kg agora</small></div><div><b>${diff > 0 ? '+' : ''}${r1(diff)}</b><small>desde o início</small></div><div><b>${num(c.target) ? r1(Math.max(0, cur - num(c.target))) : '—'}</b><small>kg até a meta</small></div></div>`;
-    out += `<div class="hist">${last8.map(x => `<div style="height:${Math.max(6, (num(x.kg) - mn) / (mx - mn) * 100)}%"><small>${r1(num(x.kg))}</small></div>`).join('')}</div><div class="row sp mut">${last8.map(x => `<span>${sd2(x.date)}</span>`).join('')}</div>`;
+    const lastN = ws.slice(-26), mn2 = Math.min(...lastN.map(x => num(x.kg))) - 1, mx2 = Math.max(...lastN.map(x => num(x.kg))) + 1;
+    out += `<div class="wchart" tabindex="0" aria-label="Gráfico de peso. Arraste para o lado para ver mais semanas.">${lastN.map(x => `<div class="wc"><small>${r1(num(x.kg))}</small><i style="height:${Math.max(8, Math.round((num(x.kg) - mn2) / (mx2 - mn2) * 96))}px"></i><span>${sd2(x.date)}</span></div>`).join('')}</div>${lastN.length > 6 ? '<div class="mut">Arraste para o lado para ver as outras semanas.</div>' : ''}`;
     const rec = ws.filter(x => x.date >= dkey(addD(new Date(), -21)));
     if (rec.length >= 2) { const a0 = rec[0], a1 = rec[rec.length - 1], days = (new Date(a1.date) - new Date(a0.date)) / 864e5; if (days >= 5) { const pw = (num(a1.kg) - num(a0.kg)) / (days / 7); out += `<div>Ritmo recente: <b>${pw > 0 ? '+' : ''}${r1(pw)} kg/semana</b> <span class="mut">(faixa-alvo: −0,5 a −1)</span></div>`; } }
     out += `<div class="mut">Pese-se 1× por semana, no mesmo horário.</div>`;
@@ -832,6 +833,8 @@ function render() {
   $('#view').innerHTML = { hoje: vHoje, corpo: vCorpo, estudos: vEstudos, desafios: vDesafios, mais: vMais }[ui.tab]();
   $('#nav').innerHTML = TABS.map(([i, c, l]) => `<button class="${ui.tab === i ? 'on' : ''}" data-a="tab" data-v="${i}" aria-label="${l}" ${ui.tab === i ? 'aria-current="page"' : ''}>${ic(c)}<span>${l}</span></button>`).join('');
   hydratePhotos();
+  document.querySelectorAll('.chips').forEach(c => { const on = c.querySelector('.on'); if (on) c.scrollLeft = Math.max(0, on.offsetLeft - (c.clientWidth - on.offsetWidth) / 2); });
+  document.querySelectorAll('.wchart').forEach(c => { c.scrollLeft = c.scrollWidth; });
 }
 
 /* ---------- ações ---------- */
