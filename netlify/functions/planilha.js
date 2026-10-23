@@ -9,6 +9,24 @@ exports.handler = async event => {
   let sa; try { sa = JSON.parse(GOOGLE_SA_JSON); } catch (e) { return { statusCode: 500, body: 'GOOGLE_SA_JSON não é um JSON válido' }; }
   const body = event.httpMethod === 'POST' ? (() => { try { return JSON.parse(event.body); } catch (e) { return null; } })() : (event.queryStringParameters || {});
   if (body && body.action === 'texto') { const pt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' }).formatToParts(new Date()); body.month = pt.find(x => x.type === 'year').value + '-' + pt.find(x => x.type === 'month').value; }
+  if (body && body.action === 'ano') { // resumo do ano: um item por aba de mês que já existe (só leitura, não cria nada)
+    const y = Math.round(Number(body.year)) || new Date().getFullYear(); if (y < 2000 || y > 2100) return { statusCode: 400, body: 'Ano inválido' };
+    try {
+      const tk = await token(sa), H = { Authorization: 'Bearer ' + tk };
+      const mr = await fetch(base(SHEET_ID) + '?fields=sheets.properties.title', { headers: H }); const mj = await mr.json(); if (!mr.ok) throw new Error((mj.error && mj.error.message) || 'Erro do Google');
+      const titles = (mj.sheets || []).map(x => x.properties.title), ms = [];
+      for (let m = 1; m <= 12; m++) { const t = tabName(y, m); if (titles.includes(t)) ms.push({ m, t }); }
+      if (!ms.length) return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, year: y, meses: [] }) };
+      const qs = ms.map(x => 'ranges=' + encodeURIComponent(`'${x.t}'!A1:G70`)).join('&');
+      const r = await fetch(base(SHEET_ID) + '/values:batchGet?' + qs + '&valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro do Google');
+      const meses = ms.map((x, i) => {
+        const d = parse((j.valueRanges[i] && j.valueRanges[i].values) || []), r2 = v => Math.round(v * 100) / 100;
+        const ent = d.entradas.reduce((a, e) => a + e.valor, 0), L = d.despesas.filter(e => !e.livre || e.valor > 0), des = L.reduce((a, e) => a + e.valor, 0), pg = L.filter(e => e.pago).reduce((a, e) => a + e.valor, 0);
+        return { mes: `${y}-${String(x.m).padStart(2, '0')}`, tab: x.t, entradas: r2(ent), despesas: r2(des), pago: r2(pg), sobra: typeof d.sobra === 'number' ? r2(d.sobra) : r2(ent - des) };
+      });
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, year: y, meses }) };
+    } catch (e) { return { statusCode: 502, body: String(e.message || e) }; }
+  }
   if (!body || !/^\d{4}-\d{2}$/.test(body.month || '')) return { statusCode: 400, body: 'Mês inválido' };
   const [y, m] = body.month.split('-').map(Number); if (m < 1 || m > 12) return { statusCode: 400, body: 'Mês inválido' };
   const tab = tabName(y, m), vbase = base(SHEET_ID) + '/values/';

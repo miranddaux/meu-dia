@@ -96,7 +96,7 @@ function dinFit(w, from) {
 /* ---------- telas ---------- */
 const dTxt = { g: 'Pode gastar com calma', y: 'Atenção: está apertado', r: 'Não gaste: o mês está no vermelho' };
 function dinEmpty() {
-  return `<div class="card">${sec('wallet', 'Dinheiro')}<div class="mut">Aqui você vê, sem fazer conta: quanto sobra no mês, quanto pode gastar na semana, quando cada parcela acaba e quanto já tem no colchão.</div><div class="mut">1. Peça o arquivo de dados financeiros ao Claude (no chat).<br>2. Salve no iPhone, em Arquivos.<br>3. Toque abaixo e escolha o arquivo. Os valores ficam só neste aparelho.</div><label>Importar dados financeiros</label><input type="file" accept=".json,application/json" data-c="dinimport"><button class="btn ghost full" data-a="dinex">${ic('lightbulb-on')}Ver com dados de exemplo</button></div>`;
+  return `<div class="card">${sec('wallet', 'Dinheiro')}<div class="mut">Aqui você vê, sem fazer conta: quanto sobra no mês, quanto pode gastar na semana, quando cada parcela acaba e quanto já tem no colchão.</div><div class="mut">1. Peça o arquivo de dados financeiros ao Claude (no chat).<br>2. Salve no iPhone, em Arquivos.<br>3. Toque abaixo e escolha o arquivo. Os valores ficam só neste aparelho.</div><label>Importar dados financeiros</label><input type="file" accept=".json,application/json" data-c="dinimport"><button class="btn ghost full" data-a="dinex">${ic('lightbulb-on')}Ver com dados de exemplo</button></div>` + `<div class="row sp card slim"><button class="chip" data-a="mo" data-v="-1" aria-label="Mês anterior">‹</button><b class="cap1">${new Date(+ui.mo.slice(0, 4), +ui.mo.slice(5, 7) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</b><button class="chip" data-a="mo" data-v="1" aria-label="Próximo mês">›</button></div>` + planCard(ui.mo) + anoCard();
 }
 function vDinheiro() {
   const d = dinS(); if (!d.plan) return dinEmpty();
@@ -144,7 +144,7 @@ function vDinheiro() {
   /* 10) histórico, metas e planilha (antes ficavam no Porkinho) */
   const G = granaParts(), [gy, gm] = ui.mo.split('-').map(Number), gnm = new Date(gy, gm - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }), gst = monthStats(ui.mo);
   out += `<div class="grp">Histórico, metas e planilha</div><div class="row sp card slim">${ib('chevron-left', 'Mês anterior', 'mo', -1)}<b class="cap1">${gnm}</b>${ib('chevron-right', 'Próximo mês', 'mo', 1)}</div><div class="grid3 sm"><div><b class="ok">${brl(gst.inn)}</b><small>entradas lançadas</small></div><div><b class="warnc">${brl(gst.out)}</b><small>saídas lançadas</small></div><div><b>${brl(gst.inn - gst.out)}</b><small>saldo lançado</small></div></div>`;
-  out += G.cat + G.tx + G.metas + G.plan + (S.bills.length ? G.bills : '');
+  out += G.cat + G.tx + G.metas + G.plan + anoCard() + (S.bills.length ? G.bills : '');
   /* 11) dados */
   out += acc('ddados', 'Dados', P.exemplo ? 'exemplo' : '', `<div class="mut">Versão do app: ${APP_V}. Tudo fica só neste aparelho. Para atualizar o plano, importe o arquivo novo: seus lançamentos, pagamentos e o que guardou continuam.</div><label>Importar dados financeiros</label><input type="file" accept=".json,application/json" data-c="dinimport"><button class="btn full" data-a="dincopy">${ic('copy')}Copiar resumo do mês (para o Claude)</button><button class="btn ghost full" data-a="dinexport">${ic('download')}Exportar tudo do Dinheiro</button><button class="btn danger full" data-a="dinwipe">${ic('trash')}Apagar dados do Dinheiro</button>`, false);
   return out;

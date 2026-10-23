@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v34';
+const APP_V = 'v35';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -1496,3 +1496,41 @@ Object.assign(A, {
 });
 Object.assign(C, { sheettog: (v, i, el) => { S.settings.sheetOn = el.checked; save(); } });
 setTimeout(planFlush, 1500);
+
+/* ---------- planilha: mês a mês e ano a ano ---------- */
+const ANO_KEY = 'meudia_ano', ANO_MES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+function anoCache(y) { try { const c = JSON.parse(localStorage.getItem(ANO_KEY) || 'null'); return c && c.year === y ? c : null; } catch (e) { return null; } }
+async function anoLoad(y, quiet) {
+  const sy = S.settings.sync; if (!sy.key || ui.anoBusy) return;
+  ui.anoBusy = true; if (!quiet) render();
+  try {
+    const r = await fetch(`${planUrl()}?action=ano&year=${y}`, { headers: { 'x-app-key': sy.key } });
+    if (!r.ok) throw new Error((await r.text()).slice(0, 160));
+    ui.ano = Object.assign(await r.json(), { year: y, at: Date.now(), err: '' });
+    try { localStorage.setItem(ANO_KEY, JSON.stringify(ui.ano)); } catch (e) { }
+  } catch (e) { ui.ano = Object.assign(anoCache(y) || { year: y, meses: [] }, { err: String(e.message || e), at: Date.now() }); }
+  ui.anoBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
+}
+function anoCard() {
+  const sy = S.settings.sync, y = ui.year || +ui.mo.slice(0, 4);
+  if (!(ui.ano && ui.ano.year === y)) { const c = anoCache(y); if (c) ui.ano = c; }
+  const a = ui.ano && ui.ano.year === y ? ui.ano : null;
+  if (sy.key && !ui.anoBusy && (!a || Date.now() - (a.at || 0) > 300000)) setTimeout(() => anoLoad(y, true), 0);
+  const head = `<div class="row sp"><button class="chip" data-a="anoy" data-v="-1" aria-label="Ano anterior">‹</button><b class="cap1">${y}</b><button class="chip" data-a="anoy" data-v="1" aria-label="Próximo ano">›</button></div>`;
+  let b = '';
+  if (!sy.key) b = '<div class="mut">Coloque a chave do app (⚙️, card do Notion) para puxar os meses da planilha.</div>';
+  else if (!a) b = `<div class="mut">${ui.anoBusy ? 'Carregando…' : 'Buscando na planilha…'}</div>`;
+  else {
+    if (a.err) b += `<div class="banner warn"><span>${esc(a.err)}</span></div>`;
+    const ms = a.meses || [];
+    if (!ms.length) b += `<div class="mut">Ainda não há abas de ${y} na planilha.</div>`;
+    else {
+      const T = ms.reduce((o, m) => ({ e: o.e + m.entradas, d: o.d + m.despesas, s: o.s + m.sobra }), { e: 0, d: 0, s: 0 }), mx = Math.max(1, ...ms.map(m => Math.abs(m.sobra)));
+      b += `<div class="grid3 sm"><div><b class="ok">${brl(T.e)}</b><small>entradas no ano</small></div><div><b class="warnc">${brl(T.d)}</b><small>saídas no ano</small></div><div><b>${brl(T.s)}</b><small>sobra no ano</small></div></div>`;
+      b += `<table class="g"><tr><th>Mês</th><th>Entrou</th><th>Saiu</th><th>Sobra</th></tr>${ms.map(m => `<tr data-a="anomes" data-v="${m.mes}" role="button" tabindex="0" style="cursor:pointer${m.mes === ui.mo ? ';font-weight:700' : ''}"><td>${ANO_MES[+m.mes.slice(5, 7) - 1]}${m.mes === ui.mo ? ' ✓' : ''}</td><td>${brl(m.entradas)}</td><td>${brl(m.despesas)}</td><td style="color:${m.sobra < 0 ? 'var(--warn)' : 'inherit'}">${brl(m.sobra)}</td></tr>`).join('')}</table><div class="mut">Toque num mês para abrir os detalhes dele (planilha do mês, acima). Os números vêm da planilha.</div>`;
+    }
+  }
+  return `<div class="card">${sec('calendar', 'Ano a ano (planilha)', `<button class="btn sm ghost" data-a="anoload" ${ui.anoBusy ? 'disabled' : ''}>${ic('reload')}${ui.anoBusy ? 'Atualizando' : 'Atualizar'}</button>`)}${head}${b}</div>`;
+}
+Object.assign(A, { anoy: v => { ui.year = (ui.year || +ui.mo.slice(0, 4)) + Number(v); return true; }, anomes: v => { ui.mo = v; return true; }, anoload: () => { anoLoad(ui.year || +ui.mo.slice(0, 4)); return false; } });
+
