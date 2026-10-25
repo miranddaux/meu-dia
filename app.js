@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v39';
+const APP_V = 'v40';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -119,14 +119,11 @@ function sat() {
     b('18:00', '23:00', 'Noite livre', 'livre')
   ];
 }
-function sun() {
+function sun() { /* domingo é dia livre: só a igreja é meta */
   return [
-    b('07:30', '09:00', 'Manhã tranquila e oração', 'livre'),
-    b('09:00', '11:30', 'Igreja (inclui deslocamento — ajuste o horário)', 'fixo'),
-    b('12:00', '13:00', 'Almoço e convivência', 'livre'),
-    b('15:00', '15:20', 'Revisão semanal (20 min)', 'flex'),
-    b('15:30', '21:00', 'Descanso e convivência', 'livre'),
-    b('21:15', '22:00', 'Desacelerar, oração e preparação', 'flex')
+    b('08:00', '09:00', 'Acordar sem pressa', 'livre'),
+    b('09:00', '11:30', 'Igreja (ajuste o horário)', 'fixo'),
+    b('11:30', '23:59', 'Resto do dia livre', 'livre')
   ];
 }
 function buildSchedule(col) {
@@ -134,15 +131,15 @@ function buildSchedule(col) {
   [1, 2, 3].forEach(d => s[d] = f(true)); [4, 5].forEach(d => s[d] = f(false)); s[6] = sat(); s[0] = sun();
   return s;
 }
-const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5];
+const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5], D6 = [1, 2, 3, 4, 5, 6];
 function hb(title, when, days, pts, hard, ord, at) { return { id: uid(), title, when, days, pts, hard, ord, at: at || '' }; }
 const DEF_HABITS = () => [
-  hb('Oração e agradecimento', 'm', ALL, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', ALL, 1, 0, 2, '05:55'), hb('Leitura', 'm', ALL, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', ALL, 0, 1, 5, '07:15'),
+  hb('Oração e agradecimento', 'm', D6, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', D6, 1, 0, 2, '05:55'), hb('Leitura', 'm', D6, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', D6, 0, 1, 5, '07:15'),
   hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
-  hb('Almoço', 't', ALL, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', ALL, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
-  hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Igreja', 'm', [0], 0, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [0], 1, 0, 9, '15:00'),
-  hb('Passear com o cachorro', 'n', ALL, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', ALL, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', ALL, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', ALL, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', ALL, 1, 0, 4, '21:45'),
-  hb('Cuidado da orelha (ajuste a recorrência)', 'n', ALL, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
+  hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
+  hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
+  hb('Passear com o cachorro', 'n', D6, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', D6, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', D6, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
+  hb('Cuidado da orelha (ajuste a recorrência)', 'n', D6, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
 const STARTER = [
   ['Treino A — corpo inteiro (leve)', [['Leg press', 3, '10–12', 90], ['Supino com halteres', 3, '8–12', 90], ['Remada sentada (máquina ou cabo)', 3, '10–12', 90], ['Desenvolvimento com halteres', 2, '10–12', 75], ['Prancha', 3, '30–40 s', 60]]],
@@ -253,6 +250,15 @@ function migrate() {
   if (!f.orelha) {
     f.orelha = 1;
     if (!S.habits.some(h => /orelha/i.test(h.title))) S.habits.push(DEF_HABITS().find(h => /orelha/.test(h.title)));
+  }
+  if (!f.domLivre) { /* domingo livre: só a igreja é meta; o resto some do domingo (nada é apagado) */
+    f.domLivre = 1; S.schedule[0] = sun();
+    S.habits.forEach(h => {
+      if (/^Igreja/i.test(h.title)) { h.days = [0]; h.when = 'm'; if (!h.pts) h.pts = 2; if (!h.at) h.at = '09:00'; return; }
+      if (/^Revisão semanal/i.test(h.title)) { h.days = []; return; }
+      if (Array.isArray(h.days) && h.days.includes(0)) h.days = h.days.filter(d => d !== 0);
+    });
+    if (!S.habits.some(h => /^Igreja/i.test(h.title))) S.habits.push(DEF_HABITS().find(h => /^Igreja/.test(h.title)));
   }
   if (!f.detox6) {
     f.detox6 = 1;
