@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v40';
+const APP_V = 'v41';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -107,16 +107,15 @@ function college(gym) {
     b('22:00', '22:45', 'Voltar, higiene e oração da noite', 'flex'),
     b('22:45', '23:59', 'Dormir (meta)', 'fixo')];
 }
-function sat() {
+function sat() { /* sábado: conteúdo até 12h; tarde e domingo livres (Nayara) */
   return [
-    b('07:00', '09:00', 'Manhã tranquila: oração, cuidados pessoais e cachorro', 'livre'),
-    b('09:00', '10:00', 'Quarto e organização', 'flex'),
-    b('10:00', '10:45', 'Produzir/agendar conteúdo do LinkedIn', 'flex'),
-    b('11:00', '12:00', 'Matemática (opcional)', 'flex', { opt: 1 }),
+    b('08:00', '08:30', 'Acordar, oração e café', 'livre'),
+    b('08:30', '10:30', 'LinkedIn: criar e agendar os posts da semana', 'flex'),
+    b('10:30', '10:45', 'Pausa', 'livre'),
+    b('10:45', '11:45', 'YouTube (semana de vídeo) ou ANIMAE (semana sem vídeo)', 'flex'),
+    b('11:45', '12:00', 'Atualizar status no Notion', 'flex'),
     b('12:00', '13:30', 'Almoço e descanso', 'livre'),
-    b('14:00', '18:00', 'Livre: date, passeio, desenho, culinária, filme', 'livre'),
-    b('16:00', '17:30', 'ANIMAE: lançamento (opcional, até 90 min)', 'flex', { opt: 1 }),
-    b('18:00', '23:00', 'Noite livre', 'livre')
+    b('13:30', '23:59', 'Tarde e noite livres (Nayara)', 'livre')
   ];
 }
 function sun() { /* domingo é dia livre: só a igreja é meta */
@@ -137,7 +136,7 @@ const DEF_HABITS = () => [
   hb('Oração e agradecimento', 'm', D6, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', D6, 1, 0, 2, '05:55'), hb('Leitura', 'm', D6, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', D6, 0, 1, 5, '07:15'),
   hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
   hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
-  hb('Quarto e organização', 't', [6], 1, 0, 5, '09:00'), hb('Conteúdo do LinkedIn', 't', [6], 1, 0, 6, '10:00'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
+  hb('LinkedIn: criar e agendar os posts', 'm', [6], 1, 0, 5, '08:30'), hb('YouTube ou ANIMAE: etapa de hoje', 'm', [6], 1, 0, 6, '10:45'), hb('Atualizar status no Notion', 'm', [6], 1, 0, 7, '11:45'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
   hb('Passear com o cachorro', 'n', D6, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', D6, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', D6, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
   hb('Cuidado da orelha (ajuste a recorrência)', 'n', D6, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
@@ -259,6 +258,11 @@ function migrate() {
       if (Array.isArray(h.days) && h.days.includes(0)) h.days = h.days.filter(d => d !== 0);
     });
     if (!S.habits.some(h => /^Igreja/i.test(h.title))) S.habits.push(DEF_HABITS().find(h => /^Igreja/.test(h.title)));
+  }
+  if (!f.sabConteudo) { /* sábado = rotina de conteúdo até 12h; sem estudo no fim de semana */
+    f.sabConteudo = 1; S.schedule[6] = sat();
+    S.habits.forEach(h => { if (/^Quarto e organização/i.test(h.title) && h.days.join() === '6') h.days = []; if (/^Conteúdo do LinkedIn/i.test(h.title)) { h.title = 'LinkedIn: criar e agendar os posts'; h.when = 'm'; h.at = '08:30'; } });
+    ['LinkedIn: criar e agendar os posts', 'YouTube ou ANIMAE: etapa de hoje', 'Atualizar status no Notion'].forEach(t => { if (!S.habits.some(h => h.title === t)) S.habits.push(DEF_HABITS().find(h => h.title === t)); });
   }
   if (!f.detox6) {
     f.detox6 = 1;
@@ -1646,7 +1650,7 @@ async function pushOn() {
 /* tudo que merece aviso nos próximos dias; o servidor manda no dia certo */
 function agendaAvisos() {
   const out = [], today = dkey(), d = dinS(), plan = d.plan && !d.plan.exemplo;
-  const add = (id, date, hour, title, body) => out.push({ id, date, hour, title, body });
+  const add = (id, date, at, title, body) => out.push({ id, date, at: typeof at === 'number' ? pad(at) + ':00' : at, title, body });
   const rel = (dt, k) => Math.round((new Date(dt + 'T12:00') - new Date(k + 'T12:00')) / 864e5);
   for (let i = 0; i < 10; i++) {
     const k = dkey(addD(new Date(today + 'T12:00'), i)), mo = k.slice(0, 7);
@@ -1658,6 +1662,7 @@ function agendaAvisos() {
     const bp = S.billPaid[mo] || {}; S.bills.forEach(b => { if (bp[b.id]) return; const df = rel(billDue(b, mo), k); if (df === 1 || df === 0) add('b:' + b.id + ':' + mo + ':' + df, k, 8, b.title, (df ? 'Vence amanhã' : 'Vence hoje') + ` (${brl(num(b.amount))}).`); });
     Object.values(pdays()).forEach(p => { const pc = (planCache(mo) || {}).despesas, row = pc && pc.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const df = rel(billDue({ day: p.day }, mo), k); if (df === 1 || df === 0) add('pd:' + pkey(p.t) + ':' + mo + ':' + df, k, 8, p.t, df ? 'Vence amanhã.' : 'Vence hoje.'); });
   }
+  conteudoAvisos(today, add);
   const seen = new Set(); return out.filter(x => !seen.has(x.id) && seen.add(x.id));
 }
 async function pushAgenda(quiet) {
@@ -1670,3 +1675,27 @@ Object.assign(A, {
   pushoff: async () => { try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) { await pushCall('POST', { action: 'off', endpoint: sub.endpoint }); await sub.unsubscribe(); } } catch (e) { } S.settings.push = { on: false, err: '' }; save(); toast('Avisos desligados.'); return true; }
 });
 setTimeout(() => pushAgenda(true), 6000);
+
+
+/* ---------- rotina de conteúdo (atualizada em 27/10/2026): lembretes da semana e do ciclo de cada vídeo ---------- */
+const CICLO = [{ ep: 'Ep.1: Plano de carreira em UX/UI', escrever: '2026-11-14', produzir: '2026-11-21', gravar: '2026-11-26', publicar: '2026-11-28' }];
+function conteudoAvisos(today, add) {
+  for (let i = 0; i < 10; i++) {
+    const dt = addD(new Date(today + 'T12:00'), i), k = dkey(dt), dow = dt.getDay(), dm = dt.getDate();
+    const ev = CICLO.map(c => ({ c, etapa: k === c.escrever ? 'Escrever' : k === c.produzir ? 'Produzir' : k === c.publicar ? 'Publicar' : '' })).find(x => x.etapa);
+    if (dow === 6) {
+      add('c:li:' + k, k, '08:30', 'LinkedIn', 'Criar e agendar os posts da semana.');
+      add('c:et:' + k, k, '10:45', ev ? ev.etapa + ': ' + ev.c.ep : 'YouTube ou ANIMAE', ev ? (ev.etapa === 'Publicar' ? 'Só publique se estiver bom. Se não, fica para 05/12.' : 'Etapa de hoje do vídeo.') : 'Etapa de hoje: vídeo (semana de vídeo) ou ANIMAE (semana sem vídeo).');
+      add('c:nt:' + k, k, '11:45', 'Notion', 'Atualize o status e feche o sábado.');
+    }
+    if (dow === 5) add('c:cand:' + k, k, '18:00', 'Candidaturas', 'As 5 candidaturas da semana foram enviadas? Se não, o bloco das 10:45 de sábado vira candidatura.');
+    if (dm === 1) add('c:vidiq:' + k, k, '09:00', 'Pesquisa do mês', 'Fazer a pesquisa mensal no vidIQ.');
+    CICLO.forEach(c => {
+      const ant = dkey(addD(dt, 1));
+      if (ant === c.gravar) add('c:g1:' + k, k, '20:00', 'Amanhã é dia de gravar', 'Roteiro, telas, lapela e casa livre. ' + c.ep);
+      if (k === c.gravar) { add('c:g0:' + k, k, '06:45', 'Gravação em 15 min', c.ep); add('c:gb:' + k, k, '09:30', 'Depois de gravar', 'Faça o backup do vídeo e marque o status "Gravado".'); }
+      if (k === c.publicar) add('c:com:' + k, k, '14:00', 'Se publicou hoje', 'Responda os comentários do vídeo.');
+      if (k === dkey(addD(new Date(c.publicar + 'T12:00'), 7))) add('c:ret:' + k, k, '09:00', 'Resultado do vídeo', 'Veja taxa de clique e retenção no YouTube Studio.');
+    });
+  }
+}

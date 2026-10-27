@@ -20,7 +20,7 @@ exports.handler = async event => {
       st.subs = st.subs.filter(x => x.endpoint !== s.endpoint).concat([{ endpoint: s.endpoint, keys: s.keys }]).slice(-4); dirty = true;
     } else if (b.action === 'off') { st.subs = st.subs.filter(x => x.endpoint !== b.endpoint); dirty = true; }
     else if (b.action === 'agenda') {
-      const it = (Array.isArray(b.items) ? b.items : []).slice(0, 80).map(x => ({ id: String(x.id || '').slice(0, 90), date: String(x.date || ''), hour: [8, 12, 18].includes(+x.hour) ? +x.hour : 8, title: String(x.title || 'Meu Dia').slice(0, 80), body: String(x.body || '').slice(0, 200) })).filter(x => x.id && /^\d{4}-\d{2}-\d{2}$/.test(x.date));
+      const it = (Array.isArray(b.items) ? b.items : []).slice(0, 120).map(x => ({ id: String(x.id || '').slice(0, 90), date: String(x.date || ''), at: /^\d{2}:\d{2}$/.test(String(x.at || '')) ? String(x.at) : (x.hour != null ? String(Math.min(23, Math.max(0, +x.hour || 8))).padStart(2, '0') + ':00' : '08:00'), title: String(x.title || 'Meu Dia').slice(0, 80), body: String(x.body || '').slice(0, 200) })).filter(x => x.id && /^\d{4}-\d{2}-\d{2}$/.test(x.date));
       st.agenda = it; const ids = new Set(it.map(x => x.id)); Object.keys(st.sent).forEach(k => { if (!ids.has(k)) delete st.sent[k]; }); dirty = true;
     } else if (b.action === 'teste') {
       const V = { pub: st.pub, priv: st.priv, sub: SUBJ }; let ok = 0;
