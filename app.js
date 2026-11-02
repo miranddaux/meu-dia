@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v41';
+const APP_V = 'v42';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -164,7 +164,7 @@ function defaults() {
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
     study: { 0: th('', ''), 1: th('Front-end (Udemy: aula do professor do dia)', 'Front-end web (Udemy)'), 2: th('Inglês (aula com o Claude)', 'Inglês'), 3: th('Python (Curso em Vídeo, Guanabara)', 'Python (Guanabara)'), 4: th('Produto, UX e UI', 'UI/UX e Product Design'), 5: th('Fixação: flashcards, questões e diagnóstico', 'UI/UX e Product Design'), 6: th('Matemática (opcional)', 'Matemática de apoio') },
-    studyLog: {},
+    studyLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Python (Guanabara)', link: '', now: '' },
@@ -191,6 +191,7 @@ function load() {
   S.settings.sync = Object.assign(dsy, (raw && raw.settings && raw.settings.sync) || {});
   S.settings.pom = Object.assign(dpm, (raw && raw.settings && raw.settings.pom) || {});
   if (!S.learn || !S.learn.done) S.learn = { done: {}, days: {}, xp: 0 };
+  S.reminders = Array.isArray(S.reminders) ? S.reminders : [];
   S.ideas = Object.assign({ done: [], mine: [] }, (raw && raw.ideas) || {});
   S.flags = (raw && raw.flags) || {};
   if (raw) migrate(); else S.flags.fresh = 1;
@@ -731,11 +732,22 @@ const granaParts = () => granaAll(true);
 
 /* ---------- Mais ---------- */
 function vMais() {
-  const tabs = [['din', 'coin', 'Dinheiro'], ['eu', 'mood-happy', 'Eu'], ['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['vida', 'heart', 'Roda da vida'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
+  const tabs = [['din', 'coin', 'Dinheiro'], ['eu', 'mood-happy', 'Eu'], ['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['vida', 'heart', 'Roda da vida'], ['rem', 'bell', 'Lembretes'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
   if (ui.mais !== 'cfg' && !tabs.find(t => t[0] === ui.mais)) ui.mais = 'prog';
   const out = `<div class="chips">${tabs.map(([i, c, l]) => `<button class="chip ${ui.mais === i ? 'on' : ''}" data-a="mtab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
-  return out + ({ din: vDinheiro, eu: vEu, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
+  return out + ({ din: vDinheiro, eu: vEu, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, rem: vReminders, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
 }
+function vReminders() {
+  const rs = [...S.reminders].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+  return `<div class="card">${sec('bell','Lembretes pessoais',`<button class="btn sm" data-a="remadd">${ic('plus')}Novo</button>`)}<div class="mut">Ficam só no seu aparelho/backup. Para aviso com o app fechado, use o Calendário do iPhone em Ajustes.</div>${rs.map(r=>`<div class="item"><div class="t"><b>${esc(r.title)}</b><div class="mut">${sd2(r.date)}${r.time?' · '+esc(r.time):''}${r.note?' · '+esc(r.note):''}${r.done?' · concluído':''}</div></div><button class="chip ${r.done?'on':''}" data-a="remdone" data-v="${r.id}">${ic('check')}${r.done?'Feito':'Marcar'}</button>${ib('edit','Editar lembrete','remedit',r.id)}</div>`).join('')||'<div class="mut">Nenhum lembrete ainda.</div>'}</div>`;
+}
+function remForm(r={}) {
+  form(r.id?'Editar lembrete':'Novo lembrete', [{k:'title',label:'Lembrete',value:r.title||''},{k:'date',label:'Data',type:'date',value:r.date||dkey()},{k:'time',label:'Horário (opcional)',type:'time',value:r.time||''},{k:'note',label:'Observação',value:r.note||''}], x=>{
+    const o={id:r.id||uid(),title:x.title.trim()||'Lembrete',date:x.date||dkey(),time:x.time||'',note:x.note.trim()||'',done:!!r.done};
+    if(r.id) S.reminders[S.reminders.findIndex(y=>y.id===r.id)]=o; else S.reminders.push(o);
+  }, r.id?()=>{S.reminders=S.reminders.filter(x=>x.id!==r.id);}:null);
+}
+Object.assign(A,{remadd:()=>{remForm({});return false;},remedit:v=>{const r=S.reminders.find(x=>x.id===v);if(r) remForm(r);return false;},remdone:v=>{const r=S.reminders.find(x=>x.id===v);if(r){r.done=!r.done;save();}}});
 function vLoja() {
   const bal = coins(), rw = [...S.settings.rewards].sort((a, c) => a.at - c.at);
   let out = `<div class="card center">${ic('coin', 'xl')}<div class="big">${bal}</div><div class="mut">moedas disponíveis</div></div>`;
@@ -782,7 +794,7 @@ function vProgSem() {
   const g = num(S.settings.waterGoal), wd = days.filter(d => g && (S.water[dkey(d)] || 0) >= g).length;
   const moods = days.map(d => S.mood[dkey(d)]).filter(x => x && x.m);
   const wsum = weekSummary(ws);
-  let out = `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
+  let out = (typeof rpgCard === 'function' ? rpgCard() : '') + `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
   out += `<div class="card">${sec('trending-up', 'Resumo da semana')}<div class="grp">O que foi bem</div><div>${wsum.wins.length ? wsum.wins.map(x => '· ' + esc(x)).join('<br>') : '<span class="mut">Semana ainda começando.</span>'}</div><div class="grp">Ajuste sugerido</div><div>${esc(wsum.adj[0])}</div><div class="mut">Regras simples do app. Para uma análise completa, cole o resumo no Claude com Sistema XP.</div><button class="btn full" data-a="copyweek" data-v="${ui.wo}">${ic('copy')}Copiar resumo da semana</button></div>`;
   out += `<div class="grid3"><div><b>${pw === null ? '—' : pw + '%'}</b><small>missões</small></div><div><b>${sd}/5</b><small>estudos</small></div><div><b>${wkc}</b><small>treinos</small></div></div>`;
   out += `<div class="grid3"><div><b>${wd}/7</b><small>água na meta</small></div><div><b>${S.challenges.map(c => chDays(c)).reduce((a, x) => a + x, 0)}</b><small>dias de desafio</small></div><div><b>${S.settings.gamify ? coins() : '—'}</b><small>moedas</small></div></div>`;
@@ -1393,6 +1405,7 @@ function notifs() {
   S.bills.forEach(b => { if (paid[b.id]) return; const r = rel(billDue(b, mo)); if (r) add(`b:${b.id}:${mo}`, 'wallet', `${b.title} ${r} (${brl(num(b.amount))}).`, [['Paguei', 'paybill', b.id, mo]]); });
   Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas, row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const r = rel(billDue({ day: p.day }, mo)); if (r) add(`p:${pkey(p.t)}:${mo}`, 'wallet', `${p.t} ${r}.`, [['Abrir Dinheiro', 'loja_pork', '', '']]); });
   dinNotifs(add, k, mo);
+  S.reminders.filter(r=>!r.done && r.date<=k).forEach(r=>add(`r:${r.id}:${r.date}`,'bell',`${r.title}${r.date<k?' · atrasado desde '+sd2(r.date):' · hoje'}${r.time?' às '+r.time:''}.`,[['Concluir','remdone',r.id,'']]));
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) add(`t:${k}`, 'wallet', 'Faz uns dias sem lançar gastos no Porkinho.', [['Lançar', 'addtx', '', '']]);
   if (S.settings.icsHash !== icsSig()) add(`i:${k}`, 'clock', S.settings.icsHash ? 'Seus lembretes mudaram. Atualize no Calendário.' : 'Ative os avisos no iPhone (missões, contas, cachorros).', [[S.settings.icsHash ? 'Atualizar' : 'Ativar', 'ics', '', '']]);
