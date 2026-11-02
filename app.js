@@ -1671,6 +1671,7 @@ async function planoAuto(force) {
   const t = dkey(); if (!force && d.autoPlanoDia === t) return; d.autoPlanoDia = t; save();
   const mo = t.slice(0, 7);
   for (let m = +mo.slice(5, 7); m <= 12; m++) { const mm = mo.slice(0, 4) + '-' + String(m).padStart(2, '0'); try { await planoPull(mm); await planoPost(mm, true, false, { respeitar: true }); } catch (e) { } }
+  try { await fetch(planUrl(), { method: 'POST', headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: JSON.stringify({ action: 'padronizar', month: mo }) }); } catch (e) { } /* CAIXA ALTA + linha verde quando PAGO */
   planLoad(ui.mo, true); anoLoad(+ui.mo.slice(0, 4), true); render();
 }
 setTimeout(planoAuto, 4000);

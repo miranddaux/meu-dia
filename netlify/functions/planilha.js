@@ -33,7 +33,7 @@ exports.handler = async event => {
   try {
     const tk = await token(sa), H = { Authorization: 'Bearer ' + tk, 'content-type': 'application/json' };
     const read = async () => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!A1:G70`) + '?valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro ao ler a planilha'); return j.values || []; };
-    const put = async (cell, v) => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!${cell}`) + '?valueInputOption=USER_ENTERED', { method: 'PUT', headers: H, body: JSON.stringify({ values: [[v]] }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); };
+    const put = async (cell, v) => { if (/^F/.test(cell) && typeof v === 'string') v = v.toLocaleUpperCase('pt-BR'); const r = await fetch(vbase + encodeURIComponent(`'${tab}'!${cell}`) + '?valueInputOption=USER_ENTERED', { method: 'PUT', headers: H, body: JSON.stringify({ values: [[v]] }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); };
     const made = await ensureTab(SHEET_ID, tk, y, m, true);
     const rows = await read(), data = parse(rows);
     if (event.httpMethod !== 'POST') return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, created: made.created, from: made.from, ...data }) };
@@ -64,9 +64,23 @@ exports.handler = async event => {
         saem.forEach(x => { data2.push({ range: `'${tab}'!F${x.row}`, values: [['LINHA VARIÁVEL']] }); data2.push({ range: `'${tab}'!G${x.row}`, values: [[0]] }); });
         nov.forEach(n => { data2.push({ range: `'${tab}'!F${n.row}`, values: [[n.nome]] }); data2.push({ range: `'${tab}'!G${n.row}`, values: [[n.para]] }); });
         if (renda) data2.push({ range: `'${tab}'!C${renda.row}`, values: [[renda.para]] });
+        data2.forEach(d => { if (/!F\d+$/.test(d.range) && typeof d.values[0][0] === 'string') d.values[0][0] = d.values[0][0].toLocaleUpperCase('pt-BR'); });
         if (data2.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data2 }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); }
       }
       return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, applied: body.apply === true, renda, sheetRenda, casados, atualizar: upd, novas: nov, semLugar, soPlanilha, saem, troca }) };
+    }
+    if (ac === 'padronizar') { // descrições em CAIXA ALTA (valores não mudam) + regra "linha verde quando PAGO" na aba
+      const data3 = []; rows.forEach((r, i) => { const row = i + 1, F = r[5]; if (row >= 6 && typeof F === 'string' && F.trim() && F !== F.toLocaleUpperCase('pt-BR') && !/^TOTAL/i.test(F)) data3.push({ range: `'${tab}'!F${row}`, values: [[F.toLocaleUpperCase('pt-BR')]] }); });
+      if (data3.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data3 }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); }
+      const mr = await fetch(base(SHEET_ID) + '?fields=sheets(properties(sheetId,title),conditionalFormats)', { headers: H }); const mj = await mr.json(); if (!mr.ok) throw new Error((mj.error && mj.error.message) || 'Erro do Google');
+      const sh = (mj.sheets || []).find(x => x.properties.title === tab); let regra = false;
+      const tem = sh && (sh.conditionalFormats || []).some(c => c.booleanRule && c.booleanRule.condition && JSON.stringify(c.booleanRule.condition).includes('PAGO'));
+      if (sh && !tem) {
+        const last = Math.max(34, ...data.despesas.map(x => x.row));
+        const rq = { addConditionalFormatRule: { index: 0, rule: { ranges: [{ sheetId: sh.properties.sheetId, startRowIndex: 5, endRowIndex: last, startColumnIndex: 5, endColumnIndex: 7 }], booleanRule: { condition: { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: '=REGEXMATCH($F6," PAGO$")' }] }, format: { backgroundColor: { red: 0.80, green: 0.94, blue: 0.85 }, textFormat: { foregroundColor: { red: 0.07, green: 0.36, blue: 0.2 } } } } } } };
+        const r = await fetch(base(SHEET_ID) + ':batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ requests: [rq] }) }); if (!r.ok) throw new Error('Erro na regra verde: ' + (await r.text()).slice(0, 200)); regra = true;
+      }
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, maiusculas: data3.length, regraVerde: regra || tem }) };
     }
     if (ac === 'marcar') { // marca ou desmarca "PAGO" numa linha que já existe (nunca cria linha)
       const kk = t => norm(String(t || '').replace(/\([^)]*\)/g, '').replace(/parcela\s*\d+\s*\/\s*\d+/i, '')).replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim(), k = kk(body.desc);
