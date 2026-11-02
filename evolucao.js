@@ -2,6 +2,55 @@
 /* Evolução (painel do mês), fase do treino e área "Eu". Tudo fica só neste aparelho.
    O texto que você escreve em "Eu" NÃO vai para o Notion; só humor e energia (já eram enviados) seguem no resumo do dia. */
 
+/* ---------- RPG da vida ---------- */
+const RPG_AREAS = [
+  ['est','Estudos','book-open'],
+  ['pro','Profissional','trophy'],
+  ['cor','Saúde','human-run'],
+  ['fin','Financeiro','wallet'],
+  ['emo','Emocional','mood-happy'],
+  ['rel','Relacionamentos','heart'],
+  ['esp','Espiritual','sun']
+];
+function rpgStats() {
+  const xp = {};
+  RPG_AREAS.forEach(a => xp[a[0]] = 0);
+  xp.est += Object.values(S.studyLog || {}).filter(x => x && x.done).length * 12;
+  xp.est += Object.values(S.pomo || {}).reduce((a,n)=>a + Math.min(4,num(n)),0) * 3;
+  xp.est += Object.keys((S.road && S.road.done) || {}).length * 10;
+  xp.pro += Object.keys((S.road && S.road.done) || {}).length * 14;
+  xp.cor += (S.workouts || []).length * 12;
+  const wg = num(S.settings.waterGoal);
+  if (wg) xp.cor += Object.keys(S.water || {}).filter(k => num(S.water[k]) >= wg).length * 3;
+  xp.fin += ((S.din && S.din.saved) || []).length * 8;
+  xp.fin += Object.values((S.goalPaid || {})).reduce((n,m)=>n + Object.values(m || {}).filter(Boolean).length,0) * 8;
+  Object.values(S.vida || {}).forEach(w => {
+    Object.keys((w && w.d) || {}).filter(k => w.d[k]).forEach(k => {
+      if (k === 'cor') xp.cor += 8;
+      else if (k === 'fin') xp.fin += 8;
+      else if (k === 'pro') xp.pro += 8;
+      else if (k === 'emo') xp.emo += 8;
+      else if (k === 'rel' || k === 'fam') xp.rel += 8;
+      else if (k === 'esp') xp.esp += 8;
+    });
+  });
+  const moodDays = Object.values(S.mood || {}).filter(x => x && (x.m || x.e)).length;
+  xp.emo += moodDays * 2 + ((S.eu || []).length * 3);
+  const church = (S.habits || []).find(h => /^Igreja/i.test(h.title));
+  if (church) for (const k in (S.log || {})) if ((S.log[k] || {})[church.id] === 'done') xp.esp += 4;
+  const total = Object.values(xp).reduce((a,n)=>a+n,0);
+  const level = Math.floor(total / 150) + 1, cur = total % 150;
+  return {xp,total,level,cur,next:150};
+}
+function rpgCard() {
+  const r = rpgStats(), pct = Math.round(r.cur / r.next * 100);
+  const rows = RPG_AREAS.map(([id,nm,ico]) => {
+    const n = r.xp[id] || 0, lv = Math.floor(n / 100) + 1, p = n % 100;
+    return `<div class="rpgrow"><div class="row sp"><span>${ic(ico)} <b>${nm}</b></span><span class="mut">Nv. ${lv} · ${n} XP</span></div><div class="bar thin"><i style="width:${p}%"></i></div></div>`;
+  }).join('');
+  return `<div class="card"><div class="row sp"><div><div class="mut">SEU PERSONAGEM</div><div class="big">Nível ${r.level}</div></div><div class="center"><b>${r.total} XP</b><div class="mut">total</div></div></div><div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${r.cur}/${r.next} XP para o próximo nível. Seu XP vem do que você realmente registra no Meu Dia: estudos, treino, saúde, finanças, evolução da vida e Roadmap.</div><div class="grp">Atributos</div>${rows}<div class="mut">Os níveis são progresso acumulado: sem perder XP e sem punição.</div></div>`;
+}
+
 /* ---------- Painel do mês ---------- */
 const evMo = (o = 0) => addMo(dkey().slice(0, 7), o);
 function evKeys(mo) {
