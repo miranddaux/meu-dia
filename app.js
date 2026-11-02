@@ -1248,6 +1248,7 @@ function downloadIcs(w) {
   });
   add('Anotar as 3 prioridades do dia', now, '06:45', 'FREQ=DAILY', 'PT0S', 10);
   add('Fechar o dia: marcar as prioridades (feito ou não)', now, '21:30', 'FREQ=DAILY', 'PT0S', 10);
+  (S.reminders || []).filter(r => !r.done && r.date).forEach(r => add(r.title || 'Lembrete', new Date(r.date + 'T12:00'), r.time || '09:00', '', ['-P1D', 'PT0S'], 15, r.id));
   const sun = [0, 1, 2, 3, 4, 5, 6].map(i => addD(now, i)).find(d => d.getDay() === 0);
   add('Lançar os gastos da semana no Porkinho', sun, '20:00', 'FREQ=WEEKLY;BYDAY=SU', 'PT0S', 10);
   add('Revisar Porkinho: limites e metas', new Date(now.getFullYear(), now.getMonth() + 1, 1), '09:00', 'FREQ=MONTHLY;BYMONTHDAY=1', 'PT0S', 15);
