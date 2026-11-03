@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v49';
+const APP_V = 'v50';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -731,9 +731,11 @@ const granaParts = () => granaAll(true);
 
 /* ---------- Mais ---------- */
 function vMais() {
-  const tabs = [['jor', 'trending-up', 'Jornada'], ['prog', 'chart-bar', 'Progresso'], ['vida', 'heart', 'Mapa da vida'], ['din', 'coin', 'Dinheiro'], ['rem', 'bell', 'Lembretes'], ['eu', 'mood-happy', 'Eu'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
-  if (ui.mais !== 'cfg' && !tabs.find(t => t[0] === ui.mais)) ui.mais = 'jor';
-  const out = `<div class="chips">${tabs.map(([i, c, l]) => `<button class="chip ${ui.mais === i ? 'on' : ''}" data-a="mtab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
+  const tabs = [['jor', 'trending-up', 'Jornada'], ['din', 'coin', 'Dinheiro'], ['prog', 'chart-bar', 'Semana'], ['eu', 'mood-happy', 'Eu'], ['hab', 'checklist', 'Missões'], ['cfg', 'sliders', 'Ajustes']];
+  const PARENT = { vida: ['jor', 'Jornada'], rem: ['jor', 'Jornada'], loja: ['jor', 'Jornada'], rev: ['prog', 'Semana'], pork: ['din', 'Dinheiro'], exp: ['cfg', 'Ajustes'], laz: ['cfg', 'Ajustes'] };
+  if (!tabs.find(t => t[0] === ui.mais) && !PARENT[ui.mais]) ui.mais = 'jor';
+  const par = PARENT[ui.mais], cur = par ? par[0] : ui.mais;
+  const out = `<div class="chips">${tabs.map(([i, c, l]) => `<button class="chip ${cur === i ? 'on' : ''}" data-a="mtab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>` + (par ? `<button class="btn sm ghost" data-a="mtab" data-v="${par[0]}">${ic('chevron-left')}Voltar para ${par[1]}</button>` : '');
   return out + ({ jor: vJornada, din: vDinheiro, eu: vEu, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, rem: vReminders, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
 }
 function journeyNext() {
@@ -761,11 +763,9 @@ function vJornada() {
   const vals = AREAS.map(a => vw.s[a[0]]).filter(v => v !== undefined), life = vals.length ? r1(vals.reduce((a,n)=>a+n,0)/vals.length) : '—';
   const row = x => `<div class="journey-step"><div class="journey-step-ic">${ic(x.icon)}</div><div class="grow"><b>${esc(x.title)}</b><div class="mut">${esc(x.meta)}</div></div><button class="btn sm ${x.a === 'jgo' ? 'ghost' : ''}" data-a="${x.a}" data-v="${esc(x.v)}">${esc(x.cta)}</button></div>`;
   let out = rpgCard(false) + visaoStrip('vida');
-  out += `<div class="grid3 journey-stats"><div><b>${nx.length}</b><small>próximas ações</small></div><div><b>${life}</b><small>Mapa da vida</small></div><div><b>${S.settings.sync.key ? 'ON' : 'OFF'}</b><small>Notion</small></div></div>`;
   out += `<div class="card">${sec('flag','Próximas ações',`<button class="btn sm ghost" data-a="jgo" data-v="rem">Lembretes</button>`)}<div class="mut">O app junta o que vence no Meu Dia com o Roadmap do Notion e mostra primeiro o que precisa da sua atenção.</div>${nx.length ? nx.map(row).join('') : '<div class="banner">'+ic('check')+'<span>Nada urgente agora. Continue a rotina e registre o que fizer.</span></div>'}</div>`;
   const map = AREAS.map(([id,nm,ico]) => `<button class="journey-area" data-a="jgo" data-v="vida"><span>${ic(ico)}</span><b>${esc(nm)}</b><small>${vw.s[id] === undefined ? 'avaliar' : vw.s[id] + '/10'}</small></button>`).join('');
   out += `<div class="card">${sec('heart','Mapa da vida',`<button class="btn sm ghost" data-a="jgo" data-v="vida">Abrir</button>`)}<div class="mut">Cada área tem nota semanal, uma ação pequena e XP quando você conclui.</div><div class="journey-map">${map}</div></div>` + rpgParts();
-  out += `<div class="card">${sec('sync','Conexões')}<div class="journey-conn"><span>${ic('book-open')}Roadmap / Notion</span><b class="${S.settings.sync.key ? 'ok' : 'warnc'}">${S.settings.sync.key ? 'conectado' : 'configurar'}</b></div><div class="journey-conn"><span>${ic('bell')}Avisos no iPhone</span><b>${S.settings.push && S.settings.push.on ? 'ligados' : 'opcional'}</b></div><div class="journey-conn"><span>${ic('save')}Backup na nuvem</span><b>${S.settings.cloudLast ? 'ativo' : 'pendente'}</b></div><button class="btn ghost full" data-a="cfg">${ic('sliders')}Abrir integrações</button></div>`;
   return out;
 }
 function vReminders() {
@@ -816,7 +816,7 @@ function weekSummary(ws) {
   return { wins, adj, txt, pom, les, rdn, hardN, dw };
 }
 const pvSeg = () => `<div class="chips">${[['sem', 'Semana'], ['mes', 'Mês']].map(([i, l]) => `<button class="chip ${(ui.pv || 'sem') === i ? 'on' : ''}" data-a="pv" data-v="${i}">${l}</button>`).join('')}</div>`;
-function vProg() { return pvSeg() + ((ui.pv || 'sem') === 'mes' ? vMes() : vProgSem()); }
+function vProg() { return pvSeg() + ((ui.pv || 'sem') === 'mes' ? vMes() : vProgSem() + acc('prev', `${ic('note')}<span>Revisão da semana (20 min)</span>`, (S.reviews[dkey(wkStart())] || {}).ok ? 'feita' : '', `<button class="btn ghost full" data-a="mtab" data-v="rev">${ic('edit')}Abrir revisão</button>`, false)); }
 function vProgSem() {
   const ws = wkStart(addD(new Date(), 7 * ui.wo)), days = [...Array(7)].map((_, i) => addD(ws, i)), today = dkey();
   const hs = S.habits.filter(h => days.some(d => h.days.includes(d.getDay())));
@@ -826,7 +826,7 @@ function vProgSem() {
   const g = num(S.settings.waterGoal), wd = days.filter(d => g && (S.water[dkey(d)] || 0) >= g).length;
   const moods = days.map(d => S.mood[dkey(d)]).filter(x => x && x.m);
   const wsum = weekSummary(ws);
-  let out = (typeof rpgCard === 'function' ? rpgCard() : '') + `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
+  let out = `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
   out += `<div class="card">${sec('trending-up', 'Resumo da semana')}<div class="grp">O que foi bem</div><div>${wsum.wins.length ? wsum.wins.map(x => '· ' + esc(x)).join('<br>') : '<span class="mut">Semana ainda começando.</span>'}</div><div class="grp">Ajuste sugerido</div><div>${esc(wsum.adj[0])}</div><div class="mut">Regras simples do app. Para uma análise completa, cole o resumo no Claude com Sistema XP.</div><button class="btn full" data-a="copyweek" data-v="${ui.wo}">${ic('copy')}Copiar resumo da semana</button></div>`;
   out += `<div class="grid3"><div><b>${pw === null ? '—' : pw + '%'}</b><small>missões</small></div><div><b>${sd}/5</b><small>estudos</small></div><div><b>${wkc}</b><small>treinos</small></div></div>`;
   out += `<div class="grid3"><div><b>${wd}/7</b><small>água na meta</small></div><div><b>${S.challenges.map(c => chDays(c)).reduce((a, x) => a + x, 0)}</b><small>dias de desafio</small></div><div><b>${S.settings.gamify ? coins() : '—'}</b><small>moedas</small></div></div>`;
@@ -835,7 +835,6 @@ function vProgSem() {
   out += `<div class="card"><h3 class="px">Últimas 4 semanas</h3><div class="hist">${hist.map(h => `<div style="height:${h.p || 0}%"><small>${h.p === null ? '' : h.p + '%'}</small></div>`).join('')}</div><div class="row sp mut">${hist.map(h => `<span>${h.l}</span>`).join('')}</div></div>`;
   if (moods.length) out += `<div class="card"><h3 class="px">Humor médio (privado)</h3><div class="big">${(moods.reduce((a, x) => a + x.m, 0) / moods.length).toFixed(1)} / 5</div></div>`;
   const st = monthStats(dkey().slice(0, 7));
-  out += `<div class="card"><h3 class="px">Dinheiro este mês</h3><div class="mut">Entradas ${brl(st.inn)} · Saídas ${brl(st.out)} · Saldo ${brl(st.inn - st.out)}</div></div>`;
   out += `<div class="card">${sec('note', 'Resumo para o Notion')}<div class="mut">Copie o resumo do dia e cole em qualquer conversa com o Claude começando por <b>Sistema XP</b>. Ele registra na sua planilha.</div><button class="btn pri full" data-a="notion">${ic('copy')}Copiar resumo de hoje</button></div>`;
   return out;
 }
@@ -862,26 +861,25 @@ function vRev() {
   return out;
 }
 function vCfg() {
-  const s = S.settings;
-  return `<div class="card">${sec('clock', 'Rotina')}<div class="row sp"><span>Modo faculdade (aulas seg a sex, 19h–22h)</span><button class="chip ${s.college ? 'on' : ''}" data-a="college" aria-pressed="${!!s.college}">${s.college ? 'Ligado' : 'Desligado'}</button></div><div class="mut">Liga a agenda de dias de aula: treino mais curto, jantar rápido e sono até 22h45. O estudo das 06h às 07h continua. Seus blocos antigos de seg a sex são trocados (sábado e domingo não mudam).</div><button class="btn ghost full" data-a="newroutine">Aplicar minha rotina nova (06h–07h, treino 17h30)</button></div>
-<div class="card">${sec('coin', 'Moedas')}<div class="row sp"><span>Moedas e Loja</span><button class="chip ${s.gamify ? 'on' : ''}" data-a="gam" aria-pressed="${!!s.gamify}">${s.gamify ? 'Ligadas' : 'Desligadas'}</button></div><div class="mut">Só progresso acumulado: sem ranking, punição, sorteio ou perda de moedas.</div></div>
-<div class="card">${sec('sun', 'Aparência')}<div class="chips">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="chip ${(s.theme || 'auto') === v ? 'on' : ''}" data-a="theme" data-v="${v}">${l}</button>`).join('')}</div></div>
-<div class="card">${sec('clock', 'Avisos no iPhone')}<div class="mut">O iPhone não deixa um app avisar com ele fechado. O jeito certo é o app Calendário: ele avisa missões, prioridades, contas do Porkinho e cuidados dos cachorros. Baixe, abra e toque em Adicionar tudo. Quando algo mudar, o app avisa na Home para atualizar (não duplica).</div><button class="btn full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros (só avisam)</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button></div>
-<div class="card">${sec('sync', 'Sincronizar com o Notion')}<div class="row sp"><span>Enviar o dia automaticamente</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}"><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'} Depois de configurar, o dia vai para o banco "Meu Dia, registro diário" no Notion.</div><div class="mut">Versão do app: ${APP_V}</div></div>
-<div class="card">${sec('link', 'Links')}<label>Notion (Career OS / Faculdade Miranda)</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}<div class="mut">O Notion segue como fonte principal. Use Mais, Progresso, Copiar resumo para registrar o dia via Claude (Sistema XP).</div></div>
-${pushCard()}<div class="card">${sec('save', 'Backup')}<div class="banner">${ic('upload')}<span>${s.sync.key ? (s.cloudLast ? 'Backup na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Ele se atualiza sozinho depois que você registra algo.' : 'Backup na nuvem ainda não feito. Toque em Fazer backup agora.') : 'Para ligar o backup na nuvem, coloque a chave do app no card do Notion (acima).'}</span></div><button class="btn pri full" data-a="cbk">${ic('upload')}Fazer backup na nuvem agora</button><button class="btn ghost full" data-a="crest">${ic('download')}Restaurar da nuvem</button><div class="mut">Seus dados também ficam neste aparelho. Exporte de vez em quando um arquivo (as fotos não entram no backup). Exporte de tempos em tempos (as fotos não entram no backup).${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') : ''}</div>
-<button class="btn full" data-a="export">${ic('download')}Exportar backup</button>
-<button class="btn ghost full" data-a="copy">${ic('copy')}Copiar backup (texto)</button>
-<label>Restaurar de arquivo</label><input type="file" accept=".json,application/json" data-c="restore">
-<button class="btn ghost full" data-a="paste">${ic('upload')}Restaurar colando texto</button>
-<button class="btn danger full" data-a="wipe">${ic('trash')}Apagar tudo</button></div>`;
+  const s = S.settings, cloud = s.sync.key ? (s.cloudLast ? 'Na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Atualiza sozinho.' : 'Ainda não foi para a nuvem.') : 'Sem nuvem: coloque a chave do app em Notion, acima.';
+  return `<div class="card">${sec('sun', 'Aparência')}<div class="chips">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="chip ${(s.theme || 'auto') === v ? 'on' : ''}" data-a="theme" data-v="${v}">${l}</button>`).join('')}</div></div>
+<div class="card">${sec('clock', 'Rotina')}<div class="row sp"><span>Modo faculdade (aulas seg a sex, 19h–22h)</span><button class="chip ${s.college ? 'on' : ''}" data-a="college" aria-pressed="${!!s.college}">${s.college ? 'Ligado' : 'Desligado'}</button></div><div class="mut">Troca a agenda de seg a sex: treino mais curto, jantar rápido e sono até 22h45.</div></div>
+${pushCard()}
+${acc('cfgcal', `${ic('calendar')}<span>Avisos pelo Calendário e cachorros</span>`, '', `<div class="mut">Alternativa aos avisos do app: baixe e toque em Adicionar tudo no Calendário do iPhone.</div><button class="btn ghost full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button>`, false)}
+<div class="card">${sec('sync', 'Notion')}<div class="row sp"><span>Enviar o dia sozinho</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn ghost full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'}</div><label>Link do seu Notion</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}</div>
+<div class="card">${sec('save', 'Backup')}<div class="mut">${cloud}${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') + '.' : ''} As fotos não entram no backup.</div>${s.sync.key ? `<div class="row"><button class="btn ghost sm grow" data-a="cbk">${ic('upload')}Nuvem agora</button><button class="btn ghost sm grow" data-a="crest">${ic('download')}Trazer da nuvem</button></div>` : ''}<button class="btn full" data-a="export">${ic('download')}Exportar backup (arquivo)</button><label>Restaurar de arquivo</label><input type="file" accept=".json,application/json" data-c="restore"></div>
+${acc('cfgadv', `${ic('sliders')}<span>Avançado</span>`, APP_V, `<div class="row sp"><span>Moedas e Loja</span><button class="chip ${s.gamify ? 'on' : ''}" data-a="gam" aria-pressed="${!!s.gamify}">${s.gamify ? 'Ligadas' : 'Desligadas'}</button></div>
+<div class="grp">Listas</div><div class="row wrap"><button class="btn sm ghost" data-a="mtab" data-v="exp">${ic('lightbulb-on')}Quero explorar</button><button class="btn sm ghost" data-a="mtab" data-v="laz">${ic('cloud-sun')}Ideias de tempo livre</button></div>
+<div class="grp">Conexão</div><label>Endereço da função</label><input data-c="syncurl" value="${esc(s.sync.url)}">
+<div class="grp">Backup em texto</div><div class="row wrap"><button class="btn sm ghost" data-a="copy">${ic('copy')}Copiar</button><button class="btn sm ghost" data-a="paste">${ic('upload')}Colar</button></div>
+<button class="btn danger full" data-a="wipe">${ic('trash')}Apagar tudo deste aparelho</button><div class="mut">Versão do app: ${APP_V}</div>`, false)}`;
 }
 
 /* ---------- render / nav ---------- */
 const TABS = [['hoje', 'sun', 'Hoje'], ['corpo', 'human-run', 'Corpo'], ['estudos', 'book-open', 'Estudos'], ['desafios', 'shield', 'Desafios'], ['mais', 'more-horizontal', 'Mais']];
 function render() {
   const n = new Date(), k = dkey(n), hr = n.getHours();
-  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
+  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Jornada, dinheiro, semana e ajustes'] };
   const [h, p] = titles[ui.tab];
   const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   const prev = /github\.io$/.test(location.hostname) ? `<div class="banner warn">${ic('info-box')}<span>Versão web provisória. Treino, rotina e fotos funcionam. Planilha, Notion e avisos voltam no app oficial dia 20/11 (leve um backup para lá).</span></div>` : '';
