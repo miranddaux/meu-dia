@@ -237,3 +237,24 @@ details.pomo-mini .row{gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .hud{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:0 2px 4px}.hud::-webkit-scrollbar{display:none}.hud>*{flex:none}
 .wchart{display:flex;align-items:flex-end;gap:var(--s2);overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}.wchart::-webkit-scrollbar{display:none}
 .wc{flex:none;width:48px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px}.wc i{display:block;width:100%;background:var(--ok);border:3px solid var(--ink);border-radius:6px 6px 0 0;min-height:8px}.wc small{font-size:11px;line-height:16px;font-weight:700;color:var(--ink)}.wc span{font-size:11px;line-height:16px;color:var(--mut);white-space:nowrap}
+
+
+/* Jornada v43 */
+.journey-hero{background:linear-gradient(180deg,var(--card),var(--soft))}
+.journey-level{width:72px;height:72px;border:3px solid var(--ink);border-radius:50%;display:grid;place-items:center;background:var(--gold);font-size:18px;font-weight:700;box-shadow:0 3px 0 var(--ink);flex:none}
+.journey-stats>div{min-height:86px;justify-content:center}
+.journey-step{display:flex;align-items:center;gap:var(--s2);padding:12px 0;border-top:2px solid var(--soft)}
+.journey-step:first-of-type{border-top:0}
+.journey-step-ic{width:44px;height:44px;border:3px solid var(--ink);border-radius:12px;background:var(--soft);display:grid;place-items:center;flex:none}
+.journey-step-ic .ic{width:20px;height:20px}
+.journey-map{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s2)}
+.journey-area{min-height:92px;border:3px solid var(--ink);border-radius:var(--r);background:var(--card);color:var(--ink);display:grid;grid-template-columns:32px 1fr;grid-template-rows:auto auto;text-align:left;align-items:center;gap:2px 8px;padding:10px;font:inherit;cursor:pointer;box-shadow:0 2px 0 var(--ink)}
+.journey-area span{grid-row:1/3;width:32px;height:32px;display:grid;place-items:center;background:var(--soft);border-radius:8px}
+.journey-area span .ic{width:20px;height:20px}
+.journey-area b{font-size:14px;line-height:18px}
+.journey-area small{font-size:12px;color:var(--mut)}
+.journey-conn{display:flex;align-items:center;justify-content:space-between;gap:var(--s2);padding:10px 0;border-top:2px solid var(--soft)}
+.journey-conn:first-of-type{border-top:0}
+.journey-conn span{display:flex;align-items:center;gap:8px;font-weight:600}
+.rpgrow{display:flex;flex-direction:column;gap:4px;padding:5px 0}
+@media(max-width:390px){.journey-map{grid-template-columns:1fr}.journey-level{width:64px;height:64px}.journey-step{align-items:flex-start;flex-wrap:wrap}.journey-step .btn{margin-left:52px}}
