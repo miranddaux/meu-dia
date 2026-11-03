@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v47';
+const APP_V = 'v48';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -760,7 +760,7 @@ function vJornada() {
   const nx = journeyNext(), vw = (S.vida || {})[vwk()] || { s:{} };
   const vals = AREAS.map(a => vw.s[a[0]]).filter(v => v !== undefined), life = vals.length ? r1(vals.reduce((a,n)=>a+n,0)/vals.length) : '—';
   const row = x => `<div class="journey-step"><div class="journey-step-ic">${ic(x.icon)}</div><div class="grow"><b>${esc(x.title)}</b><div class="mut">${esc(x.meta)}</div></div><button class="btn sm ${x.a === 'jgo' ? 'ghost' : ''}" data-a="${x.a}" data-v="${esc(x.v)}">${esc(x.cta)}</button></div>`;
-  let out = rpgCard(false);
+  let out = rpgCard(false) + visaoStrip('vida');
   out += `<div class="grid3 journey-stats"><div><b>${nx.length}</b><small>próximas ações</small></div><div><b>${life}</b><small>Mapa da vida</small></div><div><b>${S.settings.sync.key ? 'ON' : 'OFF'}</b><small>Notion</small></div></div>`;
   out += `<div class="card">${sec('flag','Próximas ações',`<button class="btn sm ghost" data-a="jgo" data-v="rem">Lembretes</button>`)}<div class="mut">O app junta o que vence no Meu Dia com o Roadmap do Notion e mostra primeiro o que precisa da sua atenção.</div>${nx.length ? nx.map(row).join('') : '<div class="banner">'+ic('check')+'<span>Nada urgente agora. Continue a rotina e registre o que fizer.</span></div>'}</div>`;
   const map = AREAS.map(([id,nm,ico]) => `<button class="journey-area" data-a="jgo" data-v="vida"><span>${ic(ico)}</span><b>${esc(nm)}</b><small>${vw.s[id] === undefined ? 'avaliar' : vw.s[id] + '/10'}</small></button>`).join('');
@@ -1483,7 +1483,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
-dinInit(); euInit(); dietInit(); trInit(); load(); applyTheme(); save(); render();
+dinInit(); euInit(); dietInit(); trInit(); visaoInit(); load(); applyTheme(); save(); render();
 if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');

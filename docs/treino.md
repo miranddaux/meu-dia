@@ -28,3 +28,10 @@ Cada treino concluído também vira um item em `S.workouts` (histórico antigo, 
 ## Como mudar
 - Exercícios: edite `TR_DAYS` em `treino.js` (`ex(id, nome, grupo, repMin, repMax, [séries mín, máx], descanso s, categoria, salto kg)`). Mantenha o mesmo `id` para não perder o histórico.
 - Cardio por semana: `TR_WEEKS[n].cardio`. Ou no app: Corpo → Treino → Ajustes do treino.
+
+## Minha visão (v48)
+- `visao.js`: fotos de onde você quer chegar. Grupo `corpo` aparece no topo do Treino e no fim do treino; grupo `vida` aparece na Jornada.
+- As fotos ficam só no aparelho (IndexedDB `meudia_photos`), nunca no código. Entram por "+ Foto" (galeria do celular) ou por um arquivo `{"visao":[{"grupo","titulo","img"}]}` importado no próprio card.
+
+## Sessão de treino (UX v48)
+- Carga e repetições já vêm da última vez; a série atual fica destacada e o botão grande é "SÉRIE N FEITA". Quando todas terminam, o botão vira "PRÓXIMO: <exercício>".

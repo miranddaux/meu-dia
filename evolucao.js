@@ -18,7 +18,7 @@ const RPG_AREAS = [
 /* tabela de níveis da Ficha do Personagem (Notion): [XP mínimo, classe] */
 const RPG_LV = [[0,'Aprendiz'],[350,'Aprendiz'],[800,'Aprendiz'],[1300,'Júnior'],[1800,'Júnior'],[2400,'Júnior'],[3000,'Pleno'],[5000,'Pleno'],[7000,'Pleno'],[9500,'Pleno'],[11500,'Pleno'],[13000,'Sênior'],[15000,'Sênior'],[16900,'Product Engineer'],[18000,'Internacional']];
 /* fases da vida (classes) e quando cada uma deve chegar, como está no Notion */
-const RPG_FASES = [['Aprendiz','Lv 1–3','começo'],['Júnior','Lv 4–6','superado'],['Pleno','Lv 7–11','agora · vaga pleno dez/26–jan/27'],['Sênior','Lv 12–13','previsão dez/2027'],['Product Engineer','Lv 14','previsão dez/2028'],['Internacional','Lv 15','2029–2030']];
+const RPG_FASES = [['Aprendiz','Lv 1–3','começo'],['Júnior','Lv 4–6','superado'],['Pleno','Lv 7–11','agora · vaga pleno dez/26–jan/27'],['Sênior','Lv 12–13','previsão dez/2029 · uns 3 anos depois da vaga pleno'],['Product Engineer','Lv 14','previsão dez/2030 · 1 ano depois do sênior'],['Internacional','Lv 15','2031–2032 · depois do Product Engineer']];
 const RPG_RANK = n => n >= 20 ? 'Expert' : n >= 15 ? 'Avançado' : n >= 10 ? 'Sólido' : n >= 5 ? 'Praticante' : 'Iniciante';
 const rpgS = () => (S.rpg = S.rpg || { alloc: {} });
 function rpgLifeXp() {
@@ -44,10 +44,10 @@ function rpgStats() {
   const pts = Math.floor(total / 100), spent = Object.values(rpgS().alloc).reduce((a,n)=>a+num(n),0);
   return { xp, total, road, life: lifeTot, level, cls, cur: road - lo, next: hi - lo, toNext: Math.max(0, hi - road), pts, free: Math.max(0, pts - spent), alloc: rpgS().alloc, synced: nx && nx.at };
 }
-/* bonequinho em pixel art (estilo A · sálvia e coral), muda com a classe; troque pelo asset final quando estiver pronto */
-const RPG_PX = ["...oooooo....o..", "..ohhhhhhoo.ogo.", ".ohhhhhhhhho.w..", ".ohssssssho..w..", ".ossessesso..w..", ".osssssssso..w..", "..osssmsso...w..", "...oossoo....w..", "..occrrrcco..w..", ".occrrrrrcco.w..", ".ocrrrbrrrcosw..", ".ocrrrrrrrco.w..", ".ocrrrrrrrco.w..", "..orrrrrrro..w..", "..orrroorro..w..", "..oddo..oddo.w..", "..oooo..oooo...."];
+/* seu personagem em pixel art (estilo A · sálvia e coral): pele morena, cabelo escuro e barba; muda com a classe */
+const RPG_PX = ["...oooooo....o..", "..ohhhhhhoo.ogo.", ".ohhhhhhhhho.w..", ".ohssssssho..w..", ".ossessesso..w..", ".ofssssssfo..w..", "..ofssmsfo...w..", "...offffo....w..", "..occrrrcco..w..", ".occrrrrrcco.w..", ".ocrrrbrrrcosw..", ".ocrrrrrrrco.w..", ".ocrrrrrrrco.w..", "..orrrrrrro..w..", "..orrroorro..w..", "..oddo..oddo.w..", "..oooo..oooo...."];
 function rpgAvatar(cls, size) {
-  const pal = { o:'#1f2a2e', h:'#4a3328', s:'#f2c19e', e:'#1f2a2e', m:'#c46a5a', r:'#7fb89a', c:'#ff6b57', b:'#ffc83d', w:'#8a5a3c', g:'#ffc83d', d:'#1f2a2e', k:'#ffc83d' };
+  const pal = { o:'#1f2a2e', h:'#2b1d17', f:'#2b1d17', s:'#bf8458', e:'#1f2a2e', m:'#7a3f33', r:'#7fb89a', c:'#ff6b57', b:'#ffc83d', w:'#8a5a3c', g:'#ffc83d', d:'#1f2a2e', k:'#ffc83d' };
   let m = RPG_PX.map(r => r.split(''));
   const swap = (from, to) => m.forEach(r => r.forEach((ch, i) => { if (ch === from) r[i] = to; }));
   if (cls === 'Aprendiz') { m.forEach(r => { if ('wg'.includes(r[13])) r[13] = '.'; }); m[0][13] = '.'; m[1][12] = '.'; m[1][14] = '.'; m[10][12] = '.'; swap('c', 'r'); swap('b', 'r'); pal.r = '#cfe6d6'; }

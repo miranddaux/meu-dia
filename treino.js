@@ -122,7 +122,7 @@ function trAdvice(e, cur) {
 function trNewSession(dayNo, check) {
   const t = TR(), k = dkey(); if (!t.start) t.start = dkey(wkStart());
   const day = trDay(dayNo), w = trWeek(k), cur = { id: uid(), date: k, day: dayNo, key: day.key, name: day.name, week: w.n, start: Date.now(), check: check || null, i: 0, restEnd: null, restTot: 0, fin: false, completed: false };
-  cur.ex = day.exercises.map(e => { const plan = trSetsFor(e, w), L = trLast(e.id, dayNo, null), lastKg = L ? (L.e.sets.filter(s => s.completed).map(s => num(s.weight)).pop() || '') : ''; return { id: e.id, name: e.name, muscle: e.muscleGroup, repMin: e.repMin, repMax: e.repMax, plan, rest: e.restSeconds, cat: e.category, inc: e.inc, done: false, sets: [...Array(plan)].map(() => ({ weight: lastKg, reps: '', rir: w.rirN, completed: false })) }; });
+  cur.ex = day.exercises.map(e => { const plan = trSetsFor(e, w), L = trLast(e.id, dayNo, null), ls = L ? L.e.sets.filter(s => s.completed) : [], lastKg = ls.length ? (num(ls[ls.length - 1].weight) || '') : ''; return { id: e.id, name: e.name, muscle: e.muscleGroup, repMin: e.repMin, repMax: e.repMax, plan, rest: e.restSeconds, cat: e.category, inc: e.inc, done: false, sets: [...Array(plan)].map((_, i) => ({ weight: lastKg, reps: ls[i] ? num(ls[i].reps) || '' : '', rir: w.rirN, completed: false })) }; });
   const cm = trCardioMin(w); cur.cardio = { type: t.cfg.cardioType, intensity: 'Leve', target: cm[0], upto: cm[1], startAt: null, min: '', done: false };
   return cur;
 }
@@ -150,7 +150,8 @@ function trMain() {
   const t = TR(), k = dkey(), dow = new Date().getDay(), w = trWeek(k), cur = t.cur;
   if (cur && cur.fin) return trFinish(cur);
   if (cur) return trSession(cur);
-  let out = `<div class="banner">${ic('heart')}<span><b>Não preciso me destruir hoje. Preciso conseguir voltar amanhã.</b></span></div>`;
+  const frase = 'Não preciso me destruir hoje. Preciso conseguir voltar amanhã.';
+  let out = typeof visaoStrip === 'function' && vsItens('corpo').length ? visaoStrip('corpo', frase) : `<div class="banner">${ic('heart')}<span><b>${frase}</b></span></div>` + (typeof visaoStrip === 'function' ? visaoStrip('corpo') : '');
   const pick = ui.trDay || (dow >= 1 && dow <= 5 ? dow : 0), done = trDone(k);
   if (done.length && !ui.trDay) {
     const h = done[done.length - 1];
@@ -163,7 +164,7 @@ function trMain() {
 <div class="mut">Duração estimada: ${a}–${b} min · ${day.exercises.length} exercícios · pare com ${w.rir} repetições sobrando</div><div class="mut">${esc(w.foco)}</div>
 ${trDayChips(pick)}
 <details data-w="trlist" ${ui.open.trlist ? 'open' : ''}><summary><span><b>Ver os exercícios</b></span><span class="mut">${ic('chevron-right', 'sm')}</span></summary>${day.exercises.map(e => `<div class="item"><div class="t"><b>${esc(e.name)}</b><div class="mut">${esc(e.muscleGroup)} · ${trSetsFor(e, w)} × ${e.repMin}–${e.repMax} · descanso ${mmss(e.restSeconds)}</div></div></div>`).join('')}<div class="mut">Cardio: ${trCardioTxt(w)}</div></details>
-<h3 class="px">${ic('mood-happy')}<span>Como você está hoje?</span></h3>
+<h3 class="px">${ic('mood-happy')}<span>Como você está hoje?</span></h3><div class="mut">Opcional, leva 10 segundos. Ajuda o app a não pedir carga a mais num dia ruim.</div>
 ${TR_CK.map(([c, l]) => `<div class="trck"><span>${l}</span><div class="trscale" role="group" aria-label="${l} de 1 a 5">${[1, 2, 3, 4, 5].map(n => `<button class="chip ${num(pre[c]) === n ? 'on' : ''}" data-a="trck" data-v="${c}" data-w="${n}" aria-pressed="${num(pre[c]) === n}">${n}</button>`).join('')}</div></div>`).join('')}
 <div class="row sp"><span>Dor em alguma articulação?</span><div class="row"><button class="chip ${pre.j === false ? 'on' : ''}" data-a="trck" data-v="j" data-w="0">Não</button><button class="chip ${pre.j === true ? 'on' : ''}" data-a="trck" data-v="j" data-w="1">Sim</button></div></div>
 ${trCaution(pre) ? `<div class="banner warn">${ic('alert')}<span>Hoje pode ser melhor manter ou reduzir a intensidade. O app não vai sugerir aumento de carga hoje. (Não é diagnóstico médico, é só gestão do treino.)</span></div>` : ''}
@@ -177,7 +178,7 @@ function trCardioTxt(w) { const [a, b] = trCardioMin(w); return `${a === b ? a :
 function trSession(cur) {
   const e = cur.ex[cur.i], nDone = cur.ex.filter(x => x.done).length, w = trWeek(cur.date);
   let out = `<div class="card slim trtop"><div class="row sp"><b>${esc(DF[new Date(cur.date + 'T12:00').getDay()].toUpperCase())} · ${esc(cur.name.toUpperCase())}</b><span class="mut"><span id="trElap">0:00</span></span></div>
-${trBadge(w)}<div class="row sp"><span class="mut">Progresso</span><b>${nDone} / ${cur.ex.length} exercícios</b></div><div class="bar"><i style="width:${Math.round(nDone / cur.ex.length * 100)}%"></i></div>
+<div class="row sp"><span class="mut">${w.n <= 6 ? 'Adaptação · semana ' + w.n + ' de 6' : 'Programa padrão'}</span><b>${nDone} / ${cur.ex.length} exercícios</b></div><div class="bar"><i style="width:${Math.round(nDone / cur.ex.length * 100)}%"></i></div>
 <div class="sdots">${cur.ex.map((x, i) => `<button class="trdot ${x.done ? 'ok' : ''} ${i === cur.i && !cur.inCardio ? 'on' : ''}" data-a="trgo" data-v="${i}" aria-label="${esc(x.name)}${x.done ? ', feito' : ''}">${i + 1}</button>`).join('')}<button class="trdot ${cur.cardio.done ? 'ok' : ''} ${cur.inCardio ? 'on' : ''}" data-a="trgo" data-v="c" aria-label="Cardio">${ic('human-run', 'sm')}</button></div></div>`;
   out += `<div id="trRest" class="banner trrest" ${cur.restEnd && cur.restEnd > Date.now() ? '' : 'hidden'}>${ic('hourglass')}<span>Descanso <b id="trRestTxt"></b></span><button class="btn sm ghost" data-a="trrest" data-v="30">+30s</button><button class="btn sm ghost" data-a="trrest" data-v="0">Pular</button></div>`;
   if (cur.check && trCaution(cur.check)) out += `<div class="banner warn">${ic('alert')}<span>Hoje pode ser melhor manter ou reduzir a intensidade.</span></div>`;
@@ -187,15 +188,16 @@ ${trBadge(w)}<div class="row sp"><span class="mut">Progresso</span><b>${nDone} /
   return out;
 }
 function trExCard(cur, e, w) {
+  const nx = e.sets.findIndex(s => !s.completed), nextEx = cur.ex.find((x, i) => i > cur.i && !x.done) || cur.ex.find(x => !x.done && x !== e);
   const L = trLast(e.id, cur.day, cur.id), adv = trAdvice(e, cur), hist = trRecent(e.id, cur.id);
   const lastTxt = L ? `${kgf(Math.max(...L.e.sets.filter(s => s.completed).map(s => num(s.weight))))} kg · ${L.e.sets.filter(s => s.completed).map(s => s.reps).join(' / ')} reps · ${sd2(L.h.date)}` : 'Primeira vez';
   return `<div class="card"><div class="row sp"><div class="grow"><h2 class="px">${esc(e.name.toUpperCase())}</h2><div class="mut">${esc(e.muscle)} · ${e.cat}</div></div>${e.done ? `<span class="badge ok">${ic('check', 'sm')}feito</span>` : ''}</div>
 <div class="grid3"><div><b>${e.plan} × ${e.repMin}–${e.repMax}</b><small>meta</small></div><div><b>RIR ${esc(w.rir)}</b><small>repetições sobrando</small></div><div><b>${mmss(e.rest)}</b><small>descanso (min)</small></div></div>
 <div class="mut">Último treino: <b>${lastTxt}</b></div>
 <div class="banner ${adv.tipo === 'subir' ? '' : adv.tipo === 'cuidado' ? 'warn' : ''}">${ic(adv.tipo === 'subir' ? 'trending-up' : adv.tipo === 'cuidado' ? 'alert' : 'info-box')}<span>${esc(adv.txt)}</span>${adv.tipo === 'subir' ? `<button class="btn sm ghost" data-a="trusekg" data-v="${adv.kg}">Usar ${r1(adv.kg)} kg</button>` : ''}</div>
-<div class="trsets"><div class="trh"><span></span><span>Carga (kg)</span><span>Reps</span><span>RIR</span><span></span></div>${e.sets.map((s, si) => `<div class="trset ${s.completed ? 'done' : ''}"><b>S${si + 1}</b><input inputmode="decimal" aria-label="Carga da série ${si + 1} em kg" data-c="trset" data-v="${cur.i}:${si}:weight" value="${esc(s.weight === '' ? '' : r1(num(s.weight)))}" placeholder="kg"><input inputmode="numeric" aria-label="Repetições da série ${si + 1}" data-c="trset" data-v="${cur.i}:${si}:reps" value="${esc(s.reps)}" placeholder="${e.repMin}–${e.repMax}"><select aria-label="Repetições sobrando na série ${si + 1}" data-c="trset" data-v="${cur.i}:${si}:rir">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${num(s.rir) === n ? 'selected' : ''}>${n === 5 ? '5+' : n}</option>`).join('')}</select><button class="st ${s.completed ? 'done' : ''}" data-a="trsetok" data-v="${si}" aria-label="Série ${si + 1} ${s.completed ? 'feita. Toque para desfazer' : 'feita?'}">${ic('check')}</button></div>`).join('')}</div>
-<div class="row"><button class="btn ghost sm" data-a="traddset">${ic('plus')}Série</button><span class="mut grow">Toque no ✓ quando terminar a série. O descanso começa sozinho.</span></div>
-<button class="btn pri full" data-a="trexok">${ic('check')}CONCLUIR EXERCÍCIO</button>
+<div class="trsets"><div class="trh"><span></span><span>Carga (kg)</span><span>Reps</span><span>RIR</span><span></span></div>${e.sets.map((s, si) => `<div class="trset ${s.completed ? 'done' : ''} ${si === nx ? 'cur' : ''}"><b>S${si + 1}</b><input inputmode="decimal" aria-label="Carga da série ${si + 1} em kg" data-c="trset" data-v="${cur.i}:${si}:weight" value="${esc(s.weight === '' ? '' : r1(num(s.weight)))}" placeholder="kg"><input inputmode="numeric" aria-label="Repetições da série ${si + 1}" data-c="trset" data-v="${cur.i}:${si}:reps" value="${esc(s.reps)}" placeholder="${e.repMin}–${e.repMax}"><select aria-label="Repetições sobrando na série ${si + 1}" data-c="trset" data-v="${cur.i}:${si}:rir">${[0, 1, 2, 3, 4, 5].map(n => `<option value="${n}" ${num(s.rir) === n ? 'selected' : ''}>${n === 5 ? '5+' : n}</option>`).join('')}</select><button class="st ${s.completed ? 'done' : ''}" data-a="trsetok" data-v="${si}" aria-label="Série ${si + 1} ${s.completed ? 'feita. Toque para desfazer' : 'feita?'}">${ic('check')}</button></div>`).join('')}</div>
+${nx >= 0 ? `<button class="btn pri full trgo" data-a="trsetok" data-v="${nx}">${ic('check')}SÉRIE ${nx + 1} FEITA</button><div class="mut">Carga e repetições já vêm da última vez. Só mude o que for diferente.</div>` : `<button class="btn pri full trgo" data-a="trexok">${ic('arrow-right')}${nextEx ? 'PRÓXIMO: ' + esc(nextEx.name.toUpperCase()) : 'IR PARA O CARDIO'}</button>`}
+<div class="row">${nx >= 0 ? `<button class="btn ghost sm" data-a="trexok">${ic('forward')}Pular exercício</button>` : ''}<button class="btn ghost sm" data-a="traddset">${ic('plus')}Série</button></div>
 ${hist ? `<details data-w="trhist" ${ui.open.trhist ? 'open' : ''}><summary><span><b>Histórico recente</b></span><span class="mut">${ic('chevron-right', 'sm')}</span></summary>${hist}</details>` : ''}</div>`;
 }
 function trRecent(id, exceptId) {
@@ -215,7 +217,7 @@ ${c.done ? '' : running ? `<button class="btn ghost full" data-a="trcstop">${ic(
 }
 function trFinish(cur) {
   const sets = cur.ex.reduce((a, e) => a + e.sets.filter(s => s.completed).length, 0), vol = trStats().vol(cur), exd = cur.ex.filter(e => e.done || e.sets.some(s => s.completed)).length;
-  return `<div class="card center"><h2 class="px">${ic('trophy')}<span>TREINO CONCLUÍDO</span></h2>
+  return `${typeof visaoHero === 'function' ? visaoHero('corpo', 'Mais um passo até aqui.') : ''}<div class="card center"><h2 class="px">${ic('trophy')}<span>TREINO CONCLUÍDO</span></h2>
 <div class="grid3"><div><b>${cur.duration} min</b><small>tempo total</small></div><div><b>${exd} / ${cur.ex.length}</b><small>exercícios</small></div><div><b>${sets}</b><small>séries</small></div></div>
 <div class="grid3"><div><b>${Math.round(vol).toLocaleString('pt-BR')} kg</b><small>volume aproximado</small></div><div><b>${cur.cardio.done ? cur.cardio.min + ' min' : '—'}</b><small>cardio</small></div><div><b>${(cur.records || []).length}</b><small>recordes</small></div></div>
 ${(cur.records || []).length ? `<div class="banner">${ic('trophy')}<span>Novo marco: ${esc(cur.records.join(', '))}.</span></div>` : ''}
@@ -270,6 +272,7 @@ function trTodayCard() { /* card pequeno na aba Hoje */
 /* ---------- AÇÕES ---------- */
 function trSetDone(cur, e, si, on) {
   const s = e.sets[si]; s.completed = on;
+  if (on) e.sets.forEach((x, j) => { if (j > si && !x.completed && (x.weight === '' || x.weight == null)) x.weight = s.weight; }); /* próxima série já vem com a mesma carga */
   if (on && TR().cfg.autoRest && e.sets.some(x => !x.completed)) { cur.restEnd = Date.now() + e.rest * 1000; cur.restTot = e.rest; }
   if (on && e.sets.every(x => x.completed)) { cur.restEnd = null; }
 }
@@ -286,7 +289,7 @@ function trInit() {
     trck: (v, w) => { const t = TR(); t.pre = t.pre || {}; t.pre[v] = v === 'j' ? w === '1' : +w; save(); },
     trstart: v => { const t = TR(); if (t.cur && !confirm('Já existe um treino em andamento. Começar outro?')) return false; t.cur = trNewSession(+v, t.pre && Object.keys(t.pre).length ? { ...t.pre } : null); t.pre = null; ui.trDay = null; save(); window.scrollTo(0, 0); },
     trgo: v => { const c = TR().cur; if (v === 'c') c.inCardio = true; else { c.i = +v; c.inCardio = false; } save(); },
-    trsetok: v => { const c = TR().cur, e = c.ex[c.i], s = e.sets[+v]; if (!s.completed && !(num(s.reps) > 0)) { toast('Digite as repetições da série.'); return false; } trSetDone(c, e, +v, !s.completed); if (e.sets.every(x => x.completed)) { e.done = true; toast('Exercício completo! Toque em Concluir exercício.'); } save(); },
+    trsetok: v => { const c = TR().cur, e = c.ex[c.i], s = e.sets[+v]; ['weight', 'reps', 'rir'].forEach(f => { const el = document.querySelector(`[data-c="trset"][data-v="${c.i}:${v}:${f}"]`); if (el) C.trset(el.value, `${c.i}:${v}:${f}`); }); if (!s.completed && !(num(s.reps) > 0)) { toast('Quantas repetições você fez?'); const el = document.querySelector(`[data-v="${c.i}:${v}:reps"]`); if (el) el.focus(); return false; } trSetDone(c, e, +v, !s.completed); if (e.sets.every(x => x.completed)) e.done = true; save(); },
     traddset: () => { const c = TR().cur, e = c.ex[c.i], l = e.sets[e.sets.length - 1] || {}; if (e.sets.length >= 5) { toast('Mais séries não dão mais resultado agora. Consistência vale mais.'); return false; } e.sets.push({ weight: l.weight || '', reps: '', rir: l.rir ?? 2, completed: false }); save(); },
     trusekg: v => { const c = TR().cur, e = c.ex[c.i]; e.sets.forEach(s => { if (!s.completed) s.weight = +v; }); toast('Carga ajustada só neste treino.'); save(); },
     trexok: () => { const c = TR().cur, e = c.ex[c.i]; e.done = true; c.restEnd = null; trNext(c); save(); },

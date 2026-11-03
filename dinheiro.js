@@ -62,7 +62,7 @@ function dinMonth(mo, o) {
     const k = DIN_VAR[t.cat]; if (k) real[k] = (real[k] || 0) + v; else if (!DIN_SKIP.includes(t.cat)) outros.push(ln(t.desc || t.cat, v));
   });
   const pv = Object.fromEntries(Object.entries(P.variaveis || {}).filter(([k]) => !dinHid('v:' + k)));
-  r.vars = Object.keys(Object.assign({}, pv, real)).map(k => { const pl = k === 'mercado' && o.mercado != null ? o.mercado : num(pv[k]); return ln(k, Math.max(pl, real[k] || 0), { plan: pl, real: real[k] || 0 }); });
+  r.vars = Object.keys(Object.assign({}, pv, real)).map(k => { const vm = (d.varMes || {})[mo] || {}, pl = k === 'mercado' && o.mercado != null ? o.mercado : (vm[k] != null ? num(vm[k]) : num(pv[k])); return ln(k, Math.max(pl, real[k] || 0), { plan: pl, real: real[k] || 0 }); });
   r.ent = (P.entradas || []).filter(e => e.mes === mo).map(e => ln(e.nome, num(e.valor)));
   r.outros = outros; r.extras = extras + sum(r.ent);
   r.renda = o.renda != null ? o.renda : ovf('renda', num((P.renda || {}).liquido));
@@ -189,7 +189,8 @@ function dinNotifs(add, k, mo) {
 /* ---------- ações ---------- */
 async function dinImport(txt) {
   let j; try { j = JSON.parse(txt); } catch (e) { alert('Esse arquivo não parece um JSON válido.'); return; }
-  if (j && j.ajustes) return dinAjustes(j.ajustes);
+  if (j && j.ajustes) { if (j.visao && typeof visaoImport === 'function') await visaoImport(j.visao); return dinAjustes(j.ajustes); }
+  if (j && j.visao && typeof visaoImport === 'function') return visaoImport(j.visao);
   const d = dinS(), full = j && j.plan && !j.fixos, P = full ? j.plan : j;
   if (!P || !P.renda || !Array.isArray(P.fixos)) { alert('Esse arquivo não parece o de dados financeiros.'); return; }
   if (d.plan && !d.plan.exemplo && !confirm('Trocar o plano pelo arquivo novo? Seus lançamentos, pagamentos e o que guardou continuam.')) return;
@@ -306,6 +307,8 @@ function dinAjustes(a) {
     out.push(e.nome + ' pago, sai dos próximos meses'); });
   (a.caixinhas || []).forEach(c => { const i = d.caixinhas.findIndex(x => same(x.nome, c.nome)); const o = Object.assign({ id: uid(), tipo: 'colchao', liquidez: 'diária', fgc: true }, i >= 0 ? d.caixinhas[i] : {}, c, { saldo: num(c.saldo), pctCdi: num(c.pctCdi) }); if (i >= 0) d.caixinhas[i] = o; else d.caixinhas.push(o); out.push('caixinha ' + c.nome); });
   (a.lembretes || []).forEach(r => { S.reminders = S.reminders || []; if (!S.reminders.some(x => same(x.title, r.title) && x.date === r.date)) S.reminders.push({ id: uid(), title: r.title, date: r.date, time: r.time || '', note: r.note || '', done: false }); out.push('lembrete ' + r.title); });
+  (a.variaveisMes || []).forEach(v => { if (!v || !v.cat || !/^\d{4}-\d{2}$/.test(v.mes || '')) return; d.varMes = d.varMes || {}; d.varMes[v.mes] = d.varMes[v.mes] || {}; d.varMes[v.mes][v.cat] = num(v.valor); out.push(`${v.cat} em ${v.mes}: ${brl(num(v.valor))}`); });
+  (a.remover || []).forEach(nm => { const rx = new RegExp(String(nm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); ((P && P.pontuais) || []).filter(x => rx.test(x.nome || '')).forEach(x => { d.hide['x:' + x.nome] = 1; }); d.want = (d.want || []).filter(x => !rx.test(x.nome || x.title || '')); out.push(nm + ': fora do plano'); });
   if (a.treino) { if (num(a.treino.proteinaG) > 0) { S.settings.dietProt = String(Math.round(num(a.treino.proteinaG))); out.push('Meta de proteína: ' + S.settings.dietProt + ' g'); } if (num(a.treino.aguaMl) > 0) { S.settings.waterGoal = String(Math.round(num(a.treino.aguaMl))); out.push('Meta de água: ' + L(num(a.treino.aguaMl)) + ' L'); } }
   save(); render(); alert('Ajustes aplicados:\n· ' + out.join('\n· '));
 }
