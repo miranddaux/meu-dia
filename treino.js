@@ -177,10 +177,10 @@ function trDayChips(sel) { return `<div class="chips">${TR_DAYS.map(d => `<butto
 function trCardioTxt(w) { const [a, b] = trCardioMin(w); return `${a === b ? a : a + '–' + b} min de ${esc(TR().cfg.cardioType.toLowerCase())}, leve a moderado`; }
 function trSession(cur) {
   const e = cur.ex[cur.i], nDone = cur.ex.filter(x => x.done).length, w = trWeek(cur.date);
-  let out = `<div class="card slim trtop"><div class="row sp"><b>${esc(DF[new Date(cur.date + 'T12:00').getDay()].toUpperCase())} · ${esc(cur.name.toUpperCase())}</b><span class="mut"><span id="trElap">0:00</span></span></div>
+  let out = `<div class="card slim trtop"><div class="row sp"><b>${esc(DF[new Date(cur.date + 'T12:00').getDay()].toUpperCase())} · ${esc(cur.name.toUpperCase())}</b><span class="mut"><span id="trElap">${mmss(Math.floor((Date.now() - cur.start) / 1000))}</span></span></div>
 <div class="row sp"><span class="mut">${w.n <= 6 ? 'Adaptação · semana ' + w.n + ' de 6' : 'Programa padrão'}</span><b>${nDone} / ${cur.ex.length} exercícios</b></div><div class="bar"><i style="width:${Math.round(nDone / cur.ex.length * 100)}%"></i></div>
 <div class="sdots">${cur.ex.map((x, i) => `<button class="trdot ${x.done ? 'ok' : ''} ${i === cur.i && !cur.inCardio ? 'on' : ''}" data-a="trgo" data-v="${i}" aria-label="${esc(x.name)}${x.done ? ', feito' : ''}">${i + 1}</button>`).join('')}<button class="trdot ${cur.cardio.done ? 'ok' : ''} ${cur.inCardio ? 'on' : ''}" data-a="trgo" data-v="c" aria-label="Cardio">${ic('human-run', 'sm')}</button></div></div>`;
-  out += `<div id="trRest" class="banner trrest" ${cur.restEnd && cur.restEnd > Date.now() ? '' : 'hidden'}>${ic('hourglass')}<span>Descanso <b id="trRestTxt"></b></span><button class="btn sm ghost" data-a="trrest" data-v="30">+30s</button><button class="btn sm ghost" data-a="trrest" data-v="0">Pular</button></div>`;
+  out += `<div id="trRest" class="banner trrest" ${cur.restEnd && cur.restEnd > Date.now() ? '' : 'hidden'}>${ic('hourglass')}<span>Descanso <b id="trRestTxt">${cur.restEnd && cur.restEnd > Date.now() ? mmss(Math.ceil((cur.restEnd - Date.now()) / 1000)) : ''}</b></span><button class="btn sm ghost" data-a="trrest" data-v="30">+30s</button><button class="btn sm ghost" data-a="trrest" data-v="0">Pular</button></div>`;
   if (cur.check && trCaution(cur.check)) out += `<div class="banner warn">${ic('alert')}<span>Hoje pode ser melhor manter ou reduzir a intensidade.</span></div>`;
   out += cur.inCardio ? trCardioCard(cur) : trExCard(cur, e, w);
   out += `<div class="row"><button class="btn ghost sm grow" data-a="trend">${ic('check')}Concluir treino</button><button class="btn danger sm" data-a="trcancel">Cancelar</button></div>`;
@@ -320,9 +320,9 @@ function trInit() {
   });
   setInterval(() => {
     const c = S && S.tr && S.tr.cur; if (!c) return;
-    const el = document.getElementById('trElap'); if (el) { const m = Math.floor((Date.now() - c.start) / 1000); el.textContent = `${Math.floor(m / 60)}:${pad(m % 60)}`; }
+    const el = document.getElementById('trElap'); if (el) { const tx = mmss(Math.floor((Date.now() - c.start) / 1000)); if (el.textContent !== tx) el.textContent = tx; }
     const box = document.getElementById('trRest'), t = document.getElementById('trRestTxt');
-    if (box && t) { const left = Math.ceil(((c.restEnd || 0) - Date.now()) / 1000); if (left > 0) { box.hidden = false; t.textContent = `${Math.floor(left / 60)}:${pad(left % 60)}`; } else if (c.restEnd) { c.restEnd = null; save(); box.hidden = true; if (navigator.vibrate) navigator.vibrate([200, 100, 200]); toast('Descanso acabou. Próxima série!'); } }
+    if (box && t) { const left = Math.ceil(((c.restEnd || 0) - Date.now()) / 1000); if (left > 0) { if (box.hidden) box.hidden = false; const tx = mmss(left); if (t.textContent !== tx) t.textContent = tx; } else if (c.restEnd) { c.restEnd = null; save(); box.hidden = true; if (navigator.vibrate) navigator.vibrate([200, 100, 200]); toast('Descanso acabou. Próxima série!'); } }
     const ct = document.getElementById('trCardioTxt'); if (ct && c.cardio && c.cardio.startAt) { const s = Math.floor((Date.now() - c.cardio.startAt) / 1000), left = c.cardio.target * 60 - s, a = Math.abs(left); ct.textContent = `${left < 0 ? '+' : ''}${Math.floor(a / 60)}:${pad(a % 60)}`; }
   }, 1000);
 }

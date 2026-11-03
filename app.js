@@ -1,7 +1,9 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v54';
+const APP_V = 'v55';
+const WEB_PREVIEW = /github\.io$/.test(location.hostname);
+if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -890,7 +892,9 @@ ${acc('cfgadv', `${ic('sliders')}<span>Avançado</span>`, APP_V, `<div class="ro
 /* ---------- render / nav ---------- */
 const TABS = [['hoje', 'sun', 'Hoje'], ['corpo', 'human-run', 'Corpo'], ['estudos', 'book-open', 'Estudos'], ['desafios', 'shield', 'Desafios'], ['mais', 'more-horizontal', 'Mais']];
 const chipMem = { sig: '', pos: [] };
-function render() {
+let rq = 0;
+function render() { if (rq) return; rq = requestAnimationFrame(() => { rq = 0; renderNow(); }); }
+function renderNow() {
   chipMem.pos = [...document.querySelectorAll('#view .chips, #top .chips')].map(c => c.scrollLeft);
   const n = new Date(), k = dkey(n), hr = n.getHours();
   const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Jornada, dinheiro, semana e ajustes'] };
@@ -1256,7 +1260,7 @@ Object.assign(A, {
     lessonPrep();
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'lsin') { e.preventDefault(); A.lcheck(); render(); const nx = document.querySelector('[data-a=lnext]'); if (nx) nx.focus(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'lsin') { e.preventDefault(); A.lcheck(); renderNow(); const nx = document.querySelector('[data-a=lnext]'); if (nx) nx.focus(); } });
 
 /* ---- Evolução (roda da vida) ---- */
 const AREAS = [
@@ -1394,7 +1398,7 @@ async function roadFetch(force) {
     if (!r.ok) throw new Error(r.status);
     const j = await r.json(); ui.road = { at: Date.now(), date: dkey(), items: j.items || [], err: '' };
     try { localStorage.setItem(ROAD_KEY, JSON.stringify(ui.road)); } catch (e) { }
-  } catch (e) { ui.road = Object.assign(roadLoad(), { err: String(e.message || e) }); }
+  } catch (e) { ui.road = Object.assign(roadLoad(), { err: String(e.message || e), at: Date.now(), date: dkey() }); ui.roadBusy = false; return; }
   ui.roadBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
 }
 function roadCard() {
@@ -1428,7 +1432,7 @@ async function histFetch(force) {
     if (!r.ok) throw new Error(r.status);
     const j = await r.json(); ui.hist = { at: Date.now(), done: j.done || [], english: j.english || [], enErr: j.englishErr || '', err: '' };
     try { localStorage.setItem(HIST_KEY, JSON.stringify(ui.hist)); } catch (e) { }
-  } catch (e) { ui.hist = Object.assign(histLoad(), { err: String(e.message || e) }); }
+  } catch (e) { ui.hist = Object.assign(histLoad(), { err: String(e.message || e), at: Date.now() }); ui.histBusy = false; return; }
   ui.histBusy = false; if (!document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render();
 }
 function histCard() {
