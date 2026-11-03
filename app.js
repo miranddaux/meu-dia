@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v52';
+const APP_V = 'v53';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -474,7 +474,6 @@ function vPlano() {
 ${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${ic('external-link')}Abrir material</a>` : ''}
 <label>Próxima ação</label><textarea data-c="snx" placeholder="O que fazer no próximo bloco">${esc(st.next)}</textarea>
 ${d === today ? `<button class="btn full" data-a="studydone">${ic('check')}${sl.done ? 'Bloco de hoje feito (desfazer)' : 'Marcar bloco de hoje como feito'}</button>` : ''}</div>`;
-  out += vTimer();
   const groups = {}; S.tracks.forEach(t => (groups[t.group] = groups[t.group] || []).push(t));
   out += `<div class="card">${sec('list', 'Trilhas', `<button class="btn sm ghost" data-a="addtrack">${ic('plus')}Trilha</button>`)}<div class="mut">UI/UX e Product Design é a formação principal. Programação é complementar. Curiosidade é hobby: fica em Mais, Explorar, sem tarefa.</div>`;
   for (const g in groups) out += `<div class="grp">${esc(g)}</div>` + groups[g].map(t => `<div class="item"><div class="t"><b>${esc(t.name)}</b>${t.now ? `<div class="mut">Aula atual: ${esc(t.now)}</div>` : ''}</div>${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">abrir</a>` : ''}${ib('edit', 'Editar trilha', 'edittrack', t.id)}</div>`).join('');
@@ -795,7 +794,7 @@ function vLoja() {
   const bal = coins(), rw = [...S.settings.rewards].sort((a, c) => a.at - c.at);
   let out = `<div class="card center">${ic('coin', 'xl')}<div class="big">${bal}</div><div class="mut">moedas disponíveis</div></div>`;
   out += `<div class="card">${sec('gift', 'Loja', `<button class="btn sm ghost" data-a="addrw">${ic('plus')}Prêmio</button>`)}<div class="mut">Os prêmios e os preços são seus. Sugestão: prêmios que não sejam comida nem descanso básico.</div>${rw.map(r => `<div class="item"><div class="t"><b>${esc(r.title)}</b><div class="mut">${r.at} moedas</div></div><button class="btn sm ${bal >= r.at ? '' : 'ghost'}" data-a="buyrw" data-v="${r.id}">Resgatar</button>${ib('edit', 'Editar prêmio', 'editrw', r.id)}</div>`).join('')}</div>`;
-  out += `<div class="card"><h3 class="px">Como ganhar</h3><div class="mut">+1 por missão marcada (as que você definir) · +1 bloco de estudo · +2 treino guiado concluído · +1 meta de água · +1 por dia limpo ou feito nos desafios · +10 por rodada completa · +1 por ideia feita com a Nayara, em casa ou na família · +1 por pomodoro (até 4 por dia) · +1 por lição de Aprender (até 3 por dia) · +1 por ação da Evolução da vida. Moedas não expiram e nunca são tiradas.</div></div>`;
+  out += `<div class="card"><h3 class="px">Como ganhar</h3><div class="mut">+1 por missão marcada (as que você definir) · +1 bloco de estudo · +2 treino guiado concluído · +1 meta de água · +1 por dia limpo ou feito nos desafios · +10 por rodada completa · +1 por ideia feita com a Nayara, em casa ou na família · +1 por lição de Aprender (até 3 por dia) · +1 por ação da Evolução da vida. Moedas não expiram e nunca são tiradas.</div></div>`;
   out += `<div class="card">${sec('lightbulb-on', 'Ideias de prêmios')}<div class="mut">Toque para adicionar à sua loja (você edita o preço depois).</div>${REW.map((g, gi) => `<div class="grp">${g[0]}</div><div class="chips wrapc">${g[1].map((r, i) => `<button class="chip" data-a="addrwsug" data-v="${gi}" data-w="${i}">${esc(r[0])} · ${r[1]}</button>`).join('')}</div>`).join('')}</div>`;
   const bd = BADGES();
   out += `<div class="card">${sec('trophy', 'Conquistas', `<span class="mut">${bd.filter(x => x[1]).length}/${bd.length}</span>`)}${bd.map(([n, ok]) => `<div class="item"><div class="t ${ok ? '' : 'mut'}">${esc(n)}</div>${ok ? ic('check') : ic('pin', 'sm')}</div>`).join('')}</div>`;
@@ -810,7 +809,7 @@ function dayReport(k = dkey()) {
   const wts = S.weights.find(x => x.date === k), ch = S.challenges.filter(c => !c.arq).map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}${c.log[k] === 'ok' ? ' (hoje ok)' : ''}`).join('; ');
   const rp = typeof rpgStats === 'function' ? rpgStats() : null;
   const nx = typeof journeyNext === 'function' ? journeyNext().slice(0,3).map(x=>x.title).join(' | ') : '';
-  return `Sistema XP · registro do dia ${k}\nNível: ${rp ? rp.level + ' · ' + rp.total + ' XP' : '—'}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPróximas ações: ${nx || '—'}\nPomodoros: ${S.pomo[k] || 0} · Lições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
+  return `Sistema XP · registro do dia ${k}\nNível: ${rp ? rp.level + ' · ' + rp.total + ' XP' : '—'}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPróximas ações: ${nx || '—'}\nLições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
 }
 function weekSummary(ws) {
   const days = [...Array(7)].map((_, i) => addD(ws, i)), ks = days.map(d => dkey(d)), today = dkey(), past = ks.filter(k => k <= today), a = ks[0], z = ks[6];
@@ -820,12 +819,12 @@ function weekSummary(ws) {
   const rdn = Object.values((S.road && S.road.done) || {}).filter(d => d >= a && d <= z).length;
   const wts = S.weights.filter(x => x.date >= a && x.date <= z).sort((p, q) => p.date.localeCompare(q.date)), dw = wts.length >= 2 ? num(wts[wts.length - 1].kg) - num(wts[0].kg) : null;
   const wins = [], adj = [];
-  if (pw !== null && pw >= 70) wins.push(`Missões em ${pw}%`); if (sd >= 3) wins.push(`${sd} dias de estudo`); if (wk >= 3) wins.push(`${wk} treinos`); if (pom >= 4) wins.push(`${pom} pomodoros`); if (les >= 3) wins.push(`${les} lições`); if (rdn) wins.push(`${rdn} tarefa${rdn > 1 ? 's' : ''} do Roadmap concluída${rdn > 1 ? 's' : ''}`); if (hardN) wins.push(`${hardN} dia${hardN > 1 ? 's' : ''} difícil${hardN > 1 ? 'is' : ''} atravessado${hardN > 1 ? 's' : ''} sem zerar`);
+  if (pw !== null && pw >= 70) wins.push(`Missões em ${pw}%`); if (sd >= 3) wins.push(`${sd} dias de estudo`); if (wk >= 3) wins.push(`${wk} treinos`); if (les >= 3) wins.push(`${les} lições`); if (rdn) wins.push(`${rdn} tarefa${rdn > 1 ? 's' : ''} do Roadmap concluída${rdn > 1 ? 's' : ''}`); if (hardN) wins.push(`${hardN} dia${hardN > 1 ? 's' : ''} difícil${hardN > 1 ? 'is' : ''} atravessado${hardN > 1 ? 's' : ''} sem zerar`);
   if (sdMax >= 3 && sd < Math.ceil(sdMax / 2)) adj.push('Estudo da manhã ficou abaixo da metade. Tente começar só com 10 minutos.');
   if (g && past.length >= 3 && wd < Math.ceil(past.length / 2)) adj.push('Água abaixo da meta na maior parte dos dias. Deixe uma garrafa à vista.');
   if (pw !== null && pw < 50) adj.push('Poucas missões feitas. Escolha 3 que importam e deixe as outras como bônus.');
   if (!adj.length) adj.push('Mantenha o ritmo. Escolha só uma coisa para melhorar na próxima semana.');
-  const txt = `Sistema XP · resumo da semana ${short(ws)} a ${short(addD(ws, 6))}\nMissões: ${pw === null ? '—' : pw + '%'} · Estudos: ${sd}/${sdMax || 5} · Treinos: ${wk} · Água na meta: ${wd} dias\nPomodoros: ${pom} · Lições: ${les} · Roadmap concluído: ${rdn} · Dias difíceis: ${hardN}\nPeso: ${dw === null ? '—' : (dw > 0 ? '+' : '') + r1(dw) + ' kg'}\nO que foi bem: ${wins.join('; ') || '—'}\nAjuste sugerido: ${adj[0]}`;
+  const txt = `Sistema XP · resumo da semana ${short(ws)} a ${short(addD(ws, 6))}\nMissões: ${pw === null ? '—' : pw + '%'} · Estudos: ${sd}/${sdMax || 5} · Treinos: ${wk} · Água na meta: ${wd} dias\nLições: ${les} · Roadmap concluído: ${rdn} · Dias difíceis: ${hardN}\nPeso: ${dw === null ? '—' : (dw > 0 ? '+' : '') + r1(dw) + ' kg'}\nO que foi bem: ${wins.join('; ') || '—'}\nAjuste sugerido: ${adj[0]}`;
   return { wins, adj, txt, pom, les, rdn, hardN, dw };
 }
 const pvSeg = () => `<div class="chips">${[['sem', 'Semana'], ['mes', 'Mês']].map(([i, l]) => `<button class="chip ${(ui.pv || 'sem') === i ? 'on' : ''}" data-a="pv" data-v="${i}">${l}</button>`).join('')}</div>`;
@@ -1145,7 +1144,8 @@ function stSet(f, v) { const d = ui.sd ?? new Date().getDay(); S.study[d] = S.st
 /* ================= v4: Pomodoro, Aprender, Evolução, Sync ================= */
 const POMS = [[25, 5, '25 + 5'], [50, 10, '50 + 10']];
 function pomToday() { return S.pomo[dkey()] || 0; }
-function pomoMini() {
+function pomoMini() { return ''; /* Pomodoro fica no PC: saiu do app */ }
+function pomoMiniOld() {
   const n = pomToday(), t = ui.tm;
   const run = t ? `<b class="tmq">--:--</b>` : '';
   const body = t
