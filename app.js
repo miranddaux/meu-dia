@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v57';
+const APP_V = 'v58';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -178,7 +178,7 @@ function defaults() {
     workouts: [], weights: [], photos: [], meals: {}, combos: [], pomo: {}, learn: { done: {}, days: {}, xp: 0 }, vida: {},
     plans: STARTER.map(p => ({ id: uid(), name: p[0], ex: p[1].map(e => ({ name: e[0], sets: e[1], reps: e[2], rest: e[3] })) })),
     session: null, foods: FOODS(), water: {},
-    challenges: [mkCh('Sem LoL'), mkCh('Sem TikTok')],
+    challenges: [mkCh('Sem TikTok')],
     ideas: { done: [], mine: [] },
     spent: [], tx: [], budgets: {}, goals: [], reviews: {}, bills: [], billPaid: {}, pet: [{ id: 'banho', title: 'Banho do cachorro', every: 15, last: '' }]
   };
@@ -278,6 +278,7 @@ function migrate() {
       if (/hist[óo]ria.*pais|pais.*hist[óo]ria|beber.*[áa]gua|meta de [áa]gua/i.test(c.title)) c.arq = 1;
     });
   }
+  if (!f.semLol) { f.semLol = 1; S.challenges.forEach(c => { if (/\blol\b|league of legends/i.test(c.title)) c.arq = 1; }); }
   if (!f.detox6) {
     f.detox6 = 1;
     S.challenges.forEach(c => {
@@ -396,6 +397,7 @@ function chRow(c, k) {
   if (fin) btns = `<div class="banner">${ic('trophy')}<span>Rodada de ${c.days} dias completa!${S.settings.gamify ? ' +10 moedas' : ''}</span></div><button class="btn full" data-a="chnew" data-v="${c.id}">Começar nova rodada</button>`;
   else if (!started) btns = `<div class="mut">A rodada recomeça amanhã. Sem drama.</div>`;
   else btns = `<div class="row"><button class="btn ${done ? 'ghost' : ''}" data-a="chok" data-v="${c.id}">${ic('check')}${done ? (det ? 'Limpo hoje ✓ (desfazer)' : 'Feito hoje ✓ (desfazer)') : (det ? 'Hoje estou limpo' : 'Feito hoje')}</button>${det ? `<button class="btn ghost sm" data-a="chslip" data-v="${c.id}">Escorreguei</button>` : ''}</div>`;
+  if (ui.chEdit) return `<div class="ch"><div class="row sp"><div class="grow"><b>${esc(c.title)}</b><div class="mut">${n}/${c.days} dias · ${det ? 'detox' : 'melhorar'}</div></div>${ib('edit', 'Editar ' + c.title, 'editch', c.id)}${ib('close', 'Tirar ' + c.title + ' da lista', 'charq', c.id, 'danger')}</div></div>`;
   return `<div class="ch"><div class="row sp" data-a="editch" data-v="${c.id}" role="button" tabindex="0"><b>${esc(c.title)}</b><span class="mut">${n}/${c.days} dias${c.rounds ? ` · ${c.rounds} rodada(s)` : ''}</span></div><div class="sqs">${[...Array(c.days)].map((_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>${btns}</div>`;
 }
 const isMin = h => /^(Oração e agradecimento|Almoço|Higiene e oração da noite)/.test(h.title);
@@ -440,7 +442,7 @@ function vHoje() {
   if (!hard) {
     out += roadCard();
     const act = S.challenges.filter(c => !c.arq && (!c.completedAt || c.log[k]));
-    out += acc('des', 'Desafios', `${act.filter(c => c.log[k] === 'ok').length}/${act.length} hoje`, `${act.map(c => chRow(c, k)).join('') || '<div class="mut">Sem desafios ativos. Crie um na aba Desafios.</div>'}<button class="btn sm ghost" data-a="gotodes">Abrir aba</button>`, false);
+    out += acc('des', 'Desafios', `${act.filter(c => c.log[k] === 'ok').length}/${act.length} hoje`, `${act.map(c => chRow(c, k)).join('') || '<div class="mut">Sem desafios ativos.</div>'}<div class="row wrap hedit"><button class="btn sm ghost" data-a="addch" data-v="">${ic('plus')}Adicionar</button><button class="btn sm ${ui.chEdit ? '' : 'ghost'}" data-a="chedit" aria-pressed="${!!ui.chEdit}">${ic(ui.chEdit ? 'check' : 'edit')}${ui.chEdit ? 'Pronto' : 'Editar lista'}</button></div>`, false);
   }
   const md = S.mood[k] || {};
   out += `<details class="card" data-w="mood" ${ui.open.mood ? 'open' : ''}><summary><span class="px">Como estou</span><span class="mut">opcional, privado</span></summary><div class="mut">Humor</div><div class="chips">${[['mood-sad', 1], ['mood-sad', 2], ['mood-neutral', 3], ['mood-happy', 4], ['mood-happy', 5]].map(([i, v]) => `<button class="chip ${md.m === v ? 'on' : ''}" data-a="mood" data-v="m" data-w="${v}" aria-label="Humor ${v} de 5">${ic(i)}${v}</button>`).join('')}</div><div class="mut">Energia</div><div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${md.e === i ? 'on' : ''}" data-a="mood" data-v="e" data-w="${i}" aria-label="Energia ${i} de 5">${ic('battery-full')}${i}</button>`).join('')}</div><input data-c="mnote" value="${esc(md.note)}" placeholder="Nota rápida (só você vê)"></details>`;
@@ -669,8 +671,10 @@ function vDesafios() {
     return out;
   }
   const kind = ui.dt, chs = S.challenges.filter(c => !c.arq && (c.kind || 'detox') === kind);
-  out += `<div class="card">${sec(kind === 'detox' ? 'shield' : 'trending-up', kind === 'detox' ? 'Detox' : 'Melhorar', `<button class="btn sm" data-a="addch" data-v="${kind}">${ic('plus')}Desafio</button>`)}<div class="mut">${kind === 'detox' ? 'Se escorregar, a rodada recomeça amanhã. Você não perde as moedas que já ganhou.' : 'Escolha 1 coisa para fazer todo dia por 10, 15 ou 30 dias. Dia perdido não zera nada: marque o próximo.'}</div></div>`;
-  out += chs.map(c => `<div class="card">${chRow(c, k)}</div>`).join('') || `<div class="card"><div class="mut">Nenhum desafio aqui ainda.</div></div>`;
+  out += `<div class="card">${sec(kind === 'detox' ? 'shield' : 'trending-up', kind === 'detox' ? 'Detox' : 'Melhorar')}<div class="mut">${kind === 'detox' ? 'Se escorregar, a rodada recomeça amanhã. Você não perde as moedas que já ganhou.' : 'Escolha 1 coisa para fazer todo dia por 10, 15 ou 30 dias. Dia perdido não zera nada: marque o próximo.'}</div></div>`;
+  out += `<div class="card">${chs.map(c => chRow(c, k)).join('<hr class="sep">') || '<div class="mut">Nenhum desafio aqui ainda.</div>'}<div class="row wrap hedit"><button class="btn sm ghost" data-a="addch" data-v="${kind}">${ic('plus')}Adicionar</button><button class="btn sm ${ui.chEdit ? '' : 'ghost'}" data-a="chedit" aria-pressed="${!!ui.chEdit}">${ic(ui.chEdit ? 'check' : 'edit')}${ui.chEdit ? 'Pronto' : 'Editar lista'}</button></div></div>`;
+  const arq = S.challenges.filter(c => c.arq && (c.kind || 'detox') === kind);
+  if (arq.length) out += acc('charq', `${ic('list')}<span>Fora da lista</span>`, arq.length + '', arq.map(c => `<div class="item"><div class="t">${esc(c.title)}<div class="mut">${Math.min(c.days, chDays(c))}/${c.days} dias</div></div><button class="btn sm ghost" data-a="chback" data-v="${c.id}">Voltar para a lista</button></div>`).join(''), false);
   if (kind === 'melhorar') out += `<div class="card">${sec('lightbulb-on', 'Ideias de desafio')}<div class="chips wrapc">${SUG.map((s, i) => `<button class="chip" data-a="sugch" data-v="${i}">${esc(s)}</button>`).join('')}</div><div class="mut">Toque para criar (você escolhe 10, 15 ou 30 dias).</div></div>`;
   return out;
 }
@@ -966,10 +970,13 @@ const A = {
   mood: (v, w) => { const k = dkey(); S.mood[k] = S.mood[k] || {}; S.mood[k][v] = S.mood[k][v] === +w ? undefined : +w; save(); ui.open.mood = true; },
   water: v => { const k = dkey(); S.water[k] = Math.max(0, (S.water[k] || 0) + Number(v)); save(); },
   waterrec: v => { S.settings.waterGoal = String(v); save(); },
+  chedit: () => { ui.chEdit = !ui.chEdit; },
+  charq: v => { const c = S.challenges.find(x => x.id === v); if (!c) return false; c.arq = 1; save(); toast('Saiu da lista. Está em "Fora da lista", na aba Desafios.'); },
+  chback: v => { const c = S.challenges.find(x => x.id === v); if (c) { delete c.arq; save(); } },
   chok: v => { const c = S.challenges.find(x => x.id === v), k = dkey(); if (c.log[k] === 'ok') { delete c.log[k]; if (c.completedAt === k) { c.completedAt = null; c.rounds = Math.max(0, (c.rounds || 1) - 1); } } else { c.log[k] = 'ok'; if (!c.completedAt && chDays(c) >= c.days) { c.completedAt = k; c.rounds = (c.rounds || 0) + 1; } } save(); },
   chslip: v => { if (!confirm('Registrar que escorregou hoje? A rodada recomeça amanhã e você não perde as moedas já ganhas.')) return false; const c = S.challenges.find(x => x.id === v), k = dkey(); delete c.log[k]; c.slips.push(k); c.start = dkey(addD(new Date(), 1)); c.completedAt = null; save(); },
   chnew: v => { const c = S.challenges.find(x => x.id === v), k = dkey(); c.start = k; delete c.log[k]; c.completedAt = null; save(); },
-  addch: v => { form('Novo desafio', [{ k: 'title', label: 'Nome', ph: v === 'melhorar' ? 'Ex.: Caminhar 20 minutos' : 'Ex.: Sem refrigerante' }, { k: 'days', label: 'Duração', type: 'select', value: 14, options: [[10, '10 dias'], [14, '14 dias'], [15, '15 dias'], [30, '30 dias']] }, { k: 'done', label: 'Quantos dias já cumpri (antes de hoje)', type: 'number', value: 0 }], r => newCh(v || 'detox', r.title, r.days, r.done)); return false; },
+  addch: v => { form('Novo desafio', [{ k: 'title', label: 'Nome', ph: v === 'melhorar' ? 'Ex.: Caminhar 20 minutos' : 'Ex.: Sem refrigerante' }, { k: 'days', label: 'Duração', type: 'select', value: 14, options: [[10, '10 dias'], [14, '14 dias'], [15, '15 dias'], [30, '30 dias']] }, { k: 'done', label: 'Quantos dias já cumpri (antes de hoje)', type: 'number', value: 0 }], r => newCh(v || (/^sem |parar|largar|detox/i.test(r.title) ? 'detox' : 'melhorar'), r.title, r.days, r.done)); return false; },
   sugch: v => { const t = SUG[+v]; form('Criar desafio', [{ k: 'title', label: 'Nome', value: t }, { k: 'days', label: 'Duração', type: 'select', value: 15, options: [[10, '10 dias'], [15, '15 dias'], [30, '30 dias']] }], r => newCh('melhorar', r.title, r.days, 0)); return false; },
   editch: v => { const c = S.challenges.find(x => x.id === v); form('Editar desafio', chFields(c), r => { c.title = r.title; c.days = Math.max(1, Math.round(num(r.days) || 14)); const have = chDays(c), want = Math.round(num(r.done)); if (want > have && !c.completedAt) { const t0 = c.start; backfill(c, Math.min(c.days - 1, want)); if (t0 < c.start) c.start = t0; } }, () => { S.challenges = S.challenges.filter(x => x.id !== v); }); return false; },
   dt: v => { ui.dt = v; },

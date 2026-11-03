@@ -342,3 +342,5 @@ header#top .subt{margin:var(--s1) 0 0;color:var(--mut);font-size:13px;line-heigh
 /* rótulo em cima, valor embaixo (v57) */
 .grid3.kv small{font-size:12px;line-height:16px;color:var(--mut)}
 .grid3.kv b{font-size:18px;line-height:24px}
+
+hr.sep{border:0;border-top:2px solid var(--soft);margin:var(--s2) 0}
