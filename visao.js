@@ -19,38 +19,41 @@ function visaoStrip(g, sub) {
   if (!it.length) return `<div class="card vs-card">${sec(g === 'corpo' ? 'human-run' : 'heart', G.t)}<div class="mut">${G.vazio}</div><div class="row wrap">${add}<label class="btn sm ghost" for="vsj-${g}">${ic('upload')}Importar arquivo</label><input id="vsj-${g}" type="file" accept=".json,application/json" data-c="visaojson" hidden></div></div>`;
   return `<div class="card vs-card">${sec(g === 'corpo' ? 'human-run' : 'heart', G.t, `<button class="btn sm ghost" data-a="vsedit" data-v="${g}" aria-pressed="${ed}">${ed ? 'Pronto' : 'Editar'}</button>`)}
 ${sub ? `<div class="mut">${esc(sub)}</div>` : ''}
-<div class="vs-strip" role="list">${it.map((x, i) => `<div class="vs-it" role="listitem"><button class="vs-th" data-a="vsopen" data-v="${g}" data-w="${i}" aria-label="Abrir foto ${i + 1}${x.titulo ? ': ' + esc(x.titulo) : ''}"><img data-ph="${x.id}" alt=""></button>${ed ? `<div class="vs-ed"><button class="btn ico sm ghost" data-a="vsmove" data-v="${x.id}" data-w="-1" aria-label="Mover para a esquerda">${ic('chevron-left')}</button><button class="btn ico sm danger" data-a="vsdel" data-v="${x.id}" aria-label="Apagar esta foto">${ic('trash')}</button></div>` : ''}</div>`).join('')}</div>
-${ed ? `<div class="row wrap">${add}</div>` : ''}</div>`;
+<div class="vs-strip" role="list">${it.map((x, i) => `<div class="vs-it" role="listitem"><button class="vs-th" data-a="vsopen" data-v="${g}" data-w="${i}" aria-label="Abrir foto ${i + 1}${x.titulo ? ': ' + esc(x.titulo) : ''}"><img data-ph="${x.id}" alt=""></button>${ed ? `<div class="vs-ed"><button class="btn ico sm ghost" data-a="vsmove" data-v="${x.id}" data-w="-1" aria-label="Mover para a esquerda">${ic('chevron-left')}</button><button class="btn ico sm danger" data-a="vsdel" data-v="${x.id}" aria-label="Apagar esta foto">${ic('trash')}</button></div>` : ''}</div>`).join('')}<div class="vs-it"><label class="vs-th vs-add" for="vsf-${g}" aria-label="Adicionar foto">${ic('plus')}<span>Foto</span></label></div></div><input id="vsf-${g}" type="file" accept="image/*" multiple data-c="visaofile" data-v="${g}" hidden>
+${g === 'corpo' ? '<div class="mut">Toque numa foto para ampliar. Na foto aberta, "Usar no fim do treino" escolhe a que aparece quando você termina.</div>' : ''}</div>`;
 }
 /* uma foto grande, que troca a cada dia (fim do treino) */
 function visaoHero(g, txt) {
   const it = vsItens(g); if (!it.length) return '';
-  const x = it[Math.floor(Date.now() / 864e5) % it.length];
+  const x = it.find(y => y.id === VS().heroId) || it[Math.floor(Date.now() / 864e5) % it.length];
   return `<button class="vs-hero" data-a="vsopen" data-v="${g}" data-w="${it.indexOf(x)}" aria-label="Ver foto da sua visão"><img data-ph="${x.id}" alt=""><span>${esc(txt)}</span></button>`;
 }
 /* tela cheia: deslize ou use as setas */
 function visaoView(g, i) {
   const it = vsItens(g); if (!it.length) return;
-  let k = Math.max(0, Math.min(it.length - 1, +i || 0));
+  let k = Math.max(0, Math.min(it.length - 1, +i || 0)), z = 1;
   const m = document.createElement('div'); m.className = 'modal vs-lb'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-label', VS_G[g].t);
   const draw = async () => {
-    const x = it[k]; m.innerHTML = `<div class="vs-lbin"><div class="row sp"><span class="px">${esc(VS_G[g].t)}</span><button class="btn ico ghost" data-x aria-label="Fechar">${ic('close')}</button></div><img alt="${esc(x.titulo || '')}"><div class="row sp"><button class="btn ico ghost" data-p="-1" aria-label="Anterior" ${k ? '' : 'disabled'}>${ic('chevron-left')}</button><span class="mut">${k + 1} de ${it.length}${x.titulo ? ' · ' + esc(x.titulo) : ''}</span><button class="btn ico ghost" data-p="1" aria-label="Próxima" ${k < it.length - 1 ? '' : 'disabled'}>${ic('chevron-right')}</button></div></div>`;
+    const x = it[k], hero = VS().heroId === x.id; z = 1; m.innerHTML = `<div class="vs-lbin"><div class="row sp"><span class="px">${esc(VS_G[g].t)}</span><button class="btn ico ghost" data-x aria-label="Fechar">${ic('close')}</button></div><div class="vs-zoom"><img alt="${esc(x.titulo || '')}"></div><div class="row sp"><div class="row"><button class="btn ico ghost" data-z="-1" aria-label="Diminuir zoom">${ic('minus')}</button><button class="btn ico ghost" data-z="1" aria-label="Aumentar zoom">${ic('plus')}</button></div>${g === 'corpo' ? `<button class="btn sm ${hero ? '' : 'ghost'}" data-hero="${x.id}" aria-pressed="${hero}">${ic(hero ? 'check' : 'trophy')}${hero ? 'Aparece no fim do treino' : 'Usar no fim do treino'}</button>` : ''}</div><div class="row sp"><button class="btn ico ghost" data-p="-1" aria-label="Anterior" ${k ? '' : 'disabled'}>${ic('chevron-left')}</button><span class="mut">${k + 1} de ${it.length}${x.titulo ? ' · ' + esc(x.titulo) : ''}</span><button class="btn ico ghost" data-p="1" aria-label="Próxima" ${k < it.length - 1 ? '' : 'disabled'}>${ic('chevron-right')}</button></div></div>`;
     try { if (!urlCache[x.id]) { const bl = await idbGet(x.id); if (bl) urlCache[x.id] = URL.createObjectURL(bl); } m.querySelector('img').src = urlCache[x.id] || ''; } catch (e) { }
   };
-  m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) { m.remove(); return; } const p = e.target.closest('[data-p]'); if (p && !p.disabled) { k += +p.dataset.p; draw(); } });
+  const zoom = n => { z = Math.max(1, Math.min(4, n)); const im = m.querySelector('.vs-zoom img'); if (im) im.style.width = (z * 100) + '%'; m.classList.toggle('zoomed', z > 1); };
+  m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) { m.remove(); return; } const p = e.target.closest('[data-p]'); if (p && !p.disabled) { k += +p.dataset.p; draw(); return; } const zb = e.target.closest('[data-z]'); if (zb) { zoom(z + (+zb.dataset.z)); return; } const h = e.target.closest('[data-hero]'); if (h) { const v = VS(); v.heroId = v.heroId === h.dataset.hero ? null : h.dataset.hero; save(); render(); toast(v.heroId ? 'Essa foto aparece quando você termina o treino.' : 'Volta a trocar a foto a cada dia.'); draw(); } });
+  m.addEventListener('dblclick', e => { if (e.target.closest('.vs-zoom')) zoom(z > 1 ? 1 : 2.5); });
   let sx = null; m.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
-  m.addEventListener('touchend', e => { if (sx == null) return; const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 50) { const n = k + (dx < 0 ? 1 : -1); if (n >= 0 && n < it.length) { k = n; draw(); } } });
+  m.addEventListener('touchend', e => { if (sx == null || z > 1) { sx = null; return; } const dx = e.changedTouches[0].clientX - sx; sx = null; if (Math.abs(dx) > 50) { const n = k + (dx < 0 ? 1 : -1); if (n >= 0 && n < it.length) { k = n; draw(); } } });
   document.body.appendChild(m); draw();
 }
 async function visaoAdd(g, blob, titulo, key) {
-  const v = VS(); if (key && v.itens.some(x => x.key === key)) return false;
+  const v = VS(), ex = key && v.itens.find(x => x.key === key);
+  if (ex) { let has = null; try { has = await idbGet(ex.id); } catch (e) { } if (has) return false; await idbPut(ex.id, blob); return true; } /* veio de um backup sem a imagem: repõe */
   const id = 'vs_' + uid(); await idbPut(id, blob);
   v.itens.push({ id, grupo: g, titulo: titulo || '', key: key || '', ord: Math.max(0, ...v.itens.filter(x => x.grupo === g).map(x => x.ord || 0)) + 1 }); return true;
 }
 /** Arquivo {"visao":[{"grupo":"corpo|vida","titulo":"","img":"data:image/jpeg;base64,..."}]} */
 async function visaoImport(arr) {
   if (!Array.isArray(arr)) return; let n = 0;
-  for (const x of arr) { if (!x || !/^data:image\//.test(x.img || '') || !VS_G[x.grupo]) continue; try { const bl = await (await fetch(x.img)).blob(); if (await visaoAdd(x.grupo, bl, x.titulo, x.key || (x.grupo + ':' + (x.titulo || '') + ':' + String(x.img).length))) n++; } catch (e) { } }
+  for (const x of arr) { if (!x || !/^data:image\//.test(x.img || '') || !VS_G[x.grupo]) continue; try { const bl = await (await fetch(x.img)).blob(); const key = x.key || (x.grupo + ':' + (x.titulo || '') + ':' + String(x.img).length); if (await visaoAdd(x.grupo, bl, x.titulo, key)) n++; if (x.fimDoTreino) { const f = VS().itens.find(y => y.key === key); if (f) VS().heroId = f.id; } } catch (e) { } }
   save(); render(); toast(n ? `${n} foto(s) adicionada(s) à sua visão.` : 'Essas fotos já estavam na sua visão.');
 }
 function visaoInit() {

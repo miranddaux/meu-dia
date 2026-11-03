@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v48';
+const APP_V = 'v49';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -884,7 +884,8 @@ function render() {
   const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
   const [h, p] = titles[ui.tab];
   const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
-  $('#top').innerHTML = `${hud}<h1 class="px">${h}</h1><p>${p}</p>`;
+  const prev = /github\.io$/.test(location.hostname) ? `<div class="banner warn">${ic('info-box')}<span>Versão web provisória. Treino, rotina e fotos funcionam. Planilha, Notion e avisos voltam no app oficial dia 20/11 (leve um backup para lá).</span></div>` : '';
+  $('#top').innerHTML = `${hud}${prev}<h1 class="px">${h}</h1><p>${p}</p>`;
   $('#view').innerHTML = { hoje: vHoje, corpo: vCorpo, estudos: vEstudos, desafios: vDesafios, mais: vMais }[ui.tab]();
   $('#nav').innerHTML = TABS.map(([i, c, l]) => `<button class="${ui.tab === i ? 'on' : ''}" data-a="tab" data-v="${i}" aria-label="${l}" ${ui.tab === i ? 'aria-current="page"' : ''}>${ic(c)}<span>${l}</span></button>`).join('');
   hydratePhotos();
