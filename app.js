@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v45';
+const APP_V = 'v46';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -761,12 +761,11 @@ function vJornada() {
   const nx = journeyNext(), vw = (S.vida || {})[vwk()] || { s:{} };
   const vals = AREAS.map(a => vw.s[a[0]]).filter(v => v !== undefined), life = vals.length ? r1(vals.reduce((a,n)=>a+n,0)/vals.length) : '—';
   const row = x => `<div class="journey-step"><div class="journey-step-ic">${ic(x.icon)}</div><div class="grow"><b>${esc(x.title)}</b><div class="mut">${esc(x.meta)}</div></div><button class="btn sm ${x.a === 'jgo' ? 'ghost' : ''}" data-a="${x.a}" data-v="${esc(x.v)}">${esc(x.cta)}</button></div>`;
-  let out = `<div class="card journey-hero"><div class="row sp"><div><div class="grp">JORNADA ATUAL</div><div class="big">Nível ${r.level}</div><div class="mut">${r.total} XP acumulados · progresso real, sem perder XP.</div></div><div class="journey-level">${Math.round(r.cur/r.next*100)}%</div></div><div class="bar"><i style="width:${Math.round(r.cur/r.next*100)}%"></i></div><div class="mut">${r.cur}/${r.next} XP para o próximo nível.</div></div>`;
+  let out = rpgCard(false);
   out += `<div class="grid3 journey-stats"><div><b>${nx.length}</b><small>próximas ações</small></div><div><b>${life}</b><small>Mapa da vida</small></div><div><b>${S.settings.sync.key ? 'ON' : 'OFF'}</b><small>Notion</small></div></div>`;
   out += `<div class="card">${sec('flag','Próximas ações',`<button class="btn sm ghost" data-a="jgo" data-v="rem">Lembretes</button>`)}<div class="mut">O app junta o que vence no Meu Dia com o Roadmap do Notion e mostra primeiro o que precisa da sua atenção.</div>${nx.length ? nx.map(row).join('') : '<div class="banner">'+ic('check')+'<span>Nada urgente agora. Continue a rotina e registre o que fizer.</span></div>'}</div>`;
-  out += typeof rpgCard === 'function' ? rpgCard() : '';
   const map = AREAS.map(([id,nm,ico]) => `<button class="journey-area" data-a="jgo" data-v="vida"><span>${ic(ico)}</span><b>${esc(nm)}</b><small>${vw.s[id] === undefined ? 'avaliar' : vw.s[id] + '/10'}</small></button>`).join('');
-  out += `<div class="card">${sec('heart','Mapa da vida',`<button class="btn sm ghost" data-a="jgo" data-v="vida">Abrir</button>`)}<div class="mut">Cada área tem nota semanal, uma ação pequena e XP quando você conclui.</div><div class="journey-map">${map}</div></div>`;
+  out += `<div class="card">${sec('heart','Mapa da vida',`<button class="btn sm ghost" data-a="jgo" data-v="vida">Abrir</button>`)}<div class="mut">Cada área tem nota semanal, uma ação pequena e XP quando você conclui.</div><div class="journey-map">${map}</div></div>` + rpgParts();
   out += `<div class="card">${sec('sync','Conexões')}<div class="journey-conn"><span>${ic('book-open')}Roadmap / Notion</span><b class="${S.settings.sync.key ? 'ok' : 'warnc'}">${S.settings.sync.key ? 'conectado' : 'configurar'}</b></div><div class="journey-conn"><span>${ic('bell')}Avisos no iPhone</span><b>${S.settings.push && S.settings.push.on ? 'ligados' : 'opcional'}</b></div><div class="journey-conn"><span>${ic('save')}Backup na nuvem</span><b>${S.settings.cloudLast ? 'ativo' : 'pendente'}</b></div><button class="btn ghost full" data-a="cfg">${ic('sliders')}Abrir integrações</button></div>`;
   return out;
 }
@@ -780,8 +779,6 @@ function remForm(r={}) {
     if(r.id) S.reminders[S.reminders.findIndex(y=>y.id===r.id)]=o; else S.reminders.push(o);
   }, r.id?()=>{S.reminders=S.reminders.filter(x=>x.id!==r.id);}:null);
 }
-Object.assign(A,{remadd:()=>{remForm({});return false;},remedit:v=>{const r=S.reminders.find(x=>x.id===v);if(r) remForm(r);return false;},remdone:v=>{const r=S.reminders.find(x=>x.id===v);if(r){r.done=!r.done;save();}}});
-Object.assign(A,{jgo:v=>{if(v==='estudos'){ui.tab='estudos';window.scrollTo(0,0);return;}ui.tab='mais';ui.mais=v==='vida'?'vida':v==='din'?'din':v==='rem'?'rem':'jor';window.scrollTo(0,0);}});
 function vLoja() {
   const bal = coins(), rw = [...S.settings.rewards].sort((a, c) => a.at - c.at);
   let out = `<div class="card center">${ic('coin', 'xl')}<div class="big">${bal}</div><div class="mut">moedas disponíveis</div></div>`;
@@ -1092,6 +1089,9 @@ function toast(t) { let e = $('#toast'); if (!e) { e = document.createElement('d
 function applyTheme() { const t = S.settings.theme || 'auto'; if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); }
 
 /* ---------- campos (change) ---------- */
+/* ações da Jornada e dos lembretes (precisam vir depois de A) */
+Object.assign(A,{remadd:()=>{remForm({});return false;},remedit:v=>{const r=S.reminders.find(x=>x.id===v);if(r) remForm(r);return false;},remdone:v=>{const r=S.reminders.find(x=>x.id===v);if(r){r.done=!r.done;save();}}});
+Object.assign(A,{jgo:v=>{if(v==='estudos'){ui.tab='estudos';window.scrollTo(0,0);return;}ui.tab='mais';ui.mais=v==='vida'?'vida':v==='din'?'din':v==='rem'?'rem':'jor';window.scrollTo(0,0);}});
 const C = {
   pt: (v, i) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { t: v }); save(); },
   pd: (v, i, el) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { d: el.checked }); save(); },

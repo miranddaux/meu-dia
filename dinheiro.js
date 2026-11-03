@@ -17,12 +17,7 @@ const isCardP = p => { const o = (S.din || {}).cardP || {}; return o[p.nome] != 
 const dinS = () => { if (!S.din) S.din = {}; const d = S.din; d.hide = d.hide || {}; d.cardP = d.cardP || {};
   if (d.plan && !d.clean1) { d.clean1 = 1; const P = d.plan, h = (pre, a, f) => (a || []).forEach(x => { const n = f ? f(x) : x.nome; if (DIN_AUTO.test(n || '')) d.hide[pre + n] = 1; }); h('f:', P.fixos); h('a:', P.assinaturas); h('p:', P.parcelas); h('x:', P.pontuais); h('v:', Object.keys(P.variaveis || {}), x => x); }
   d.saved = d.saved || []; d.cards = d.cards || []; d.paid = d.paid || {}; d.fat = d.fat || {}; d.want = d.want || []; d.over = d.over || {}; d.extra = d.extra || {}; d.extra.fixos = d.extra.fixos || []; d.extra.parcelas = d.extra.parcelas || [];
-  if (!d.healthEssentials1) {
-    d.healthEssentials1 = 1;
-    const psi = d.extra.fixos.find(x => /psiquiatra/i.test(x.nome || ''));
-    if (psi) { psi.valor = 120; psi.essencial = true; psi.prioridade = 1; }
-    else d.extra.fixos.push({ nome: 'Psiquiatra', valor: 120, essencial: true, prioridade: 1 });
-  }
+  d.caixinhas = d.caixinhas || []; d.prem = d.prem || { selic: 13.75, cdi: 13.65, ipca: 4.5, at: '2026-09-16' };
   return d; };
 /* plano efetivo = arquivo importado + ajustes e itens que você mexeu no app (sobrevivem a uma nova importação) */
 function dinEff() {
@@ -127,7 +122,7 @@ function vDinheiro() {
   let cr = '';
   if (can > 0) { const fit = after >= folga ? '' : dinFit({ valor: can, tipo: 'avista' }, addMo(mo, 1)); cr = after >= folga ? `Pode. Sobra ${brl(after)} no mês.` : after >= 0 ? `Cabe, mas aperta: sobra só ${brl(after)}.` : `Não cabe neste mês (faltam ${brl(-after)}).${fit ? ' Primeiro mês que cabe: ' + dMl(fit) + '.' : ' Não cabe até o fim do plano.'}`; }
   out += `<div class="card"><div class="row"><div class="dsem ${sem}" role="img" aria-label="${dTxt[sem]}"></div><div class="grow"><b>${dTxt[sem]}</b><div class="mut">Sobra prevista em ${dMl(mo)}: <b class="${m.sobra < 0 ? 'neg' : ''}">${brl(m.sobra)}</b></div>${m.ent.length ? `<div class="mut">Entra a mais: ${m.ent.map(e => esc(e.nome) + ' ' + brl(e.valor)).join(', ')}</div>` : ''}</div></div><div class="grid3 sm"><div><b>${brl(m.renda + m.extras)}</b><small>entra</small></div><div><b>${brl(m.saidas)}</b><small>sai (com colchão)</small></div><div><b class="${m.sobra < 0 ? 'neg' : ''}">${brl(m.sobra)}</b><small>sobra</small></div></div><label>Posso gastar? Quanto custa (R$)</label><input data-c="dincan" inputmode="decimal" value="${can ? esc(String(ui.dinCan)) : ''}" placeholder="0,00">${cr ? `<div class="banner ${after >= folga ? '' : 'warn'}"><span>${cr}</span></div>` : ''}<button class="btn pri full" data-a="addtx">${ic('plus')}Lançar gasto ou entrada</button><button class="btn sm ghost" data-a="dinplano">${ic('sliders')}Ajustar renda, mercado, gasolina e colchão</button></div>`;
-  out += planCard(mo) + '<div class="grp">Mais detalhes</div>';
+  out += planCard(mo) + caixinhasCard() + '<div class="grp">Mais detalhes</div>';
   /* 2) semana */
   const w = dinWeek(), warn = w.pct >= 100 ? 'Passou do dinheiro da semana.' : w.pct >= 80 ? 'Você já usou mais de 80% da semana.' : '';
   out += `<div class="card">${sec('calendar-week', 'Dinheiro da semana', `<b>${brl(w.plan)}</b>`)}<div class="mut">Mercado, gasolina e lazer. Gastou ${brl(w.spent)} · ${w.left >= 0 ? 'ainda tem ' + brl(w.left) : 'passou ' + brl(-w.left)}.</div><div class="bar ${w.pct > 100 ? 'over' : ''}"><i style="width:${Math.min(100, w.pct)}%"></i></div>${warn ? `<div class="banner warn"><span>${warn}</span></div>` : ''}${w.last > 1 ? `<div class="mut">Semana passada sobrou ${brl(w.last)}. Pode ir para o colchão.</div>` : ''}${m.vars.map(v => `<div><div class="row sp"><span>${esc(v.nome)}</span><span class="mut">${brl(v.real)} / ${brl(v.plan)} no mês</span></div><div class="bar thin ${v.real > v.plan ? 'over' : ''}"><i style="width:${v.plan ? Math.min(100, v.real / v.plan * 100) : 0}%"></i></div></div>`).join('')}</div>`;
@@ -194,6 +189,7 @@ function dinNotifs(add, k, mo) {
 /* ---------- ações ---------- */
 async function dinImport(txt) {
   let j; try { j = JSON.parse(txt); } catch (e) { alert('Esse arquivo não parece um JSON válido.'); return; }
+  if (j && j.ajustes) return dinAjustes(j.ajustes);
   const d = dinS(), full = j && j.plan && !j.fixos, P = full ? j.plan : j;
   if (!P || !P.renda || !Array.isArray(P.fixos)) { alert('Esse arquivo não parece o de dados financeiros.'); return; }
   if (d.plan && !d.plan.exemplo && !confirm('Trocar o plano pelo arquivo novo? Seus lançamentos, pagamentos e o que guardou continuam.')) return;
@@ -203,6 +199,7 @@ async function dinImport(txt) {
   save(); render(); toast('Dados financeiros importados.');
 }
 function dinInit() {
+  dinCxInit();
   Object.assign(A, {
     gotodin: () => { ui.tab = 'mais'; ui.mais = 'din'; window.scrollTo(0, 0); },
     dinplano: () => {
@@ -294,3 +291,40 @@ function dinAnoCard(P) {
   const body = `<div class="grid3 sm"><div><b class="ok">${brl(T.e)}</b><small>entra no ano</small></div><div><b class="warnc">${brl(T.s)}</b><small>sai (plano)</small></div><div><b class="${T.so < 0 ? 'neg' : ''}">${brl(T.so)}</b><small>sobra</small></div></div><table class="g"><tr><th>Mês</th><th>Plano sai</th><th>Gastei</th><th>Sobra</th></tr>${rows.map(r => `<tr data-a="anomes" data-v="${r.mm}" role="button" tabindex="0" style="cursor:pointer${r.mm === dkey().slice(0, 7) ? ';font-weight:700' : ''}"><td>${ANO_MES[r.k - 1]}</td><td>${brl(r.sai)}</td><td>${r.gastei ? brl(r.gastei) : '–'}</td><td class="${r.sobra < 0 ? 'neg' : ''}">${brl(r.sobra)}</td></tr>`).join('')}</table><div class="mut">Toque num mês para abrir. “Gastei” é o que você lançou no app.${a ? ' Na planilha, a sobra de ' + (a.meses || []).map(z => ANO_MES[+z.mes.slice(5, 7) - 1] + ' ' + brl(z.sobra)).join(' · ') + '.' : ''}</div>`;
   return head + `<div class="card">${sec('calendar', 'Ano a ano', sy.key ? `<button class="btn sm ghost" data-a="anoload" ${ui.anoBusy ? 'disabled' : ''}>${ic('reload')}${ui.anoBusy ? 'Atualizando' : 'Planilha'}</button>` : '')}${body}</div>`;
 }
+
+/* ---------- arquivo de ajustes (dados pessoais ficam só no aparelho, nunca no código) ----------
+   { "ajustes": { fixos:[{nome,valor,essencial,prioridade,de,ate}], pontuais:[{nome,valor,mes}], encerrar:[{nome,pagoEm}],
+                  caixinhas:[{nome,instituicao,produto,tipo,pctCdi,saldo,liquidez,fgc}], lembretes:[{title,date,time,note}] } } */
+function dinAjustes(a) {
+  const d = dinS(), P = d.plan, out = [], same = (x, y) => String(x || '').trim().toLowerCase() === String(y || '').trim().toLowerCase();
+  (a.fixos || []).forEach(f => { const i = d.extra.fixos.findIndex(x => same(x.nome, f.nome)); const o = Object.assign({}, i >= 0 ? d.extra.fixos[i] : {}, f, { valor: num(f.valor) }); if (i >= 0) d.extra.fixos[i] = o; else d.extra.fixos.push(o); out.push('conta fixa ' + f.nome); });
+  if ((a.pontuais || []).length) { if (!P) { alert('Importe primeiro o arquivo do plano financeiro. Depois importe os ajustes.'); return; } P.pontuais = P.pontuais || []; (a.pontuais || []).forEach(x => { const i = P.pontuais.findIndex(y => same(y.nome, x.nome) && y.mes === x.mes); const o = { nome: x.nome, valor: num(x.valor), mes: x.mes }; if (i >= 0) P.pontuais[i] = o; else P.pontuais.push(o); out.push('gasto de ' + dMl(x.mes) + ' ' + x.nome); }); }
+  (a.encerrar || []).forEach(e => { const rx = new RegExp(String(e.nome).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); const mo = e.pagoEm; d.paid[mo] = d.paid[mo] || {};
+    [...((P && P.fixos) || []), ...d.extra.fixos].filter(f => rx.test(f.nome || '')).forEach(f => { f.ate = mo; d.paid[mo]['f:' + f.nome] = 1; });
+    ((P && P.pontuais) || []).filter(x => rx.test(x.nome || '')).forEach(x => { if (x.mes > mo) d.hide['x:' + x.nome] = 1; else d.paid[x.mes] = Object.assign(d.paid[x.mes] || {}, { ['x:' + x.nome]: 1 }); });
+    ((P && P.parcelas) || []).filter(x => rx.test(x.nome || '')).forEach(x => { d.hide['p:' + x.nome] = 1; });
+    out.push(e.nome + ' pago, sai dos próximos meses'); });
+  (a.caixinhas || []).forEach(c => { const i = d.caixinhas.findIndex(x => same(x.nome, c.nome)); const o = Object.assign({ id: uid(), tipo: 'colchao', liquidez: 'diária', fgc: true }, i >= 0 ? d.caixinhas[i] : {}, c, { saldo: num(c.saldo), pctCdi: num(c.pctCdi) }); if (i >= 0) d.caixinhas[i] = o; else d.caixinhas.push(o); out.push('caixinha ' + c.nome); });
+  (a.lembretes || []).forEach(r => { S.reminders = S.reminders || []; if (!S.reminders.some(x => same(x.title, r.title) && x.date === r.date)) S.reminders.push({ id: uid(), title: r.title, date: r.date, time: r.time || '', note: r.note || '', done: false }); out.push('lembrete ' + r.title); });
+  save(); render(); alert('Ajustes aplicados:\n· ' + out.join('\n· '));
+}
+/* ---------- caixinhas: onde está o dinheiro guardado (colchão, investimento, meta de compra) ---------- */
+const CX_TIPO = { colchao: 'Colchão / reserva', invest: 'Investimento', meta: 'Meta de compra' };
+const cxMes = c => { const pr = dinS().prem, cdi = num(pr.cdi) / 100 * num(c.pctCdi || 100) / 100; return num(c.saldo) * (Math.pow(1 + cdi, 1 / 12) - 1); };
+function caixinhasCard() {
+  const d = dinS(), cx = d.caixinhas, tot = cx.reduce((a, c) => a + num(c.saldo), 0), rend = cx.reduce((a, c) => a + cxMes(c), 0), pr = d.prem;
+  const grp = Object.keys(CX_TIPO).map(t => { const l = cx.filter(c => (c.tipo || 'colchao') === t); return l.length ? `<div class="grp">${CX_TIPO[t]} · ${brl(l.reduce((a, c) => a + num(c.saldo), 0))}</div>` + l.map(c => `<div class="item" data-a="cxedit" data-v="${c.id}" role="button" tabindex="0"><div class="t"><b>${esc(c.nome)}</b><div class="mut">${esc([c.instituicao, c.produto].filter(Boolean).join(' · '))}${c.pctCdi ? ' · ' + num(c.pctCdi) + '% do CDI' : ''} · ${esc(c.liquidez || 'diária')}${c.fgc ? ' · FGC' : ''} · rende ~${brl(cxMes(c))}/mês</div></div><b>${brl(num(c.saldo))}</b></div>`).join('') : ''; }).join('');
+  return acc('dcx', 'Onde está o meu dinheiro', brl(tot), `<div class="grid3 sm"><div><b>${brl(tot)}</b><small>guardado</small></div><div><b>${brl(rend)}</b><small>rende/mês (bruto)</small></div><div><b>${num(pr.cdi).toLocaleString('pt-BR')}%</b><small>CDI ao ano</small></div></div>${grp || '<div class="mut">Nenhuma caixinha ainda.</div>'}<div class="mut">Estimativa antes do imposto, com CDI de ${num(pr.cdi).toLocaleString('pt-BR')}% (Selic ${num(pr.selic).toLocaleString('pt-BR')}% desde ${sd2(pr.at)}). Não é aconselhamento financeiro.</div><div class="row wrap"><button class="btn sm" data-a="cxadd">${ic('plus')}Caixinha</button><button class="btn sm ghost" data-a="cxprem">${ic('sliders')}Atualizar Selic e CDI</button></div>`, true);
+}
+function cxForm(c) {
+  const d = dinS();
+  form(c.id ? 'Editar caixinha' : 'Nova caixinha', [{ k: 'nome', label: 'Nome', value: c.nome || '' }, { k: 'tipo', label: 'Para quê', type: 'select', value: c.tipo || 'colchao', options: Object.entries(CX_TIPO) }, { k: 'instituicao', label: 'Banco', value: c.instituicao || '' }, { k: 'produto', label: 'Produto (RDB, CDB, Tesouro Selic…)', value: c.produto || '' }, { k: 'pctCdi', label: 'Rende quantos % do CDI', type: 'number', value: c.pctCdi || 100 }, { k: 'saldo', label: 'Saldo hoje (R$)', type: 'number', value: c.saldo || '' }, { k: 'liquidez', label: 'Quando posso sacar', type: 'select', value: c.liquidez || 'diária', options: ['diária', 'no vencimento', 'carência'] }], r => {
+    const o = Object.assign({}, c, { id: c.id || uid(), nome: r.nome.trim() || 'Caixinha', tipo: r.tipo, instituicao: r.instituicao.trim(), produto: r.produto.trim(), pctCdi: num(r.pctCdi), saldo: num(r.saldo), liquidez: r.liquidez, fgc: c.fgc !== false });
+    const i = d.caixinhas.findIndex(x => x.id === o.id); if (i >= 0) d.caixinhas[i] = o; else d.caixinhas.push(o);
+  }, c.id ? () => { d.caixinhas = d.caixinhas.filter(x => x.id !== c.id); } : null);
+}
+function dinCxInit() { Object.assign(A, {
+  cxadd: () => { cxForm({}); return false; },
+  cxedit: v => { const c = dinS().caixinhas.find(x => x.id === v); if (c) cxForm(c); return false; },
+  cxprem: () => { const p = dinS().prem; form('Selic e CDI (atualize depois de cada Copom)', [{ k: 'selic', label: 'Selic (% ao ano)', type: 'number', value: p.selic }, { k: 'cdi', label: 'CDI (% ao ano)', type: 'number', value: p.cdi }, { k: 'ipca', label: 'Inflação 12 meses (%)', type: 'number', value: p.ipca }], r => { Object.assign(p, { selic: num(r.selic), cdi: num(r.cdi), ipca: num(r.ipca), at: dkey() }); }); return false; }
+}); }

@@ -2,7 +2,10 @@
 /* Evolução (painel do mês), fase do treino e área "Eu". Tudo fica só neste aparelho.
    O texto que você escreve em "Eu" NÃO vai para o Notion; só humor e energia (já eram enviados) seguem no resumo do dia. */
 
-/* ---------- RPG da vida ---------- */
+/* ---------- RPG da vida ----------
+   Um só sistema: o NÍVEL e a CLASSE vêm do XP do Roadmap de Estudos no Notion (a mesma tabela da Ficha do Personagem).
+   As outras áreas da vida também dão XP (treino, água, finanças, mapa da vida, igreja, humor) e viram PONTOS DE ATRIBUTO
+   que você distribui. Nada se perde, nada zera. */
 const RPG_AREAS = [
   ['est','Estudos','book-open'],
   ['pro','Profissional','trophy'],
@@ -12,44 +15,72 @@ const RPG_AREAS = [
   ['rel','Relacionamentos','heart'],
   ['esp','Espiritual','sun']
 ];
-function rpgStats() {
-  const xp = {};
-  RPG_AREAS.forEach(a => xp[a[0]] = 0);
+/* tabela de níveis da Ficha do Personagem (Notion): [XP mínimo, classe] */
+const RPG_LV = [[0,'Aprendiz'],[350,'Aprendiz'],[800,'Aprendiz'],[1300,'Júnior'],[1800,'Júnior'],[2400,'Júnior'],[3000,'Pleno'],[5000,'Pleno'],[7000,'Pleno'],[9500,'Pleno'],[11500,'Pleno'],[13000,'Sênior'],[15000,'Sênior'],[16900,'Product Engineer'],[18000,'Internacional']];
+/* fases da vida (classes) e quando cada uma deve chegar, como está no Notion */
+const RPG_FASES = [['Aprendiz','Lv 1–3','começo'],['Júnior','Lv 4–6','superado'],['Pleno','Lv 7–11','agora · vaga pleno dez/26–jan/27'],['Sênior','Lv 12–13','previsão dez/2027'],['Product Engineer','Lv 14','previsão dez/2028'],['Internacional','Lv 15','2029–2030']];
+const RPG_RANK = n => n >= 20 ? 'Expert' : n >= 15 ? 'Avançado' : n >= 10 ? 'Sólido' : n >= 5 ? 'Praticante' : 'Iniciante';
+const rpgS = () => (S.rpg = S.rpg || { alloc: {} });
+function rpgLifeXp() {
+  const xp = {}; RPG_AREAS.forEach(a => xp[a[0]] = 0);
   xp.est += Object.values(S.studyLog || {}).filter(x => x && x.done).length * 12;
-  xp.est += Object.values(S.pomo || {}).reduce((a,n)=>a + Math.min(4,num(n)),0) * 3;
-  xp.est += Object.keys((S.road && S.road.done) || {}).length * 10;
-  xp.pro += Object.keys((S.road && S.road.done) || {}).length * 14;
   xp.cor += (S.workouts || []).length * 12;
   const wg = num(S.settings.waterGoal);
   if (wg) xp.cor += Object.keys(S.water || {}).filter(k => num(S.water[k]) >= wg).length * 3;
   xp.fin += ((S.din && S.din.saved) || []).length * 8;
   xp.fin += Object.values((S.goalPaid || {})).reduce((n,m)=>n + Object.values(m || {}).filter(Boolean).length,0) * 8;
-  Object.values(S.vida || {}).forEach(w => {
-    Object.keys((w && w.d) || {}).filter(k => w.d[k]).forEach(k => {
-      if (k === 'cor') xp.cor += 8;
-      else if (k === 'fin') xp.fin += 8;
-      else if (k === 'pro') xp.pro += 8;
-      else if (k === 'emo') xp.emo += 8;
-      else if (k === 'rel' || k === 'fam') xp.rel += 8;
-      else if (k === 'esp') xp.esp += 8;
-    });
-  });
-  const moodDays = Object.values(S.mood || {}).filter(x => x && (x.m || x.e)).length;
-  xp.emo += moodDays * 2 + ((S.eu || []).length * 3);
+  Object.values(S.vida || {}).forEach(w => Object.keys((w && w.d) || {}).filter(k => w.d[k]).forEach(k => { const t = k === 'fam' ? 'rel' : k; if (xp[t] !== undefined) xp[t] += 8; }));
+  xp.emo += Object.values(S.mood || {}).filter(x => x && (x.m || x.e)).length * 2 + ((S.eu || []).length * 3);
   const church = (S.habits || []).find(h => /^Igreja/i.test(h.title));
-  if (church) for (const k in (S.log || {})) if ((S.log[k] || {})[church.id] === 'done') xp.esp += 4;
-  const total = Object.values(xp).reduce((a,n)=>a+n,0);
-  const level = Math.floor(total / 150) + 1, cur = total % 150;
-  return {xp,total,level,cur,next:150};
+  if (church) for (const k in (S.log || {})) if ((S.log[k] || {})[church.id] === 'done') xp.esp += 10;
+  return xp;
 }
-function rpgCard() {
-  const r = rpgStats(), pct = Math.round(r.cur / r.next * 100);
-  const rows = RPG_AREAS.map(([id,nm,ico]) => {
-    const n = r.xp[id] || 0, lv = Math.floor(n / 100) + 1, p = n % 100;
-    return `<div class="rpgrow"><div class="row sp"><span>${ic(ico)} <b>${nm}</b></span><span class="mut">Nv. ${lv} · ${n} XP</span></div><div class="bar thin"><i style="width:${p}%"></i></div></div>`;
-  }).join('');
-  return `<div class="card"><div class="row sp"><div><div class="mut">SEU PERSONAGEM</div><div class="big">Nível ${r.level}</div></div><div class="center"><b>${r.total} XP</b><div class="mut">total</div></div></div><div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${r.cur}/${r.next} XP para o próximo nível. Seu XP vem do que você realmente registra no Meu Dia: estudos, treino, saúde, finanças, evolução da vida e Roadmap.</div><div class="grp">Atributos</div>${rows}<div class="mut">Os níveis são progresso acumulado: sem perder XP e sem punição.</div></div>`;
+function rpgStats() {
+  const nx = S.xpNotion || null, road = nx ? num(nx.total) : 0, life = rpgLifeXp(), xp = Object.assign({}, life);
+  if (nx && nx.cats) Object.entries(nx.cats).forEach(([c, v]) => { if (/portf|anima|product os|conte|carreira|soft|vaga|linkedin/i.test(c)) xp.pro += num(v); else xp.est += num(v); });
+  const lifeTot = Object.values(life).reduce((a,n)=>a+n,0), total = road + lifeTot;
+  let i = 0; while (i + 1 < RPG_LV.length && road >= RPG_LV[i + 1][0]) i++;
+  const level = i + 1, cls = RPG_LV[i][1], lo = RPG_LV[i][0], hi = (RPG_LV[i + 1] || [lo + 1000])[0];
+  const pts = Math.floor(total / 100), spent = Object.values(rpgS().alloc).reduce((a,n)=>a+num(n),0);
+  return { xp, total, road, life: lifeTot, level, cls, cur: road - lo, next: hi - lo, toNext: Math.max(0, hi - road), pts, free: Math.max(0, pts - spent), alloc: rpgS().alloc, synced: nx && nx.at };
 }
+/* bonequinho em pixel art (estilo A · sálvia e coral), muda com a classe; troque pelo asset final quando estiver pronto */
+const RPG_PX = ["...oooooo....o..", "..ohhhhhhoo.ogo.", ".ohhhhhhhhho.w..", ".ohssssssho..w..", ".ossessesso..w..", ".osssssssso..w..", "..osssmsso...w..", "...oossoo....w..", "..occrrrcco..w..", ".occrrrrrcco.w..", ".ocrrrbrrrcosw..", ".ocrrrrrrrco.w..", ".ocrrrrrrrco.w..", "..orrrrrrro..w..", "..orrroorro..w..", "..oddo..oddo.w..", "..oooo..oooo...."];
+function rpgAvatar(cls, size) {
+  const pal = { o:'#1f2a2e', h:'#4a3328', s:'#f2c19e', e:'#1f2a2e', m:'#c46a5a', r:'#7fb89a', c:'#ff6b57', b:'#ffc83d', w:'#8a5a3c', g:'#ffc83d', d:'#1f2a2e', k:'#ffc83d' };
+  let m = RPG_PX.map(r => r.split(''));
+  const swap = (from, to) => m.forEach(r => r.forEach((ch, i) => { if (ch === from) r[i] = to; }));
+  if (cls === 'Aprendiz') { m.forEach(r => { if ('wg'.includes(r[13])) r[13] = '.'; }); m[0][13] = '.'; m[1][12] = '.'; m[1][14] = '.'; m[10][12] = '.'; swap('c', 'r'); swap('b', 'r'); pal.r = '#cfe6d6'; }
+  if (cls === 'Júnior') { swap('c', 'r'); swap('b', 'r'); }
+  if (cls === 'Sênior') pal.r = '#3f7a64';
+  if (cls === 'Product Engineer' || cls === 'Internacional') { pal.r = '#4c6b8a'; pal.g = '#4cc9ff'; }
+  if (cls === 'Internacional') for (let c = 3; c <= 8; c++) m[0][c] = 'k';
+  let rects = '';
+  m.forEach((row, y) => { let x = 0; while (x < 16) { const ch = row[x]; if (ch === '.') { x++; continue; } let e = x; while (e + 1 < 16 && row[e + 1] === ch) e++; rects += `<rect x="${x}" y="${y}" width="${e - x + 1}" height="1" fill="${pal[ch]}"/>`; x = e + 1; } });
+  return `<svg class="px-avatar" viewBox="0 0 16 17" width="${size || 96}" height="${Math.round((size || 96) * 17 / 16)}" shape-rendering="crispEdges" role="img" aria-label="Seu personagem: ${esc(cls)}">${rects}</svg>`;
+}
+function rpgCard(full) {
+  const r = rpgStats(), pct = Math.min(100, Math.round(r.cur / r.next * 100));
+  const hero = `<div class="card rpg-hero"><div class="row"><div class="rpg-ava">${rpgAvatar(r.cls, 88)}</div><div class="grow"><div class="px rpg-lv">LV ${r.level} · ${esc(r.cls.toUpperCase())}</div><b>Product Designer, UI Mage</b><div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${r.road ? `${r.road.toLocaleString('pt-BR')} XP do Roadmap · faltam ${r.toNext.toLocaleString('pt-BR')} para o Lv ${r.level + 1}` : 'Ligue o Notion para ler o XP do Roadmap.'}</div></div></div><div class="mut">+ ${r.life.toLocaleString('pt-BR')} XP das outras áreas da vida · ${r.free} ponto${r.free === 1 ? '' : 's'} de atributo para distribuir.${r.synced ? '' : ' (XP do Notion ainda não lido)'}</div></div>`;
+  return full ? hero + rpgParts() : hero;
+}
+function rpgParts() {
+  const r = rpgStats();
+  const fases = RPG_FASES.map(([n, lv, q]) => { const now = n === r.cls, past = RPG_LV.findIndex(x => x[1] === n) < RPG_LV.findIndex(x => x[1] === r.cls); return `<div class="rpg-fase ${now ? 'on' : past ? 'ok' : ''}"><div class="rpg-fava">${rpgAvatar(n, 40)}</div><div class="grow"><b>${esc(n)}</b><div class="mut">${esc(lv)} · ${esc(q)}</div></div>${past ? ic('check') : now ? '<span class="tag now">agora</span>' : ''}</div>`; }).join('');
+  const attrs = RPG_AREAS.map(([id, nm, ico]) => { const a = num(r.alloc[id]), n = r.xp[id] || 0; return `<div class="rpgrow"><div class="row sp"><span>${ic(ico)} <b>${nm}</b> <span class="mut">${RPG_RANK(a)}</span></span><span class="row"><span class="mut">${a} pts</span><button class="btn sm ghost" data-a="rpgminus" data-v="${id}" aria-label="Tirar 1 ponto de ${nm}" ${a ? '' : 'disabled'}>−</button><button class="btn sm" data-a="rpgplus" data-v="${id}" aria-label="Pôr 1 ponto em ${nm}" ${r.free ? '' : 'disabled'}>+</button></span></div><div class="bar thin"><i style="width:${Math.min(100, a * 5)}%"></i></div><div class="mut">${n.toLocaleString('pt-BR')} XP feitos nesta área</div></div>`; }).join('');
+  return `<div class="card">${sec('trending-up', 'Fases da vida', r.cls)}<div class="mut">A classe sobe com o XP do Roadmap. Curto prazo: Lv ${r.level + 1}. Médio: Sênior. Longo: Internacional.</div>${fases}</div>`
+    + `<div class="card">${sec('zap', 'Atributos', r.free ? `${r.free} livre${r.free === 1 ? '' : 's'}` : '')}<div class="mut">Cada 100 XP (de qualquer área) vira 1 ponto. Ponha os pontos nas áreas que você quer focar nesta temporada.</div>${attrs}</div>`;
+}
+async function xpFetch(force) {
+  const sy = S.settings.sync; if (!sy.key) return;
+  const nx = S.xpNotion; if (!force && nx && nx.at && Date.now() - nx.at < 6 * 3600e3) return;
+  try { const r = await fetch(`${(sy.url || '/.netlify/functions/sync').replace(/sync$/, 'roadmap')}?xp=1`, { headers: { 'x-app-key': sy.key } }); if (!r.ok) return; const j = await r.json(); if (j && typeof j.total === 'number') { S.xpNotion = { total: j.total, cats: j.cats || {}, n: j.n || 0, at: Date.now() }; save(); if (ui.tab === 'mais') render(); } } catch (e) { }
+}
+setTimeout(() => xpFetch(false), 3000);
+function rpgInit() { Object.assign(A, {
+  rpgplus: v => { const r = rpgStats(); if (!r.free) return false; const a = rpgS().alloc; a[v] = num(a[v]) + 1; save(); },
+  rpgminus: v => { const a = rpgS().alloc; if (num(a[v]) > 0) a[v] = num(a[v]) - 1; save(); }
+}); }
 
 /* ---------- Painel do mês ---------- */
 const evMo = (o = 0) => addMo(dkey().slice(0, 7), o);
@@ -147,6 +178,7 @@ function vEu() {
   return out;
 }
 function euInit() {
+  rpgInit();
   Object.assign(C, { eud: v => { ui.euDraft = v; } });
   Object.assign(A, {
     pmo: v => { ui.pm = (ui.pm || 0) + +v; if (ui.pm > 0) ui.pm = 0; },

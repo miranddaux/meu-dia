@@ -258,3 +258,14 @@ details.pomo-mini .row{gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .journey-conn span{display:flex;align-items:center;gap:8px;font-weight:600}
 .rpgrow{display:flex;flex-direction:column;gap:4px;padding:5px 0}
 @media(max-width:390px){.journey-map{grid-template-columns:1fr}.journey-level{width:64px;height:64px}.journey-step{align-items:flex-start;flex-wrap:wrap}.journey-step .btn{margin-left:52px}}
+
+/* RPG v46 */
+.rpg-hero .row{align-items:center;gap:var(--s3)}
+.rpg-ava{flex:none;width:104px;height:110px;display:grid;place-items:center;background:var(--soft);border:3px solid var(--ink);border-radius:var(--r)}
+.px-avatar{image-rendering:pixelated;display:block}
+.rpg-lv{font-size:12px;margin-bottom:4px}
+.rpg-fase{display:flex;align-items:center;gap:var(--s2);padding:8px;border-radius:var(--r);margin-top:6px}
+.rpg-fase.on{background:var(--soft);border:3px solid var(--ink)}
+.rpg-fase.ok{opacity:.7}
+.rpg-fava{flex:none;width:44px;display:grid;place-items:center}
+.rpgrow{margin-top:12px}.rpgrow .row{gap:6px;align-items:center}

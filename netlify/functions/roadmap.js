@@ -23,6 +23,19 @@ exports.handler = async event => {
     } catch (e) { return { statusCode: 500, body: String(e.message) }; }
   }
   const q = event.queryStringParameters || {};
+  if (q.xp) {
+    // XP total = soma da coluna XP dos tópicos Concluídos (a mesma regra da Ficha do Personagem), também por Categoria.
+    try {
+      let cursor, total = 0, n = 0; const cats = {};
+      for (let i = 0; i < 20; i++) {
+        const r = await fetch(`${N}/databases/${DB}/query`, { method: 'POST', headers: H(NOTION_TOKEN), body: JSON.stringify(Object.assign({ filter: { property: 'Status', select: { equals: 'Concluído' } }, page_size: 100 }, cursor ? { start_cursor: cursor } : {})) });
+        const j = await r.json(); if (!r.ok) return { statusCode: 502, body: JSON.stringify(j) };
+        for (const p of j.results || []) { const g = p.properties || {}; const x = g.XP && typeof g.XP.number === 'number' ? g.XP.number : 0; const c = g.Categoria && g.Categoria.select ? g.Categoria.select.name : 'Outros'; total += x; n++; cats[c] = (cats[c] || 0) + x; }
+        if (!j.has_more) break; cursor = j.next_cursor;
+      }
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, total, n, cats }) };
+    } catch (e) { return { statusCode: 500, body: String(e.message) }; }
+  }
   if (q.hist) {
     // Histórico só de leitura: tópicos Concluídos dos últimos 45 dias + log semanal de inglês (últimas 6 semanas).
     const EN = (process.env.NOTION_ENGLISH_DB || 'bea412d856504064860176f5e5176058').replace(/-/g, '');
