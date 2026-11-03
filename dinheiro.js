@@ -16,7 +16,14 @@ const dinHid = k => !!((S.din || {}).hide || {})[k];
 const isCardP = p => { const o = (S.din || {}).cardP || {}; return o[p.nome] != null ? !!o[p.nome] : !DIN_NCARD.test(p.nome || ''); };
 const dinS = () => { if (!S.din) S.din = {}; const d = S.din; d.hide = d.hide || {}; d.cardP = d.cardP || {};
   if (d.plan && !d.clean1) { d.clean1 = 1; const P = d.plan, h = (pre, a, f) => (a || []).forEach(x => { const n = f ? f(x) : x.nome; if (DIN_AUTO.test(n || '')) d.hide[pre + n] = 1; }); h('f:', P.fixos); h('a:', P.assinaturas); h('p:', P.parcelas); h('x:', P.pontuais); h('v:', Object.keys(P.variaveis || {}), x => x); }
-  d.saved = d.saved || []; d.cards = d.cards || []; d.paid = d.paid || {}; d.fat = d.fat || {}; d.want = d.want || []; d.over = d.over || {}; d.extra = d.extra || {}; d.extra.fixos = d.extra.fixos || []; d.extra.parcelas = d.extra.parcelas || []; return d; };
+  d.saved = d.saved || []; d.cards = d.cards || []; d.paid = d.paid || {}; d.fat = d.fat || {}; d.want = d.want || []; d.over = d.over || {}; d.extra = d.extra || {}; d.extra.fixos = d.extra.fixos || []; d.extra.parcelas = d.extra.parcelas || [];
+  if (!d.healthEssentials1) {
+    d.healthEssentials1 = 1;
+    const psi = d.extra.fixos.find(x => /psiquiatra/i.test(x.nome || ''));
+    if (psi) { psi.valor = 120; psi.essencial = true; psi.prioridade = 1; }
+    else d.extra.fixos.push({ nome: 'Psiquiatra', valor: 120, essencial: true, prioridade: 1 });
+  }
+  return d; };
 /* plano efetivo = arquivo importado + ajustes e itens que você mexeu no app (sobrevivem a uma nova importação) */
 function dinEff() {
   const d = dinS(), P = d.plan; if (!P) return null; const o = d.over, ex = d.extra;
