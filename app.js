@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v50';
+const APP_V = 'v51';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -138,7 +138,7 @@ const DEF_HABITS = () => [
   hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3, 4, 5], 0, 0, 4, '17:00'),
   hb('LinkedIn: criar e agendar os posts', 'm', [6], 1, 0, 5, '08:30'), hb('YouTube ou ANIMAE: etapa de hoje', 'm', [6], 1, 0, 6, '10:45'), hb('Atualizar status no Notion', 'm', [6], 1, 0, 7, '11:45'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
   hb('Passear com o cachorro', 'n', D6, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', D6, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', D6, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
-  hb('Cuidado da orelha (ajuste a recorrência)', 'n', D6, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
+  hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
 const STARTER = [
   ['Treino A — corpo inteiro (leve)', [['Leg press', 3, '10–12', 90], ['Supino com halteres', 3, '8–12', 90], ['Remada sentada (máquina ou cabo)', 3, '10–12', 90], ['Desenvolvimento com halteres', 2, '10–12', 75], ['Prancha', 3, '30–40 s', 60]]],
@@ -181,6 +181,7 @@ function defaults() {
     spent: [], tx: [], budgets: {}, goals: [], reviews: {}, bills: [], billPaid: {}, pet: [{ id: 'banho', title: 'Banho do cachorro', every: 15, last: '' }]
   };
 }
+function dropOnly() { const k = dkey(); if (S.habits) S.habits = S.habits.filter(h => !h.only || h.only >= k); }
 function load() {
   let raw = null;
   try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) { }
@@ -195,6 +196,7 @@ function load() {
   S.ideas = Object.assign({ done: [], mine: [] }, (raw && raw.ideas) || {});
   S.flags = (raw && raw.flags) || {};
   if (raw) migrate(); else S.flags.fresh = 1;
+  dropOnly();
 }
 /* migração suave: nunca apaga dado do usuário */
 function migrate() {
@@ -263,6 +265,16 @@ function migrate() {
     f.sabConteudo = 1; S.schedule[6] = sat();
     S.habits.forEach(h => { if (/^Quarto e organização/i.test(h.title) && h.days.join() === '6') h.days = []; if (/^Conteúdo do LinkedIn/i.test(h.title)) { h.title = 'LinkedIn: criar e agendar os posts'; h.when = 'm'; h.at = '08:30'; } });
     ['LinkedIn: criar e agendar os posts', 'YouTube ou ANIMAE: etapa de hoje', 'Atualizar status no Notion'].forEach(t => { if (!S.habits.some(h => h.title === t)) S.habits.push(DEF_HABITS().find(h => h.title === t)); });
+  }
+  if (!f.limpo1) { /* orelha repetida, desafios com o tipo certo, desafios que não fazem sentido arquivados (nada é apagado) */
+    f.limpo1 = 1;
+    const ore = S.habits.filter(h => /orelha/i.test(h.title)), keep = ore.find(h => /^Cuidar da orelha/i.test(h.title)) || ore[0];
+    ore.filter(h => h !== keep).forEach(h => { Object.keys(S.log).forEach(d => { const l = S.log[d]; if (l && l[h.id] && !l[keep.id]) l[keep.id] = l[h.id]; if (l) delete l[h.id]; }); });
+    if (keep) S.habits = S.habits.filter(h => !/orelha/i.test(h.title) || h === keep);
+    S.challenges.forEach(c => {
+      if (/^sem |lol|tiktok|detox|parar de|largar/i.test(c.title)) c.kind = 'detox'; else c.kind = 'melhorar';
+      if (/hist[óo]ria.*pais|pais.*hist[óo]ria|beber.*[áa]gua|meta de [áa]gua/i.test(c.title)) c.arq = 1;
+    });
   }
   if (!f.detox6) {
     f.detox6 = 1;
@@ -368,6 +380,7 @@ function form(title, fields, onSave, onDel) {
 /* ---------- Hoje ---------- */
 function mRow(k, h) {
   const s = stOf(k, h.id);
+  if (ui.hEdit) return `<div class="hab"><div class="t">${h.at ? `<span class="hr">${h.at}</span>` : ''}${esc(h.title)}</div>${ib('edit', 'Editar ' + h.title, 'edithab', h.id)}${ib('close', 'Tirar ' + h.title + ' de hoje', 'habskip', h.id, 'danger')}</div>`;
   return `<div class="hab"><div class="t">${h.at ? `<span class="hr">${h.at}</span>` : ''}${esc(h.title)}</div>${stBtn(s, SI[s], 'cyc', h.id, `${h.title}: ${SL[s]}. Toque para mudar`)}</div>`;
 }
 function waterCard(k) {
@@ -380,7 +393,7 @@ function chRow(c, k) {
   let btns;
   if (fin) btns = `<div class="banner">${ic('trophy')}<span>Rodada de ${c.days} dias completa!${S.settings.gamify ? ' +10 moedas' : ''}</span></div><button class="btn full" data-a="chnew" data-v="${c.id}">Começar nova rodada</button>`;
   else if (!started) btns = `<div class="mut">A rodada recomeça amanhã. Sem drama.</div>`;
-  else btns = `<div class="row"><button class="btn ${done ? 'ghost' : ''}" data-a="chok" data-v="${c.id}">${ic('check')}${done ? (det ? 'Hoje limpo (desfazer)' : 'Feito hoje (desfazer)') : (det ? 'Hoje estou limpo' : 'Fiz hoje')}</button>${det ? `<button class="btn ghost sm" data-a="chslip" data-v="${c.id}">Escorreguei</button>` : ''}</div>`;
+  else btns = `<div class="row"><button class="btn ${done ? 'ghost' : ''}" data-a="chok" data-v="${c.id}">${ic('check')}${done ? (det ? 'Limpo hoje ✓ (desfazer)' : 'Feito hoje ✓ (desfazer)') : (det ? 'Hoje estou limpo' : 'Feito hoje')}</button>${det ? `<button class="btn ghost sm" data-a="chslip" data-v="${c.id}">Escorreguei</button>` : ''}</div>`;
   return `<div class="ch"><div class="row sp" data-a="editch" data-v="${c.id}" role="button" tabindex="0"><b>${esc(c.title)}</b><span class="mut">${n}/${c.days} dias${c.rounds ? ` · ${c.rounds} rodada(s)` : ''}</span></div><div class="sqs">${[...Array(c.days)].map((_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>${btns}</div>`;
 }
 const isMin = h => /^(Oração e agradecimento|Almoço|Higiene e oração da noite)/.test(h.title);
@@ -401,7 +414,7 @@ function vHoje() {
   const bl = sched(dow), cur = bl.find(x => tm(x.s) <= mins && mins < tm(x.e)), nxt = bl.find(x => tm(x.s) > mins);
   const st = S.study[dow] || {}, sl = S.studyLog[k] || {};
   const pr = S.prios[k] || [{}, {}, {}];
-  const habs = S.habits.filter(h => h.days.includes(dow) && (!hard || isMin(h)));
+  const skip = (S.skipHoje || {})[k] || [], habs = S.habits.filter(h => h.days.includes(dow) && (!hard || isMin(h)) && !skip.includes(h.id));
   let out = seg;
   /* 1) Prioridades: sempre no topo */
   const pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
@@ -420,11 +433,11 @@ function vHoje() {
     items.sort((a, c) => ((a.h ? a.h.at : '06:00') ? tm(a.h ? a.h.at : '06:00') : 5000 + a.o) - ((c.h ? c.h.at : '06:00') ? tm(c.h ? c.h.at : '06:00') : 5000 + c.o));
     const done = items.filter(i => i.study ? sl.done : stOf(k, i.h.id) === 'done').length;
     const hr = n.getHours(), curW = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
-    out += acc(w, WH[w], `${done}/${items.length}`, `${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><span class="hr">06:00</span><b>Estudo:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}${pomoMini()}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}`, w === curW);
+    out += acc(w, WH[w], `${done}/${items.length}`, `${w === 'm' ? '<div class="mut">Ordem: oração, cama, estudo, leitura e café.</div>' : ''}${items.map(i => i.study ? `<div class="hab"><div class="t"><span class="hr">06:00</span><b>Estudo:</b> ${esc(st.theme || '—')}${st.next ? `<div class="mut">Próxima ação: ${esc(st.next)}</div>` : ''}${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">Abrir material</a>` : ''}${pomoMini()}</div>${stBtn(sl.done ? 'done' : '', sl.done ? 'check' : '', 'studydone', undefined, 'Estudo de hoje')}</div>` : mRow(k, i.h)).join('')}<div class="row wrap hedit"><button class="btn sm ghost" data-a="addhabw" data-v="${w}">${ic('plus')}Adicionar</button><button class="btn sm ${ui.hEdit ? '' : 'ghost'}" data-a="hedit" aria-pressed="${!!ui.hEdit}">${ic(ui.hEdit ? 'check' : 'edit')}${ui.hEdit ? 'Pronto' : 'Editar lista'}</button></div>`, w === curW);
   });
   if (!hard) {
     out += roadCard();
-    const act = S.challenges.filter(c => !c.completedAt || c.log[k]);
+    const act = S.challenges.filter(c => !c.arq && (!c.completedAt || c.log[k]));
     out += acc('des', 'Desafios', `${act.filter(c => c.log[k] === 'ok').length}/${act.length} hoje`, `${act.map(c => chRow(c, k)).join('') || '<div class="mut">Sem desafios ativos. Crie um na aba Desafios.</div>'}<button class="btn sm ghost" data-a="gotodes">Abrir aba</button>`, false);
   }
   const md = S.mood[k] || {};
@@ -640,7 +653,7 @@ const IDEAS = {
   eu: ['30 min de caminhada sem fone', 'Ler 10 páginas', 'Escrever 3 coisas boas do dia', 'Um hobby sem objetivo por 30 min', 'Dormir antes das 23h', 'Tirar 1 hora do celular']
 };
 const JT = { nay: 'Com a Nayara', casa: 'Em casa', fam: 'Família', eu: 'Eu melhorando' };
-const SUG = ['Caminhar 20 minutos', 'Ler 10 páginas', 'Beber a meta de água', 'Sem refrigerante', 'Elogiar a Nayara uma vez', 'Alongar 10 minutos', 'Dormir antes das 23h', 'Escrever 3 coisas boas do dia', 'Meditar ou orar 5 minutos extras', 'Ligar para alguém da família'];
+const SUG = ['Caminhar 20 minutos', 'Ler 10 páginas', 'Sem refrigerante', 'Elogiar a Nayara uma vez', 'Alongar 10 minutos', 'Dormir antes das 23h', 'Escrever 3 coisas boas do dia', 'Meditar ou orar 5 minutos extras', 'Ligar para alguém da família'];
 function vDesafios() {
   if (ui.dt === 'juntos') ui.dt = 'detox';
   let out = `<div class="chips">${[['detox', 'shield', 'Detox'], ['melhorar', 'trending-up', 'Melhorar']].map(([i, c, l]) => `<button class="chip ${ui.dt === i ? 'on' : ''}" data-a="dt" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
@@ -654,7 +667,7 @@ function vDesafios() {
     if (dn.length) out += `<div class="card"><h3 class="px">Já fizemos</h3>${dn.map(x => `<div class="item"><div class="t">${esc(x.t)}</div><span class="mut">${sd2(x.d)}</span></div>`).join('')}</div>`;
     return out;
   }
-  const kind = ui.dt, chs = S.challenges.filter(c => (c.kind || 'detox') === kind);
+  const kind = ui.dt, chs = S.challenges.filter(c => !c.arq && (c.kind || 'detox') === kind);
   out += `<div class="card">${sec(kind === 'detox' ? 'shield' : 'trending-up', kind === 'detox' ? 'Detox' : 'Melhorar', `<button class="btn sm" data-a="addch" data-v="${kind}">${ic('plus')}Desafio</button>`)}<div class="mut">${kind === 'detox' ? 'Se escorregar, a rodada recomeça amanhã. Você não perde as moedas que já ganhou.' : 'Escolha 1 coisa para fazer todo dia por 10, 15 ou 30 dias. Dia perdido não zera nada: marque o próximo.'}</div></div>`;
   out += chs.map(c => `<div class="card">${chRow(c, k)}</div>`).join('') || `<div class="card"><div class="mut">Nenhum desafio aqui ainda.</div></div>`;
   if (kind === 'melhorar') out += `<div class="card">${sec('lightbulb-on', 'Ideias de desafio')}<div class="chips wrapc">${SUG.map((s, i) => `<button class="chip" data-a="sugch" data-v="${i}">${esc(s)}</button>`).join('')}</div><div class="mut">Toque para criar (você escolhe 10, 15 ou 30 dias).</div></div>`;
@@ -794,7 +807,7 @@ function dayReport(k = dkey()) {
   const hs = S.habits.filter(h => h.days.includes(dow) && (!S.hardDay[k] || isMin(h))), dn = hs.filter(h => stOf(k, h.id) === 'done').length;
   const wk = S.workouts.filter(w => w.date === k).map(w => w.name).join(', ');
   const ms = S.meals[k] || [], md = S.mood[k] || {}, st = S.study[dow] || {}, pr = (S.prios[k] || []).map(p => p && p.t).filter(Boolean);
-  const wts = S.weights.find(x => x.date === k), ch = S.challenges.map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}${c.log[k] === 'ok' ? ' (hoje ok)' : ''}`).join('; ');
+  const wts = S.weights.find(x => x.date === k), ch = S.challenges.filter(c => !c.arq).map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}${c.log[k] === 'ok' ? ' (hoje ok)' : ''}`).join('; ');
   const rp = typeof rpgStats === 'function' ? rpgStats() : null;
   const nx = typeof journeyNext === 'function' ? journeyNext().slice(0,3).map(x=>x.title).join(' | ') : '';
   return `Sistema XP · registro do dia ${k}\nNível: ${rp ? rp.level + ' · ' + rp.total + ' XP' : '—'}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPróximas ações: ${nx || '—'}\nPomodoros: ${S.pomo[k] || 0} · Lições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
@@ -877,7 +890,9 @@ ${acc('cfgadv', `${ic('sliders')}<span>Avançado</span>`, APP_V, `<div class="ro
 
 /* ---------- render / nav ---------- */
 const TABS = [['hoje', 'sun', 'Hoje'], ['corpo', 'human-run', 'Corpo'], ['estudos', 'book-open', 'Estudos'], ['desafios', 'shield', 'Desafios'], ['mais', 'more-horizontal', 'Mais']];
+const chipMem = { sig: '', pos: [] };
 function render() {
+  chipMem.pos = [...document.querySelectorAll('#view .chips, #top .chips')].map(c => c.scrollLeft);
   const n = new Date(), k = dkey(n), hr = n.getHours();
   const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Jornada, dinheiro, semana e ajustes'] };
   const [h, p] = titles[ui.tab];
@@ -887,7 +902,15 @@ function render() {
   $('#view').innerHTML = { hoje: vHoje, corpo: vCorpo, estudos: vEstudos, desafios: vDesafios, mais: vMais }[ui.tab]();
   $('#nav').innerHTML = TABS.map(([i, c, l]) => `<button class="${ui.tab === i ? 'on' : ''}" data-a="tab" data-v="${i}" aria-label="${l}" ${ui.tab === i ? 'aria-current="page"' : ''}>${ic(c)}<span>${l}</span></button>`).join('');
   hydratePhotos();
-  document.querySelectorAll('.chips').forEach(c => { const on = c.querySelector('.on'); if (on) c.scrollLeft = Math.max(0, on.offsetLeft - (c.clientWidth - on.offsetWidth) / 2); });
+  const sig = ui.tab, same = sig === chipMem.sig;
+  document.querySelectorAll('#view .chips, #top .chips').forEach((c, i) => {
+    if (c.classList.contains('wrapc')) return;
+    if (same && chipMem.pos[i] != null) c.scrollLeft = chipMem.pos[i];
+    const on = c.querySelector('.on'); if (!on) return;
+    const l = on.offsetLeft, r = l + on.offsetWidth; if (l >= c.scrollLeft && r <= c.scrollLeft + c.clientWidth) return;
+    c.scrollLeft = Math.max(0, l - 16);
+  });
+  chipMem.sig = sig;
   document.querySelectorAll('.wchart').forEach(c => { c.scrollLeft = c.scrollWidth; });
 }
 
@@ -1002,6 +1025,9 @@ const A = {
   goaladd: v => { const g = S.goals.find(x => x.id === v); form('Guardar para ' + esc(g.title), [{ k: 'a', label: 'Quanto? (R$)', type: 'number' }], r => { g.saved = num(g.saved) + num(r.a); if (num(r.a) > 0 && sheetOn()) planQueue({ action: 'auto', month: dkey().slice(0, 7), type: 'out', cat: 'Outros', desc: 'Guardar: ' + g.title, hint: 'RESERVA|GUARDAR', valor: num(r.a) }); }); return false; },
   mtab: v => { ui.mais = v; },
   wo: v => { ui.wo += +v; },
+  addhabw: w => { const dow = new Date().getDay(); form('Adicionar à lista', [{ k: 'title', label: 'O que fazer', ph: 'Ex.: Ler 1 versículo' }, { k: 'rep', label: 'Repetir', type: 'select', value: 'hoje', options: [['hoje', 'Só hoje'], ['sempre', 'Todo ' + DF[dow].toLowerCase()], ['todo', 'Todo dia']] }, { k: 'at', label: 'Horário (opcional)', type: 'time', value: '' }], r => { if (!r.title.trim()) return; const h = hfix({ id: uid(), ord: 60, title: r.title.trim(), when: w, at: r.at, days: r.rep === 'todo' ? ALL : [dow], pts: 1, hard: 0 }); if (r.rep === 'hoje') h.only = dkey(); S.habits.push(h); }); return false; },
+  hedit: () => { ui.hEdit = !ui.hEdit; },
+  habskip: v => { const h = S.habits.find(x => x.id === v), k = dkey(); if (h && h.only) { S.habits = S.habits.filter(x => x.id !== v); return; } S.skipHoje = S.skipHoje || {}; Object.keys(S.skipHoje).forEach(x => { if (x < k) delete S.skipHoje[x]; }); (S.skipHoje[k] = S.skipHoje[k] || []).push(v); toast('Saiu só de hoje. Para tirar de vez, toque no lápis.'); },
   addhab: () => { form('Nova missão', habFields({ when: 'm', days: ALL, pts: 1, hard: 0 }), r => S.habits.push(hfix({ id: uid(), ord: 50, ...r }))); return false; },
   edithab: v => { const h = S.habits.find(x => x.id === v); form('Editar missão', habFields(h), r => Object.assign(h, hfix(r)), () => { S.habits = S.habits.filter(x => x.id !== v); }); return false; },
   addexp: () => { form('Quero explorar', expFields({}), r => S.explore.push({ id: uid(), ...r })); return false; },
@@ -1305,7 +1331,7 @@ function reportData(k = dkey()) {
   return {
     date: k, missoesPct: hs.length ? Math.round(100 * dn / hs.length) : 0, estudo: !!(S.studyLog[k] && S.studyLog[k].done), pomodoros: S.pomo[k] || 0, licoes: S.learn.days[k] || 0,
     aguaL: Math.round((S.water[k] || 0) / 100) / 10, treino: S.workouts.filter(w => w.date === k).map(w => w.name).join(', '), kcal: Math.round(sum(ms, 'kcal')), prot: Math.round(sum(ms, 'prot')),
-    peso: wts ? num(wts.kg) : null, desafios: S.challenges.map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}`).join('; '), humor: md.m || null, energia: md.e || null, moedas: coins(),
+    peso: wts ? num(wts.kg) : null, desafios: S.challenges.filter(c => !c.arq).map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}`).join('; '), humor: md.m || null, energia: md.e || null, moedas: coins(),
     vida: AREAS.map(a => `${a[1]} ${vi.s[a[0]] ?? '-'}`).join(' · '), resumo: (S.hardDay[k] ? 'DIA DIFÍCIL (mínimo de 3). ' : '') + dayReport(k) + (dow === 0 ? '\n\n' + weekSummary(wkStart(new Date(k + 'T12:00'))).txt : '')
   };
 }
