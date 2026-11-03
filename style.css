@@ -284,7 +284,7 @@ details.pomo-mini .row{gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .trset input,.trset select{padding:8px;text-align:center;font-size:18px;font-weight:700}
 .trset select{padding:8px 4px}
 .trset.done input,.trset.done select{background:var(--soft)}
-.trrest{position:sticky;top:8px;z-index:5;align-items:center;background:var(--water);box-shadow:0 4px 0 var(--ink)}
+.trrest{align-items:center;background:var(--water);box-shadow:0 4px 0 var(--ink)}
 .trrest b{font-size:20px}
 .badge.ok{background:var(--ok);color:#1f2a2e}
 details.card>.col{display:flex;flex-direction:column;gap:var(--s3)}
@@ -333,3 +333,8 @@ header#top .subt{margin:var(--s1) 0 0;color:var(--mut);font-size:13px;line-heigh
 .chips.wrapc .chip{flex:0 1 auto;max-width:100%;white-space:normal;text-align:left;height:auto;padding-top:8px;padding-bottom:8px}
 .grid3 b{overflow-wrap:anywhere}
 .blk .t{min-width:0;overflow-wrap:anywhere}
+
+/* ---------- treino: barra fixa no topo (v56) ---------- */
+.trsticky{position:-webkit-sticky;position:sticky;top:0;z-index:20;display:flex;flex-direction:column;gap:var(--s2);margin:0 calc(-1 * var(--s3));padding:calc(6px + env(safe-area-inset-top)) var(--s3) 6px;background:var(--bg)}
+.trbar{gap:6px;padding:var(--s2) var(--s3)}
+.bar.thin{height:10px;border-width:2px}
