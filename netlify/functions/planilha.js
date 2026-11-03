@@ -77,8 +77,11 @@ exports.handler = async event => {
       const tem = sh && (sh.conditionalFormats || []).some(c => c.booleanRule && c.booleanRule.condition && JSON.stringify(c.booleanRule.condition).includes('PAGO'));
       if (sh && !tem) {
         const last = Math.max(34, ...data.despesas.map(x => x.row));
-        const rq = { addConditionalFormatRule: { index: 0, rule: { ranges: [{ sheetId: sh.properties.sheetId, startRowIndex: 5, endRowIndex: last, startColumnIndex: 5, endColumnIndex: 7 }], booleanRule: { condition: { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: '=REGEXMATCH($F6," PAGO$")' }] }, format: { backgroundColor: { red: 0.80, green: 0.94, blue: 0.85 }, textFormat: { foregroundColor: { red: 0.07, green: 0.36, blue: 0.2 } } } } } } };
-        const r = await fetch(base(SHEET_ID) + ':batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ requests: [rq] }) }); if (!r.ok) throw new Error('Erro na regra verde: ' + (await r.text()).slice(0, 200)); regra = true;
+        // planilha em pt-BR separa argumentos com ";" — tenta ";" e, se o Google recusar, ","
+        const rq = f => ({ addConditionalFormatRule: { index: 0, rule: { ranges: [{ sheetId: sh.properties.sheetId, startRowIndex: 5, endRowIndex: last, startColumnIndex: 5, endColumnIndex: 7 }], booleanRule: { condition: { type: 'CUSTOM_FORMULA', values: [{ userEnteredValue: f }] }, format: { backgroundColor: { red: 0.80, green: 0.94, blue: 0.85 }, textFormat: { foregroundColor: { red: 0.07, green: 0.36, blue: 0.2 } } } } } } });
+        let r = null;
+        for (const f of ['=REGEXMATCH($F6;" PAGO$")', '=REGEXMATCH($F6," PAGO$")']) { r = await fetch(base(SHEET_ID) + ':batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ requests: [rq(f)] }) }); if (r.ok) break; }
+        if (!r.ok) throw new Error('Erro na regra verde: ' + (await r.text()).slice(0, 200)); regra = true;
       }
       return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, maiusculas: data3.length, regraVerde: regra || tem }) };
     }
