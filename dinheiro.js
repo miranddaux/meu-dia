@@ -6,6 +6,7 @@ const DIN_MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 
 const dMl = mo => DIN_MES[+mo.slice(5, 7) - 1] + '/' + mo.slice(2, 4);
 const DIN_VAR = { Mercado: 'mercado', Transporte: 'gasolina', Lazer: 'lazer' }; /* categorias do Porkinho que contam como gasto variável do plano */
 const DIN_SKIP = ['Moradia', 'Assinaturas', 'Academia/Suplementos']; /* já estão no plano (fixos e assinaturas): não contar duas vezes */
+const dinEssencial = f => f.essencial !== false; /* conta fixa é essencial por padrão; o usuário pode marcar explicitamente como não essencial. Dados pessoais continuam fora do repositório. */
 const dinEx = () => { const m = dkey().slice(0, 7); return { exemplo: true, renda: { liquido: 3000, meta: [3500, 4000] }, cartao: { fecha: 19, vence: 25 }, fixos: [{ nome: 'Aluguel (exemplo)', valor: 900, prioridade: 1 }, { nome: 'Luz (exemplo)', valor: 120 }], assinaturas: [{ nome: 'Streaming (exemplo)', valor: 30 }], parcelas: [{ nome: 'Celular (exemplo)', valor: 150, total: 10, atual: 3, atualMes: m }], pontuais: [{ nome: 'Presente (exemplo)', valor: 80, mes: addMo(m, 1) }], variaveis: { mercado: 400, gasolina: 150, lazer: 150 }, colchao: { inicial: 0, programado: 100, folga: 50, metas: [{ valor: 500, ate: addMo(m, 5) }] }, sozinho: { mercado: 600, internet: 80 }, desejos: [{ nome: 'Fone (exemplo)', valor: 200, tipo: 'avista' }] }; };
 
 /* ---------- dados ---------- */
@@ -43,7 +44,7 @@ function dinMonth(mo, o) {
   o = o || {}; const P = dinEff(), d = dinS(), r = {}, ov = (d.shOv || {})[mo] || {}, ovf = (k, v) => ov[k] != null ? num(ov[k]) : v; /* ov = o que você mudou direto na planilha */
   const ln = (nome, valor, x) => Object.assign({ nome, valor }, x || {});
   const sum = a => a.reduce((s, x) => s + x.valor, 0);
-  r.fixos = (P.fixos || []).filter(f => f._ex !== undefined || !dinHid('f:' + f.nome)).filter(f => (!f.de || mo >= f.de) && (!f.ate || mo <= f.ate)).map(f => ln(f.nome, ovf('f:' + f.nome, f.porMes ? num(f.porMes[mo]) : num(f.valor)), { pri: f.prioridade || 9, ex: f._ex })).filter(x => x.valor > 0);
+  r.fixos = (P.fixos || []).filter(f => f._ex !== undefined || !dinHid('f:' + f.nome)).filter(f => (!f.de || mo >= f.de) && (!f.ate || mo <= f.ate)).map(f => ln(f.nome, ovf('f:' + f.nome, f.porMes ? num(f.porMes[mo]) : num(f.valor)), { pri: f.prioridade || 9, ex: f._ex, ess: dinEssencial(f) })).filter(x => x.valor > 0);
   if (o.extraFixo) r.fixos.push(ln('Internet (morando sozinho)', o.extraFixo, { pri: 9 }));
   r.assin = (P.assinaturas || []).filter(a => !dinHid('a:' + a.nome)).map(a => ln(a.nome, num(a.valor), { opc: !!a.opcional }));
   r.parc = [];
@@ -125,7 +126,7 @@ function vDinheiro() {
   out += `<div class="card">${sec('calendar-week', 'Dinheiro da semana', `<b>${brl(w.plan)}</b>`)}<div class="mut">Mercado, gasolina e lazer. Gastou ${brl(w.spent)} · ${w.left >= 0 ? 'ainda tem ' + brl(w.left) : 'passou ' + brl(-w.left)}.</div><div class="bar ${w.pct > 100 ? 'over' : ''}"><i style="width:${Math.min(100, w.pct)}%"></i></div>${warn ? `<div class="banner warn"><span>${warn}</span></div>` : ''}${w.last > 1 ? `<div class="mut">Semana passada sobrou ${brl(w.last)}. Pode ir para o colchão.</div>` : ''}${m.vars.map(v => `<div><div class="row sp"><span>${esc(v.nome)}</span><span class="mut">${brl(v.real)} / ${brl(v.plan)} no mês</span></div><div class="bar thin ${v.real > v.plan ? 'over' : ''}"><i style="width:${v.plan ? Math.min(100, v.real / v.plan * 100) : 0}%"></i></div></div>`).join('')}</div>`;
   /* 3) contas do mês */
   const items = [];
-  m.fixos.slice().sort((a, c) => a.pri - c.pri || c.valor - a.valor).forEach(x => items.push({ k: 'f:' + x.nome, nome: x.nome, valor: x.valor, sub: x.pri === 1 ? 'pagar primeiro' : '', ed: x.ex !== undefined ? ['dineditfixo', x.ex] : null }));
+  m.fixos.slice().sort((a, c) => (c.ess ? 1 : 0) - (a.ess ? 1 : 0) || a.pri - c.pri || c.valor - a.valor).forEach(x => items.push({ k: 'f:' + x.nome, nome: x.nome, valor: x.valor, sub: [x.ess ? 'essencial' : 'não essencial', x.pri === 1 ? 'pagar primeiro' : ''].filter(Boolean).join(' · '), ed: x.ex !== undefined ? ['dineditfixo', x.ex] : null }));
   m.pont.forEach(x => items.push({ k: 'x:' + x.nome, nome: x.nome, valor: x.valor, falta: x.falta, ix: x.ix, sub: 'só neste mês' }));
   m.parc.forEach(x => items.push({ k: 'p:' + x.nome, nome: x.nome, valor: x.valor, sub: `parcela ${x.i} de ${x.n}${x.card ? ' · cartão' : ''}`, ed: x.ex !== undefined ? ['dineditparc', x.ex] : null }));
   if (m.assin.length) items.push({ k: 'a:todas', nome: `Assinaturas (${m.assin.length})`, valor: m.tot.assin, sub: m.assin.map(a => a.nome).join(', ') });
@@ -171,7 +172,7 @@ function vDinheiro() {
 /* resumo do mês em texto, para colar no chat e eu atualizar a planilha */
 function dinSummary() {
   const d = dinS(), mo = dkey().slice(0, 7), m = dinMonth(mo), paid = d.paid[mo] || {}, c = dinColch(), w = dinWeek();
-  const L2 = [`Dinheiro · ${dMl(mo)} · gerado em ${sd2(dkey())}`, `Sobra prevista: ${brl(m.sobra)} (${dTxt[dinSem(m.sobra)]})`, `Entradas extras no mês: ${brl(m.extras)}`, `Semana: gastou ${brl(w.spent)} de ${brl(w.plan)}`, `Variáveis no mês: ${m.vars.map(v => `${v.nome} ${brl(v.real)}/${brl(v.plan)}`).join(' · ')}`, `Outros gastos fora do plano: ${m.outros.map(o => `${o.nome} ${brl(o.valor)}`).join(', ') || 'nenhum'}`, `Pagos: ${Object.keys(paid).map(k => k.slice(2)).join(', ') || 'nenhum ainda'}`, `Colchão guardado: ${brl(c.real)}${c.now > 0 ? ' (guardou ' + brl(c.now) + ' neste mês)' : ''}`, `Cartão neste mês: ${d.cards.flatMap(dinCardFlows).filter(f => f.mo === mo).length ? brl(d.cards.flatMap(dinCardFlows).filter(f => f.mo === mo).reduce((a, f) => a + f.v, 0)) : 'nada novo'}`, `Fatura paga: ${d.fat[mo] ? 'sim' : 'não'}`];
+  const L2 = [`Dinheiro · ${dMl(mo)} · gerado em ${sd2(dkey())}`, `Sobra prevista: ${brl(m.sobra)} (${dTxt[dinSem(m.sobra)]})`, `Entradas extras no mês: ${brl(m.extras)}`, `Semana: gastou ${brl(w.spent)} de ${brl(w.plan)}`, `Variáveis no mês: ${m.vars.map(v => `${v.nome} ${brl(v.real)}/${brl(v.plan)}`).join(' · ')}`, `Outros gastos fora do plano: ${m.outros.map(o => `${o.nome} ${brl(o.valor)}`).join(', ') || 'nenhum'}`, `Essenciais do mês: ${m.fixos.filter(f => f.ess).map(f => `${f.nome} ${brl(f.valor)}`).join(', ') || 'nenhum'}`, `Pagos: ${Object.keys(paid).map(k => k.slice(2)).join(', ') || 'nenhum ainda'}`, `Colchão guardado: ${brl(c.real)}${c.now > 0 ? ' (guardou ' + brl(c.now) + ' neste mês)' : ''}`, `Cartão neste mês: ${d.cards.flatMap(dinCardFlows).filter(f => f.mo === mo).length ? brl(d.cards.flatMap(dinCardFlows).filter(f => f.mo === mo).reduce((a, f) => a + f.v, 0)) : 'nada novo'}`, `Fatura paga: ${d.fat[mo] ? 'sim' : 'não'}`];
   return L2.join('\n');
 }
 
@@ -259,9 +260,9 @@ function dinWantForm(x) {
 
 function dinFixoForm(ix) {
   const d = dinS(), f = ix >= 0 ? d.extra.fixos[ix] : {};
-  form(ix >= 0 ? 'Editar conta fixa' : 'Conta fixa nova', [{ k: 'nome', label: 'Nome', value: f.nome || '' }, { k: 'valor', label: 'Valor por mês (R$)', type: 'number', value: f.valor || '' }, { k: 'ate', label: 'Até qual mês? (ex.: 2027-04). Vazio = para sempre', value: f.ate || '' }, { k: 'pri', label: 'Prioridade', type: 'select', value: String(f.prioridade || 2), options: [['1', 'Pagar primeiro (casa, terreno, obra)'], ['2', 'Normal']] }], r => {
+  form(ix >= 0 ? 'Editar conta fixa' : 'Conta fixa nova', [{ k: 'nome', label: 'Nome', value: f.nome || '' }, { k: 'valor', label: 'Valor por mês (R$)', type: 'number', value: f.valor || '' }, { k: 'essencial', label: 'Classificação', type: 'select', value: f.essencial === false ? 'nao' : 'sim', options: [['sim', 'Essencial (saúde, moradia, contas básicas)'], ['nao', 'Não essencial']] }, { k: 'ate', label: 'Até qual mês? (ex.: 2027-04). Vazio = para sempre', value: f.ate || '' }, { k: 'pri', label: 'Prioridade de pagamento', type: 'select', value: String(f.prioridade || 2), options: [['1', 'Pagar primeiro'], ['2', 'Normal']] }], r => {
     if (!(num(r.valor) > 0)) return;
-    const o = { nome: r.nome.trim() || 'Conta', valor: num(r.valor), prioridade: +r.pri || 2 }; if (/^\d{4}-\d{2}$/.test(r.ate.trim())) o.ate = r.ate.trim();
+    const o = { nome: r.nome.trim() || 'Conta', valor: num(r.valor), essencial: r.essencial !== 'nao', prioridade: +r.pri || 2 }; if (/^\d{4}-\d{2}$/.test(r.ate.trim())) o.ate = r.ate.trim();
     if (ix >= 0) d.extra.fixos[ix] = o; else d.extra.fixos.push(o);
   }, ix >= 0 ? () => { d.extra.fixos.splice(ix, 1); } : null);
 }
