@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v41';
+const APP_V = 'v43';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -68,7 +68,7 @@ const rendaVal = () => { const c = (typeof planCache === 'function') ? planCache
 const PLAN_KEY = 'meudia_plan';
 const pdays = () => (S.planDays = S.planDays || {});
 const pkey = d => String(d).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/\s+/g, ' ').trim();
-const ui = { tab: 'hoje', hv: 'hoje', open: {}, mais: 'prog', corpo: 'treino', wo: 0, sd: null, mo: dkey().slice(0, 7), md: dkey(), flash: '', dt: 'detox', ju: 'nay', ix: 0, tm: null, es: 'plano', sub: 'mt', ls: null };
+const ui = { tab: 'hoje', hv: 'hoje', open: {}, mais: 'jor', corpo: 'treino', wo: 0, sd: null, mo: dkey().slice(0, 7), md: dkey(), flash: '', dt: 'detox', ju: 'nay', ix: 0, tm: null, es: 'plano', sub: 'mt', ls: null };
 
 function b(s, e, t, type, x) { return Object.assign({ id: uid(), s, e, t, type }, x || {}); }
 const MORN = () => [
@@ -164,7 +164,7 @@ function defaults() {
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
     study: { 0: th('', ''), 1: th('Front-end (Udemy: aula do professor do dia)', 'Front-end web (Udemy)'), 2: th('Inglês (aula com o Claude)', 'Inglês'), 3: th('Python (Curso em Vídeo, Guanabara)', 'Python (Guanabara)'), 4: th('Produto, UX e UI', 'UI/UX e Product Design'), 5: th('Fixação: flashcards, questões e diagnóstico', 'UI/UX e Product Design'), 6: th('Matemática (opcional)', 'Matemática de apoio') },
-    studyLog: {},
+    studyLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Python (Guanabara)', link: '', now: '' },
@@ -191,6 +191,7 @@ function load() {
   S.settings.sync = Object.assign(dsy, (raw && raw.settings && raw.settings.sync) || {});
   S.settings.pom = Object.assign(dpm, (raw && raw.settings && raw.settings.pom) || {});
   if (!S.learn || !S.learn.done) S.learn = { done: {}, days: {}, xp: 0 };
+  S.reminders = Array.isArray(S.reminders) ? S.reminders : [];
   S.ideas = Object.assign({ done: [], mine: [] }, (raw && raw.ideas) || {});
   S.flags = (raw && raw.flags) || {};
   if (raw) migrate(); else S.flags.fresh = 1;
@@ -731,11 +732,56 @@ const granaParts = () => granaAll(true);
 
 /* ---------- Mais ---------- */
 function vMais() {
-  const tabs = [['din', 'coin', 'Dinheiro'], ['eu', 'mood-happy', 'Eu'], ['prog', 'chart-bar', 'Progresso'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['vida', 'heart', 'Roda da vida'], ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
-  if (ui.mais !== 'cfg' && !tabs.find(t => t[0] === ui.mais)) ui.mais = 'prog';
+  const tabs = [['jor', 'trending-up', 'Jornada'], ['prog', 'chart-bar', 'Progresso'], ['vida', 'heart', 'Mapa da vida'], ['din', 'coin', 'Dinheiro'], ['rem', 'bell', 'Lembretes'], ['eu', 'mood-happy', 'Eu'], ...(S.settings.gamify ? [['loja', 'coin', 'Loja']] : []), ['hab', 'checklist', 'Missões'], ['exp', 'lightbulb-on', 'Explorar'], ['laz', 'cloud-sun', 'Tempo livre'], ['rev', 'note', 'Revisão']];
+  if (ui.mais !== 'cfg' && !tabs.find(t => t[0] === ui.mais)) ui.mais = 'jor';
   const out = `<div class="chips">${tabs.map(([i, c, l]) => `<button class="chip ${ui.mais === i ? 'on' : ''}" data-a="mtab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
-  return out + ({ din: vDinheiro, eu: vEu, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
+  return out + ({ jor: vJornada, din: vDinheiro, eu: vEu, vida: vVida, prog: vProg, loja: vLoja, pork: vGrana, rem: vReminders, hab: vHab, exp: vExp, laz: vLaz, rev: vRev, cfg: vCfg }[ui.mais])();
 }
+function journeyNext() {
+  const k = dkey(), out = [], rd = roadLoad();
+  (rd.items || []).filter(x => x.status !== 'Concluído' && x.date <= k).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3).forEach(x => out.push({ icon:'book-open', title:x.title, meta:x.date < k ? 'Roadmap · atrasado ' + sd2(x.date) : 'Roadmap · hoje', a:'roaddone', v:x.id, cta:'Concluir' }));
+  (S.reminders || []).filter(r => !r.done && r.date <= k).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3).forEach(r => out.push({ icon:'bell', title:r.title, meta:r.date < k ? 'Lembrete · atrasado ' + sd2(r.date) : 'Lembrete · hoje' + (r.time ? ' às ' + r.time : ''), a:'remdone', v:r.id, cta:'Concluir' }));
+  const dow = new Date().getDay();
+  if (dow >= 1 && dow <= 5 && !(S.studyLog[k] && S.studyLog[k].done)) {
+    const st = S.study[dow] || {};
+    out.push({ icon:'book-open', title:st.theme || 'Estudo da manhã', meta:'Estudo · próximo passo de hoje', a:'jgo', v:'estudos', cta:'Abrir' });
+  }
+  const vw = (S.vida || {})[vwk()] || { a:{}, d:{} };
+  Object.keys(vw.a || {}).filter(id => vw.a[id] && !(vw.d || {})[id]).slice(0,2).forEach(id => {
+    const ar = AREAS.find(a => a[0] === id);
+    out.push({ icon: ar ? ar[2] : 'heart', title:vw.a[id], meta:'Mapa da vida · ' + (ar ? ar[1] : 'ação da semana'), a:'vdone', v:id, cta:'Feito' });
+  });
+  const g = activeGoals().find(x => goalDue(x, k));
+  if (g) out.push({ icon:'wallet', title:'Guardar para ' + g.title, meta:'Finanças · ' + brl(goalM(g, k.slice(0,7))), a:'jgo', v:'din', cta:'Abrir' });
+  return out.slice(0,6);
+}
+function vJornada() {
+  if (S.settings.sync.key) setTimeout(() => roadFetch(false), 0);
+  const r = typeof rpgStats === 'function' ? rpgStats() : { level:1, total:0, cur:0, next:150, xp:{} };
+  const nx = journeyNext(), vw = (S.vida || {})[vwk()] || { s:{} };
+  const vals = AREAS.map(a => vw.s[a[0]]).filter(v => v !== undefined), life = vals.length ? r1(vals.reduce((a,n)=>a+n,0)/vals.length) : '—';
+  const row = x => `<div class="journey-step"><div class="journey-step-ic">${ic(x.icon)}</div><div class="grow"><b>${esc(x.title)}</b><div class="mut">${esc(x.meta)}</div></div><button class="btn sm ${x.a === 'jgo' ? 'ghost' : ''}" data-a="${x.a}" data-v="${esc(x.v)}">${esc(x.cta)}</button></div>`;
+  let out = `<div class="card journey-hero"><div class="row sp"><div><div class="grp">JORNADA ATUAL</div><div class="big">Nível ${r.level}</div><div class="mut">${r.total} XP acumulados · progresso real, sem perder XP.</div></div><div class="journey-level">${Math.round(r.cur/r.next*100)}%</div></div><div class="bar"><i style="width:${Math.round(r.cur/r.next*100)}%"></i></div><div class="mut">${r.cur}/${r.next} XP para o próximo nível.</div></div>`;
+  out += `<div class="grid3 journey-stats"><div><b>${nx.length}</b><small>próximas ações</small></div><div><b>${life}</b><small>Mapa da vida</small></div><div><b>${S.settings.sync.key ? 'ON' : 'OFF'}</b><small>Notion</small></div></div>`;
+  out += `<div class="card">${sec('flag','Próximas ações',`<button class="btn sm ghost" data-a="jgo" data-v="rem">Lembretes</button>`)}<div class="mut">O app junta o que vence no Meu Dia com o Roadmap do Notion e mostra primeiro o que precisa da sua atenção.</div>${nx.length ? nx.map(row).join('') : '<div class="banner">'+ic('check')+'<span>Nada urgente agora. Continue a rotina e registre o que fizer.</span></div>'}</div>`;
+  out += typeof rpgCard === 'function' ? rpgCard() : '';
+  const map = AREAS.map(([id,nm,ico]) => `<button class="journey-area" data-a="jgo" data-v="vida"><span>${ic(ico)}</span><b>${esc(nm)}</b><small>${vw.s[id] === undefined ? 'avaliar' : vw.s[id] + '/10'}</small></button>`).join('');
+  out += `<div class="card">${sec('heart','Mapa da vida',`<button class="btn sm ghost" data-a="jgo" data-v="vida">Abrir</button>`)}<div class="mut">Cada área tem nota semanal, uma ação pequena e XP quando você conclui.</div><div class="journey-map">${map}</div></div>`;
+  out += `<div class="card">${sec('sync','Conexões')}<div class="journey-conn"><span>${ic('book-open')}Roadmap / Notion</span><b class="${S.settings.sync.key ? 'ok' : 'warnc'}">${S.settings.sync.key ? 'conectado' : 'configurar'}</b></div><div class="journey-conn"><span>${ic('bell')}Avisos no iPhone</span><b>${S.settings.push && S.settings.push.on ? 'ligados' : 'opcional'}</b></div><div class="journey-conn"><span>${ic('save')}Backup na nuvem</span><b>${S.settings.cloudLast ? 'ativo' : 'pendente'}</b></div><button class="btn ghost full" data-a="cfg">${ic('sliders')}Abrir integrações</button></div>`;
+  return out;
+}
+function vReminders() {
+  const rs = [...S.reminders].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+  return `<div class="card">${sec('bell','Lembretes pessoais',`<button class="btn sm" data-a="remadd">${ic('plus')}Novo</button>`)}<div class="mut">Ficam só no seu aparelho/backup. Para aviso com o app fechado, use o Calendário do iPhone em Ajustes.</div>${rs.map(r=>`<div class="item"><div class="t"><b>${esc(r.title)}</b><div class="mut">${sd2(r.date)}${r.time?' · '+esc(r.time):''}${r.note?' · '+esc(r.note):''}${r.done?' · concluído':''}</div></div><button class="chip ${r.done?'on':''}" data-a="remdone" data-v="${r.id}">${ic('check')}${r.done?'Feito':'Marcar'}</button>${ib('edit','Editar lembrete','remedit',r.id)}</div>`).join('')||'<div class="mut">Nenhum lembrete ainda.</div>'}</div>`;
+}
+function remForm(r={}) {
+  form(r.id?'Editar lembrete':'Novo lembrete', [{k:'title',label:'Lembrete',value:r.title||''},{k:'date',label:'Data',type:'date',value:r.date||dkey()},{k:'time',label:'Horário (opcional)',type:'time',value:r.time||''},{k:'note',label:'Observação',value:r.note||''}], x=>{
+    const o={id:r.id||uid(),title:x.title.trim()||'Lembrete',date:x.date||dkey(),time:x.time||'',note:x.note.trim()||'',done:!!r.done};
+    if(r.id) S.reminders[S.reminders.findIndex(y=>y.id===r.id)]=o; else S.reminders.push(o);
+  }, r.id?()=>{S.reminders=S.reminders.filter(x=>x.id!==r.id);}:null);
+}
+Object.assign(A,{remadd:()=>{remForm({});return false;},remedit:v=>{const r=S.reminders.find(x=>x.id===v);if(r) remForm(r);return false;},remdone:v=>{const r=S.reminders.find(x=>x.id===v);if(r){r.done=!r.done;save();}}});
+Object.assign(A,{jgo:v=>{if(v==='estudos'){ui.tab='estudos';window.scrollTo(0,0);return;}ui.tab='mais';ui.mais=v==='vida'?'vida':v==='din'?'din':v==='rem'?'rem':'jor';window.scrollTo(0,0);}});
 function vLoja() {
   const bal = coins(), rw = [...S.settings.rewards].sort((a, c) => a.at - c.at);
   let out = `<div class="card center">${ic('coin', 'xl')}<div class="big">${bal}</div><div class="mut">moedas disponíveis</div></div>`;
@@ -753,7 +799,9 @@ function dayReport(k = dkey()) {
   const wk = S.workouts.filter(w => w.date === k).map(w => w.name).join(', ');
   const ms = S.meals[k] || [], md = S.mood[k] || {}, st = S.study[dow] || {}, pr = (S.prios[k] || []).map(p => p && p.t).filter(Boolean);
   const wts = S.weights.find(x => x.date === k), ch = S.challenges.map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}${c.log[k] === 'ok' ? ' (hoje ok)' : ''}`).join('; ');
-  return `Sistema XP · registro do dia ${k}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPomodoros: ${S.pomo[k] || 0} · Lições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
+  const rp = typeof rpgStats === 'function' ? rpgStats() : null;
+  const nx = typeof journeyNext === 'function' ? journeyNext().slice(0,3).map(x=>x.title).join(' | ') : '';
+  return `Sistema XP · registro do dia ${k}\nNível: ${rp ? rp.level + ' · ' + rp.total + ' XP' : '—'}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPróximas ações: ${nx || '—'}\nPomodoros: ${S.pomo[k] || 0} · Lições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
 }
 function weekSummary(ws) {
   const days = [...Array(7)].map((_, i) => addD(ws, i)), ks = days.map(d => dkey(d)), today = dkey(), past = ks.filter(k => k <= today), a = ks[0], z = ks[6];
@@ -782,7 +830,7 @@ function vProgSem() {
   const g = num(S.settings.waterGoal), wd = days.filter(d => g && (S.water[dkey(d)] || 0) >= g).length;
   const moods = days.map(d => S.mood[dkey(d)]).filter(x => x && x.m);
   const wsum = weekSummary(ws);
-  let out = `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
+  let out = (typeof rpgCard === 'function' ? rpgCard() : '') + `<div class="row sp card slim">${ib('chevron-left', 'Semana anterior', 'wo', -1)}<b>${short(ws)} – ${short(addD(ws, 6))}${ui.wo === 0 ? ' (esta semana)' : ''}</b>${ib('chevron-right', 'Próxima semana', 'wo', 1)}</div>`;
   out += `<div class="card">${sec('trending-up', 'Resumo da semana')}<div class="grp">O que foi bem</div><div>${wsum.wins.length ? wsum.wins.map(x => '· ' + esc(x)).join('<br>') : '<span class="mut">Semana ainda começando.</span>'}</div><div class="grp">Ajuste sugerido</div><div>${esc(wsum.adj[0])}</div><div class="mut">Regras simples do app. Para uma análise completa, cole o resumo no Claude com Sistema XP.</div><button class="btn full" data-a="copyweek" data-v="${ui.wo}">${ic('copy')}Copiar resumo da semana</button></div>`;
   out += `<div class="grid3"><div><b>${pw === null ? '—' : pw + '%'}</b><small>missões</small></div><div><b>${sd}/5</b><small>estudos</small></div><div><b>${wkc}</b><small>treinos</small></div></div>`;
   out += `<div class="grid3"><div><b>${wd}/7</b><small>água na meta</small></div><div><b>${S.challenges.map(c => chDays(c)).reduce((a, x) => a + x, 0)}</b><small>dias de desafio</small></div><div><b>${S.settings.gamify ? coins() : '—'}</b><small>moedas</small></div></div>`;
@@ -1236,6 +1284,7 @@ function downloadIcs(w) {
   });
   add('Anotar as 3 prioridades do dia', now, '06:45', 'FREQ=DAILY', 'PT0S', 10);
   add('Fechar o dia: marcar as prioridades (feito ou não)', now, '21:30', 'FREQ=DAILY', 'PT0S', 10);
+  (S.reminders || []).filter(r => !r.done && r.date).forEach(r => add(r.title || 'Lembrete', new Date(r.date + 'T12:00'), r.time || '09:00', '', ['-P1D', 'PT0S'], 15, r.id));
   const sun = [0, 1, 2, 3, 4, 5, 6].map(i => addD(now, i)).find(d => d.getDay() === 0);
   add('Lançar os gastos da semana no Porkinho', sun, '20:00', 'FREQ=WEEKLY;BYDAY=SU', 'PT0S', 10);
   add('Revisar Porkinho: limites e metas', new Date(now.getFullYear(), now.getMonth() + 1, 1), '09:00', 'FREQ=MONTHLY;BYMONTHDAY=1', 'PT0S', 15);
@@ -1393,6 +1442,9 @@ function notifs() {
   S.bills.forEach(b => { if (paid[b.id]) return; const r = rel(billDue(b, mo)); if (r) add(`b:${b.id}:${mo}`, 'wallet', `${b.title} ${r} (${brl(num(b.amount))}).`, [['Paguei', 'paybill', b.id, mo]]); });
   Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas, row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const r = rel(billDue({ day: p.day }, mo)); if (r) add(`p:${pkey(p.t)}:${mo}`, 'wallet', `${p.t} ${r}.`, [['Abrir Dinheiro', 'loja_pork', '', '']]); });
   dinNotifs(add, k, mo);
+  if (S.settings.sync.key) setTimeout(() => roadFetch(false), 0);
+  (roadLoad().items || []).filter(x => x.status !== 'Concluído' && x.date <= k).slice(0,4).forEach(x => add(`road:${x.id}:${x.date}`,'book-open',`${x.title}${x.date<k?' · Roadmap atrasado desde '+sd2(x.date):' · Roadmap de hoje'}.`,[['Concluir','roaddone',x.id,'']]));
+  S.reminders.filter(r=>!r.done && r.date<=k).forEach(r=>add(`r:${r.id}:${r.date}`,'bell',`${r.title}${r.date<k?' · atrasado desde '+sd2(r.date):' · hoje'}${r.time?' às '+r.time:''}.`,[['Concluir','remdone',r.id,'']]));
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) add(`t:${k}`, 'wallet', 'Faz uns dias sem lançar gastos no Porkinho.', [['Lançar', 'addtx', '', '']]);
   if (S.settings.icsHash !== icsSig()) add(`i:${k}`, 'clock', S.settings.icsHash ? 'Seus lembretes mudaram. Atualize no Calendário.' : 'Ative os avisos no iPhone (missões, contas, cachorros).', [[S.settings.icsHash ? 'Atualizar' : 'Ativar', 'ics', '', '']]);
@@ -1630,7 +1682,7 @@ const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in win
 const pushCall = async (method, body) => { const r = await fetch(pushUrl(), { method, headers: { 'content-type': 'application/json', 'x-app-key': S.settings.sync.key }, body: body ? JSON.stringify(body) : undefined }); const t = await r.text(); if (!r.ok) throw new Error(t.slice(0, 160)); try { return JSON.parse(t); } catch (e) { return {}; } };
 function pushCard() {
   const on = S.settings.push && S.settings.push.on, k = S.settings.sync.key;
-  const msg = !k ? 'Primeiro coloque a chave do app no card do Notion.' : !pushSupported() ? 'Para receber avisos, abra o app pelo ícone da tela inicial (iPhone com iOS 16.4 ou mais novo).' : on ? 'Ligados. Eu aviso no dia certo (8h, 12h ou 18h): dia do pagamento, fatura do cartão, contas que vencem e metas.' + (S.settings.push.err ? ' Último erro: ' + esc(S.settings.push.err) : '') : 'Desligados. Ligue para eu te lembrar das contas nos dias que importam.';
+  const msg = !k ? 'Primeiro coloque a chave do app no card do Notion.' : !pushSupported() ? 'Para receber avisos, abra o app pelo ícone da tela inicial (iPhone com iOS 16.4 ou mais novo).' : on ? 'Ligados. Eu aviso no dia certo: lembretes pessoais, Roadmap do Notion, dia do pagamento, fatura, contas e metas.' + (S.settings.push.err ? ' Último erro: ' + esc(S.settings.push.err) : '') : 'Desligados. Ligue para eu te lembrar das contas nos dias que importam.';
   return `<div class="card">${sec('bell', 'Avisos no iPhone')}<div class="banner">${ic('info-box')}<span>${msg}</span></div>${k && pushSupported() ? (on ? `<div class="row wrap"><button class="btn" data-a="pushtest">${ic('bell')}Enviar aviso de teste</button><button class="btn ghost" data-a="pushoff">Desligar</button></div>` : `<button class="btn full" data-a="pushon">${ic('bell')}Ligar avisos</button>`) : ''}</div>`;
 }
 const b64u8 = s => { const p = '='.repeat((4 - s.length % 4) % 4), b = (s + p).replace(/-/g, '+').replace(/_/g, '/'), r = atob(b); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); };
@@ -1662,6 +1714,8 @@ function agendaAvisos() {
     const bp = S.billPaid[mo] || {}; S.bills.forEach(b => { if (bp[b.id]) return; const df = rel(billDue(b, mo), k); if (df === 1 || df === 0) add('b:' + b.id + ':' + mo + ':' + df, k, 8, b.title, (df ? 'Vence amanhã' : 'Vence hoje') + ` (${brl(num(b.amount))}).`); });
     Object.values(pdays()).forEach(p => { const pc = (planCache(mo) || {}).despesas, row = pc && pc.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const df = rel(billDue({ day: p.day }, mo), k); if (df === 1 || df === 0) add('pd:' + pkey(p.t) + ':' + mo + ':' + df, k, 8, p.t, df ? 'Vence amanhã.' : 'Vence hoje.'); });
   }
+  (S.reminders || []).filter(r => !r.done && r.date >= today && r.date <= dkey(addD(new Date(today + 'T12:00'), 9))).forEach(r => add('rem:' + r.id, r.date, r.time || '09:00', r.title, r.note || 'Lembrete do Meu Dia.'));
+  (roadLoad().items || []).filter(x => x.status !== 'Concluído' && x.date >= today && x.date <= dkey(addD(new Date(today + 'T12:00'), 9))).forEach(x => add('road:' + x.id, x.date, '08:00', 'Roadmap: ' + x.title, [x.tipo,x.cat,x.crit].filter(Boolean).join(' · ') || 'Tarefa do Roadmap no Notion.'));
   conteudoAvisos(today, add);
   const seen = new Set(); return out.filter(x => !seen.has(x.id) && seen.add(x.id));
 }
