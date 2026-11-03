@@ -207,7 +207,7 @@ function trRecent(id, exceptId) {
 function trCardioCard(cur) {
   const c = cur.cardio, running = !!c.startAt;
   return `<div class="card"><div class="row sp"><h2 class="px">${ic('human-run')}<span>CARDIO DE HOJE</span></h2>${c.done ? `<span class="badge ok">${ic('check', 'sm')}feito</span>` : ''}</div>
-<div class="grid3"><div><b>${c.target === c.upto ? c.target : c.target + '–' + c.upto} min</b><small>tempo</small></div><div><b>${esc(c.type.split(' ')[0])}</b><small>tipo</small></div><div><b>${esc(c.intensity)}</b><small>intensidade</small></div></div>
+<div class="grid3"><div><b>${c.target === c.upto ? c.target : c.target + '–' + c.upto} min</b><small>tempo</small></div><div><b>${esc({ 'Caminhada na esteira': 'Esteira', 'Caminhada na rua': 'Rua' }[c.type] || c.type)}</b><small>tipo</small></div><div><b>${esc(c.intensity)}</b><small>intensidade</small></div></div>
 <label>Tipo</label><select data-c="trcardio" data-v="type">${TR_CARDIO.map(x => `<option ${x === c.type ? 'selected' : ''}>${x}</option>`).join('')}</select>
 <div class="chips">${['Leve', 'Moderada'].map(x => `<button class="chip ${c.intensity === x ? 'on' : ''}" data-a="trcint" data-v="${x}">${x}</button>`).join('')}</div>
 <div class="center1"><div class="big" id="trCardioTxt">${running ? '' : c.target + ':00'}</div><div class="mut">Sem correr no começo. Dá para conversar enquanto anda.</div></div>

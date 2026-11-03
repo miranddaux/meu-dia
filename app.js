@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v53';
+const APP_V = 'v54';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -903,7 +903,7 @@ function render() {
   else if (ui.tab === 'corpo') { const CN = { treino: 'Treino', dieta: 'Dieta', metas: 'Metas e peso' }; p = `<nav class="crumbs" aria-label="Você está em">${crumb(['Corpo', 'ctab', 'treino'], [CN[ui.corpo] || 'Treino'])}</nav>`; }
   else if (ui.tab === 'desafios') p = `<nav class="crumbs" aria-label="Você está em">${crumb(['Desafios', 'dt', 'detox'], [ui.dt === 'melhorar' ? 'Melhorar' : 'Detox'])}</nav>`;
   else p = esc(p);
-  const onCfg = ui.tab === 'mais' && ui.mais === 'cfg', onLoja = ui.tab === 'mais' && ui.mais === 'loja';
+  const onCfg = ui.tab === 'mais' && ['cfg', 'exp', 'laz'].includes(ui.mais), onLoja = ui.tab === 'mais' && ui.mais === 'loja';
   const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" class="${onCfg ? 'on' : ''}" aria-label="Ajustes" ${onCfg ? 'aria-current="page"' : ''}>${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" class="${onLoja ? 'on' : ''}" aria-label="Moedas: abrir loja" ${onLoja ? 'aria-current="page"' : ''}>${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   const prev = /github\.io$/.test(location.hostname) ? `<div class="banner warn">${ic('info-box')}<span>Versão web provisória. Treino, rotina e fotos funcionam. Planilha, Notion e avisos voltam no app oficial dia 20/11 (leve um backup para lá).</span></div>` : '';
   $('#top').innerHTML = `${hud}${prev}<h1 class="px">${esc(h)}</h1><div class="subt">${p}</div>`;
@@ -1513,6 +1513,13 @@ document.addEventListener('click', e => {
   const r = f(el.dataset.v, el.dataset.w, el);
   if (r !== false && !(r instanceof Promise)) render();
 });
+/* arrastar as fileiras de pills com o mouse (no PC a barra de rolagem fica escondida) e rolar de lado com a roda do mouse */
+const HROW = '.chips:not(.wrapc), .vs-strip, .wchart, .hud, .scroll, .sdots';
+let hDrag = null;
+document.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse' || e.button !== 0) return; const el = e.target.closest(HROW); if (!el || el.scrollWidth <= el.clientWidth + 2) return; hDrag = { el, x: e.clientX, sl: el.scrollLeft, moved: false }; });
+document.addEventListener('pointermove', e => { if (!hDrag) return; const dx = e.clientX - hDrag.x; if (Math.abs(dx) > 5) { hDrag.moved = true; hDrag.el.classList.add('dragging'); } if (hDrag.moved) hDrag.el.scrollLeft = hDrag.sl - dx; });
+document.addEventListener('pointerup', () => { if (!hDrag) return; const d = hDrag; setTimeout(() => { d.el.classList.remove('dragging'); }, 0); if (d.moved) { const stop = ev => { ev.stopPropagation(); ev.preventDefault(); }; document.addEventListener('click', stop, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', stop, { capture: true }), 50); } hDrag = null; });
+document.addEventListener('wheel', e => { const el = e.target.closest(HROW); if (!el || el.scrollWidth <= el.clientWidth + 2 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; const before = el.scrollLeft; el.scrollLeft += e.deltaY; if (el.scrollLeft !== before) e.preventDefault(); }, { passive: false });
 document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button][data-a]')) { e.preventDefault(); e.target.click(); } });
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);

@@ -325,3 +325,11 @@ header#top .subt{margin:var(--s1) 0 0;color:var(--mut);font-size:13px;line-heigh
 .crumbs b{color:var(--ink)}
 .crumb{background:none;border:0;padding:4px 0;min-height:32px;font:inherit;color:var(--mut);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .hud>button.on{background:var(--ink);color:var(--card)}
+
+/* ---------- pills: arrastar e não cortar (v54) ---------- */
+.chips:not(.wrapc),.vs-strip,.wchart,.hud,.scroll,.sdots{cursor:grab}
+.dragging{cursor:grabbing;user-select:none}
+.dragging *{pointer-events:none}
+.chips.wrapc .chip{flex:0 1 auto;max-width:100%;white-space:normal;text-align:left;height:auto;padding-top:8px;padding-bottom:8px}
+.grid3 b{overflow-wrap:anywhere}
+.blk .t{min-width:0;overflow-wrap:anywhere}
