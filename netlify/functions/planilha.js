@@ -1,7 +1,7 @@
 // Ponte com a planilha financeira (Google Sheets). GET lê o mês; POST marca "PAGO", soma ou lança uma linha nova.
 // Variáveis no Netlify: GOOGLE_SA_JSON (chave da conta de serviço, JSON inteiro), SHEET_ID (id da planilha), APP_KEY (a mesma do app).
 // A planilha precisa estar compartilhada (Editor) com o e-mail da conta de serviço. Nada é apagado.
-const { MES, noPago, norm, token, parse, ensureTab, tabName, base } = require('../lib/planilha-lib.js');
+const { MES, noPago, norm, token, parse, ensureTab, tabName, base, ordenar } = require('../lib/planilha-lib.js');
 exports.handler = async event => {
   const { GOOGLE_SA_JSON, SHEET_ID, APP_KEY } = process.env;
   if (!GOOGLE_SA_JSON || !SHEET_ID || !APP_KEY) return { statusCode: 500, body: 'Faltam variáveis no Netlify (GOOGLE_SA_JSON, SHEET_ID)' };
@@ -34,6 +34,7 @@ exports.handler = async event => {
     const tk = await token(sa), H = { Authorization: 'Bearer ' + tk, 'content-type': 'application/json' };
     const read = async () => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!A1:G70`) + '?valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro ao ler a planilha'); return j.values || []; };
     const put = async (cell, v) => { if (/^F/.test(cell) && typeof v === 'string') v = v.toLocaleUpperCase('pt-BR'); const r = await fetch(vbase + encodeURIComponent(`'${tab}'!${cell}`) + '?valueInputOption=USER_ENTERED', { method: 'PUT', headers: H, body: JSON.stringify({ values: [[v]] }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); };
+    const arrumar = async () => { const d = ordenar(await read(), tab); if (d.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: d }) }); if (!r.ok) throw new Error('Erro ao ordenar: ' + (await r.text()).slice(0, 200)); } return d.length; };
     const made = await ensureTab(SHEET_ID, tk, y, m, true);
     const rows = await read(), data = parse(rows);
     if (event.httpMethod !== 'POST') return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, created: made.created, from: made.from, ...data }) };
@@ -65,7 +66,7 @@ exports.handler = async event => {
         nov.forEach(n => { data2.push({ range: `'${tab}'!F${n.row}`, values: [[n.nome]] }); data2.push({ range: `'${tab}'!G${n.row}`, values: [[n.para]] }); });
         if (renda) data2.push({ range: `'${tab}'!C${renda.row}`, values: [[renda.para]] });
         data2.forEach(d => { if (/!F\d+$/.test(d.range) && typeof d.values[0][0] === 'string') d.values[0][0] = d.values[0][0].toLocaleUpperCase('pt-BR'); });
-        if (data2.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data2 }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); }
+        if (data2.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: data2 }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); await arrumar(); }
       }
       return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, applied: body.apply === true, renda, sheetRenda, casados, atualizar: upd, novas: nov, semLugar, soPlanilha, saem, troca }) };
     }
@@ -83,7 +84,8 @@ exports.handler = async event => {
         for (const f of ['=REGEXMATCH($F6;" PAGO$")', '=REGEXMATCH($F6," PAGO$")']) { r = await fetch(base(SHEET_ID) + ':batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ requests: [rq(f)] }) }); if (r.ok) break; }
         if (!r.ok) throw new Error('Erro na regra verde: ' + (await r.text()).slice(0, 200)); regra = true;
       }
-      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, maiusculas: data3.length, regraVerde: regra || tem }) };
+      const ordem = await arrumar();
+      return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, maiusculas: data3.length, regraVerde: regra || tem, ordenadas: ordem }) };
     }
     if (ac === 'marcar') { // marca ou desmarca "PAGO" numa linha que já existe (nunca cria linha)
       const kk = t => norm(String(t || '').replace(/\([^)]*\)/g, '').replace(/parcela\s*\d+\s*\/\s*\d+/i, '')).replace(/[^A-Z0-9 ]/g, '').replace(/\s+/g, ' ').trim(), k = kk(body.desc);

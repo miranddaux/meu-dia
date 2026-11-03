@@ -306,6 +306,7 @@ function dinAjustes(a) {
     out.push(e.nome + ' pago, sai dos próximos meses'); });
   (a.caixinhas || []).forEach(c => { const i = d.caixinhas.findIndex(x => same(x.nome, c.nome)); const o = Object.assign({ id: uid(), tipo: 'colchao', liquidez: 'diária', fgc: true }, i >= 0 ? d.caixinhas[i] : {}, c, { saldo: num(c.saldo), pctCdi: num(c.pctCdi) }); if (i >= 0) d.caixinhas[i] = o; else d.caixinhas.push(o); out.push('caixinha ' + c.nome); });
   (a.lembretes || []).forEach(r => { S.reminders = S.reminders || []; if (!S.reminders.some(x => same(x.title, r.title) && x.date === r.date)) S.reminders.push({ id: uid(), title: r.title, date: r.date, time: r.time || '', note: r.note || '', done: false }); out.push('lembrete ' + r.title); });
+  if (a.treino) { if (num(a.treino.proteinaG) > 0) { S.settings.dietProt = String(Math.round(num(a.treino.proteinaG))); out.push('Meta de proteína: ' + S.settings.dietProt + ' g'); } if (num(a.treino.aguaMl) > 0) { S.settings.waterGoal = String(Math.round(num(a.treino.aguaMl))); out.push('Meta de água: ' + L(num(a.treino.aguaMl)) + ' L'); } }
   save(); render(); alert('Ajustes aplicados:\n· ' + out.join('\n· '));
 }
 /* ---------- caixinhas: onde está o dinheiro guardado (colchão, investimento, meta de compra) ---------- */

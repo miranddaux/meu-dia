@@ -17,7 +17,7 @@ async function token(sa) {
 function parse(rows) {
   const entradas = [], despesas = []; let grupo = '', sobra = null;
   rows.forEach((r, i) => {
-    const row = i + 1; if (row < 7) return;
+    const row = i + 1; if (row < 6) return; // linha 6 é a primeira de dados (salário e o 1º gasto)
     const B = r[1], C = r[2], E = r[4], F = r[5], G = r[6];
     if (E && String(E).trim()) grupo = String(E).trim();
     if (B && /^SE SUA PLANILHA/i.test(String(B))) { if (typeof C === 'number') sobra = C; return; }
@@ -27,6 +27,40 @@ function parse(rows) {
     }
   });
   return { entradas, despesas, sobra };
+}
+
+// Linhas de gasto por grupo (ESSENCIAIS, NÃO ESSENCIAIS…): começa na linha 6, o grupo muda quando a coluna E tem texto, para no TOTAL.
+function grupos(rows) {
+  const out = []; let g = null;
+  for (let i = 5; i < rows.length; i++) {
+    const r = rows[i] || [], E = r[4] != null ? String(r[4]).trim() : '', F = r[5] != null ? String(r[5]).trim() : '';
+    if (/^TOTAL/i.test(E) || /^TOTAL/i.test(F)) break;
+    if (E) { g = []; out.push(g); }
+    if (g && F) g.push({ row: i + 1, F, G: typeof r[6] === 'number' ? r[6] : (Number(r[6]) || 0) });
+  }
+  return out;
+}
+// Deixa cada grupo em sequência: gastos um embaixo do outro (na mesma ordem) e as "LINHA VARIÁVEL" vazias no fim.
+// Nada some e os totais não mudam: só a posição. Devolve as escritas necessárias comparando com `antes` (padrão: as próprias linhas).
+function ordenar(rows, tab, antes) {
+  const cur = grupos(rows), old = grupos(antes || rows), byRow = {}, data = [];
+  old.flat().forEach(x => { byRow[x.row] = x; });
+  const livre = x => /^LINHA VARI/i.test(x.F) && !x.G;
+  cur.forEach(gr => {
+    const ord = gr.filter(x => !livre(x)).concat(gr.filter(livre));
+    ord.forEach((x, k) => { const row = gr[k].row, o = byRow[row]; if (!o || o.F !== x.F || Math.abs(o.G - x.G) > 0.004) data.push({ range: `'${tab}'!F${row}:G${row}`, values: [[x.F, x.G]] }); });
+  });
+  return data;
+}
+// Prepara as linhas do mês seguinte: tira " PAGO" e avança "(PARCELA n/N)". Quando a parcela era a última, a linha vira LINHA VARIÁVEL com 0.
+function proximoMes(orig) {
+  return orig.map((r, i) => {
+    const F = r && r[5]; if (i < 5 || typeof F !== 'string' || !F.trim() || /^TOTAL/i.test(F)) return r;
+    const c = r.slice(); let f = noPago(F);
+    const m = f.match(/PARCELA\s*(\d+)\s*\/\s*(\d+)/i);
+    if (m) { const n = +m[1], N = +m[2]; if (n >= N) { f = 'LINHA VARIÁVEL'; c[6] = 0; } else f = f.replace(m[0], m[0].replace(/\d+(?=\s*\/)/, String(n + 1))); }
+    c[5] = f; return c;
+  });
 }
 
 const base = id => `https://sheets.googleapis.com/v4/spreadsheets/${id}`;
@@ -47,9 +81,10 @@ async function ensureTab(sheetId, tk, y, m, onlyNear) {
   if (!src) throw new Error('Não achei uma aba de mês para copiar.');
   const last = Math.max(...tabs.map(t => t.index));
   await api(`${base(sheetId)}:batchUpdate`, tk, { method: 'POST', body: JSON.stringify({ requests: [{ duplicateSheet: { sourceSheetId: src.sheetId, newSheetName: want, insertSheetIndex: last + 1 } }] }) });
-  const vals = (await api(`${base(sheetId)}/values/${encodeURIComponent(`'${want}'!F1:F70`)}?valueRenderOption=UNFORMATTED_VALUE`, tk)).values || [];
-  const data = []; vals.forEach((r, i) => { if (r[0] && /\sPAGO$/i.test(String(r[0]))) data.push({ range: `'${want}'!F${i + 1}`, values: [[noPago(r[0])]] }); });
+  // no mês novo: tira os "PAGO", avança as parcelas (5/12 vira 6/12; a última vira LINHA VARIÁVEL) e deixa tudo em sequência
+  const orig = (await api(`${base(sheetId)}/values/${encodeURIComponent(`'${want}'!A1:G70`)}?valueRenderOption=UNFORMATTED_VALUE`, tk)).values || [];
+  const rows = proximoMes(orig), data = ordenar(rows, want, orig);
   if (data.length) await api(`${base(sheetId)}/values:batchUpdate`, tk, { method: 'POST', body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }) });
   return { created: true, tab: want, from: src.title };
 }
-module.exports = { MES, noPago, norm, token, parse, ensureTab, tabName, base };
+module.exports = { MES, noPago, norm, token, parse, ensureTab, tabName, base, ordenar, proximoMes };

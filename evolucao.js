@@ -24,7 +24,7 @@ const rpgS = () => (S.rpg = S.rpg || { alloc: {} });
 function rpgLifeXp() {
   const xp = {}; RPG_AREAS.forEach(a => xp[a[0]] = 0);
   xp.est += Object.values(S.studyLog || {}).filter(x => x && x.done).length * 12;
-  xp.cor += (S.workouts || []).length * 12;
+  xp.cor += new Set((S.workouts || []).map(w => w.date)).size * 12 + (typeof trXp === 'function' ? trXp() : 0); /* 1 treino por dia conta; série extra não dá XP */
   const wg = num(S.settings.waterGoal);
   if (wg) xp.cor += Object.keys(S.water || {}).filter(k => num(S.water[k]) >= wg).length * 3;
   xp.fin += ((S.din && S.din.saved) || []).length * 8;

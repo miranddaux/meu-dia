@@ -269,3 +269,24 @@ details.pomo-mini .row{gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
 .rpg-fase.ok{opacity:.7}
 .rpg-fava{flex:none;width:44px;display:grid;place-items:center}
 .rpgrow{margin-top:12px}.rpgrow .row{gap:6px;align-items:center}
+
+/* ---------- treino (v47) ---------- */
+.trck{display:flex;flex-direction:column;gap:4px}
+.trck>span{font-size:14px;font-weight:700}
+.trscale{display:grid;grid-template-columns:repeat(5,1fr);gap:var(--s2)}
+.trscale .chip{justify-content:center;padding:0}
+.sdots{display:flex;gap:4px;flex-wrap:wrap}
+.trdot{width:36px;height:36px;border:3px solid var(--ink);border-radius:var(--r);background:var(--card);color:var(--ink);font:inherit;font-weight:700;display:grid;place-items:center;cursor:pointer}
+.trdot.ok{background:var(--ok);color:#1f2a2e}.trdot.on{outline:3px solid var(--acc);outline-offset:2px}
+.trsets{display:flex;flex-direction:column;gap:var(--s2)}
+.trh,.trset{display:grid;grid-template-columns:28px minmax(0,1fr) minmax(0,1fr) 64px 48px;gap:var(--s2);align-items:center}
+.trh{font-size:12px;line-height:16px;color:var(--mut);font-weight:700}
+.trset input,.trset select{padding:8px;text-align:center;font-size:18px;font-weight:700}
+.trset select{padding:8px 4px}
+.trset.done input,.trset.done select{background:var(--soft)}
+.trrest{position:sticky;top:8px;z-index:5;align-items:center;background:var(--water);box-shadow:0 4px 0 var(--ink)}
+.trrest b{font-size:20px}
+.badge.ok{background:var(--ok);color:#1f2a2e}
+details.card>.col{display:flex;flex-direction:column;gap:var(--s3)}
+.sub{display:flex;flex-direction:column;gap:var(--s2);padding-top:var(--s2);border-top:2px solid var(--soft)}
+.badge.trb{white-space:nowrap;align-self:flex-start;font-weight:700}

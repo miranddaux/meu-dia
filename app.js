@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v46';
+const APP_V = 'v47';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -127,7 +127,7 @@ function sun() { /* domingo é dia livre: só a igreja é meta */
 }
 function buildSchedule(col) {
   const f = col ? college : wk, s = {};
-  [1, 2, 3].forEach(d => s[d] = f(true)); [4, 5].forEach(d => s[d] = f(false)); s[6] = sat(); s[0] = sun();
+  [1, 2, 3, 4, 5].forEach(d => s[d] = f(true)); s[6] = sat(); s[0] = sun();
   return s;
 }
 const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5], D6 = [1, 2, 3, 4, 5, 6];
@@ -135,7 +135,7 @@ function hb(title, when, days, pts, hard, ord, at) { return { id: uid(), title, 
 const DEF_HABITS = () => [
   hb('Oração e agradecimento', 'm', D6, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', D6, 1, 0, 2, '05:55'), hb('Leitura', 'm', D6, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', D6, 0, 1, 5, '07:15'),
   hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
-  hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3], 0, 0, 4, '17:00'),
+  hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3, 4, 5], 0, 0, 4, '17:00'),
   hb('LinkedIn: criar e agendar os posts', 'm', [6], 1, 0, 5, '08:30'), hb('YouTube ou ANIMAE: etapa de hoje', 'm', [6], 1, 0, 6, '10:45'), hb('Atualizar status no Notion', 'm', [6], 1, 0, 7, '11:45'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
   hb('Passear com o cachorro', 'n', D6, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', D6, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', D6, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
   hb('Cuidado da orelha (ajuste a recorrência)', 'n', D6, 1, 0, 5, ''), hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
@@ -158,7 +158,7 @@ function defaults() {
     v: VER, flags: {},
     settings: {
       gamify: true, welcomed: false, lastBackup: null, dietKcal: '', dietProt: '', waterGoal: 3000, bottle: 1800, cup: 300, college: false, theme: 'auto',
-      calc: { sex: 'm', age: '', weight: 108, height: 180, act: 1.375, deficit: 500, target: 95 },
+      calc: { sex: 'm', age: '', weight: '', height: '', act: 1.375, deficit: 500, target: '' },
       rewards: REWD.map(r => ({ id: uid(), title: r[0], at: r[1] })), phase: 1, pom: { f: 25, b: 5 }, sync: { url: '/.netlify/functions/sync', key: '', on: false, last: '' }
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
@@ -217,7 +217,6 @@ function migrate() {
       const n = defaults().study; [1, 2, 3, 4, 5].forEach(i => { S.study[i] = n[i]; });
       S.tracks.forEach(t => { if (t.name === 'Python') t.name = 'Python (Guanabara)'; if (t.name.startsWith('Front-end web')) { t.name = 'Front-end web (Udemy)'; t.now = t.now || 'Aula que o professor passar no dia'; } });
     }
-    if (!S.weights.length) S.weights.push({ id: uid(), date: dkey(), kg: 108 });
     if (S.settings.calc && String(S.settings.calc.weight) === '110') S.settings.calc.weight = 108;
     if (S.settings.calc && S.settings.calc.deficit === 600) S.settings.calc.deficit = 500;
     if (!S.plans || !S.plans.length) S.plans = defaults().plans;
@@ -408,7 +407,7 @@ function vHoje() {
   const pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
   const pdone = [0, 1, 2].filter(i => pst(i) === 'done').length;
   out += `<div class="card"><div class="row sp"><h3 class="px">${ic('bullseye')}<span>Prioridades</span></h3><span class="mut">${pdone}/3 feitas</span></div>${[0, 1, 2].map(i => { const s = pst(i); return `<div class="pri"><button class="st ${s === 'done' ? 'done' : s === 'no' ? 'no' : ''}" data-a="prcyc" data-v="${i}" aria-label="Prioridade ${i + 1}: ${s === 'done' ? 'feita' : s === 'no' ? 'não feita' : 'pendente'}. Toque para mudar">${s === 'done' ? ic('check') : s === 'no' ? ic('close') : ''}</button><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1}"></div>`; }).join('')}<div class="mut">Toque no quadrado: feito, não fiz, vazio.</div></div>`;
-  out += waterCard(k);
+  out += waterCard(k) + trTodayCard();
   if (!S.settings.welcomed) out += `<div class="card"><h3 class="px">${ic('mood-happy')}<span>Oi!</span></h3><p class="mut">Tudo fica salvo só neste iPhone. Toque no quadrado para marcar: vazio = pendente, check = feito, meio = parcial, seta = adiado, traço = não se aplica. Moedas vêm de missões, treino, água, estudo e desafios; você troca na Loja (Mais, Loja). Nada vira dívida. Faça backup nos ajustes (ícone no topo).</p><button class="btn sm" data-a="welcome">Entendi</button></div>`;
   /* 2) Agora */
   out += `<div class="card slim"><div class="row sp"><div class="grow">${cur ? `<div class="mut">Agora · ${cur.s}–${cur.e}</div><b>${esc(bt(cur, dow))}</b>` : `<div class="mut">Agora</div><b>Nenhum bloco neste horário</b>`}${nxt ? `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>` : ''}</div><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div></div>`;
@@ -476,7 +475,8 @@ function lastSet(name) {
 }
 function vCorpo() {
   let out = '';
-  if (!S.session) out += `<div class="chips">${[['treino', 'human-run', 'Treino'], ['dieta', 'coffee', 'Dieta'], ['metas', 'scale', 'Metas e peso']].map(([i, c, l]) => `<button class="chip ${ui.corpo === i ? 'on' : ''}" data-a="ctab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
+  const trOn = S.tr && S.tr.cur;
+  if (!S.session && !trOn) out += `<div class="chips">${[['treino', 'human-run', 'Treino'], ['dieta', 'coffee', 'Dieta'], ['metas', 'scale', 'Metas e peso']].map(([i, c, l]) => `<button class="chip ${ui.corpo === i ? 'on' : ''}" data-a="ctab" data-v="${i}">${ic(c)}${l}</button>`).join('')}</div>`;
   if (ui.flash) { out += `<div class="banner">${ic('info-box')}<span>${esc(ui.flash)}</span></div>`; ui.flash = ''; }
   if (S.session) return out + vSessao();
   return out + (ui.corpo === 'treino' ? vTreino() : ui.corpo === 'dieta' ? vDieta() : vMetas());
@@ -502,15 +502,14 @@ function suggestKg(ex) {
   return null;
 }
 function vTreino() {
-  const ws = dkey(wkStart()), cnt = S.workouts.filter(w => w.date >= ws).length;
-  let out = `<div class="banner">${ic('info-box')}<span>Treinos de corpo inteiro às segundas, terças e quartas (mude em Missões e Semana). Pelo menos 2 por semana já funciona. Pare com 1 a 3 repetições de folga. Mostre a um instrutor ou médico antes, principalmente no começo.</span></div>`;
-  out += phaseCard();
-  out += `<div class="card"><div class="row sp"><div><div class="big">${cnt}<small>/2–3</small></div><div class="mut">treinos nesta semana</div></div><button class="btn sm ghost" data-a="addplan">${ic('plus')}Modelo</button></div></div>`;
+  const tr = trMain(); if (S.tr && S.tr.cur) return tr; /* durante o treino, só o treino na tela */
+  let out = '';
+  out += `<div class="card"><div class="row sp"><div class="mut">Seus modelos antigos continuam aqui, para treino livre.</div><button class="btn sm ghost" data-a="addplan">${ic('plus')}Modelo</button></div></div>`;
   out += S.plans.map(p => `<div class="card"><h3 class="px">${esc(p.name)}</h3><div class="mut">${p.ex.map(e => esc(e.name)).join(' · ')}</div><div class="row"><button class="btn" data-a="startplan" data-v="${p.id}">${ic('play')}Começar</button>${ib('edit', 'Editar treino', 'editplan', p.id)}</div></div>`).join('');
   const pg = progressOf(), names = Object.keys(pg).filter(n => pg[n].length);
   out += `<div class="card">${sec('trending-up', 'Evolução da carga')}${names.map(n => { const a = pg[n], f = a[0].kg, l = a[a.length - 1].kg, mx = Math.max(...a.map(x => x.kg), 1); return `<div class="ev"><div class="row sp"><b>${esc(n)}</b><span class="mut">${f} → ${l} kg${l > f ? ' ▲' : ''}</span></div><div class="mini">${a.slice(-8).map(x => `<i style="height:${Math.max(8, x.kg / mx * 100)}%"></i>`).join('')}</div></div>`; }).join('') || '<div class="mut">Faça treinos guiados e registre a carga: aqui você vê a evolução de cada exercício.</div>'}</div>`;
   out += `<div class="card">${sec('list', 'Histórico', `<button class="btn sm ghost" data-a="addwk">${ic('plus')}Manual</button>`)}${[...S.workouts].sort((a, c) => c.date.localeCompare(a.date)).slice(0, 10).map(w => `<div class="item" data-a="editwk" data-v="${w.id}" role="button" tabindex="0"><div class="t"><b>${esc(w.name || 'Treino')}</b> <span class="mut">${sd2(w.date)}${w.dur ? ' · ' + esc(w.dur) + ' min' : ''}</span><div class="mut pre">${esc(w.notes)}</div></div></div>`).join('') || '<div class="mut">Nenhum treino ainda.</div>'}</div>`;
-  return out;
+  return tr + `<details class="card" data-w="trold" ${ui.open.trold ? 'open' : ''}><summary><span class="px">${ic('list')}<span>Histórico e treinos livres</span></span><span class="mut">${S.workouts.length}</span></summary><div class="col">${out.replace(/class="card"/g, 'class="sub"')}</div></details>`;
 }
 function vSessao() {
   const s = S.session, ex = s.ex[s.i];
@@ -882,7 +881,7 @@ ${pushCard()}<div class="card">${sec('save', 'Backup')}<div class="banner">${ic(
 const TABS = [['hoje', 'sun', 'Hoje'], ['corpo', 'human-run', 'Corpo'], ['estudos', 'book-open', 'Estudos'], ['desafios', 'shield', 'Desafios'], ['mais', 'more-horizontal', 'Mais']];
 function render() {
   const n = new Date(), k = dkey(n), hr = n.getHours();
-  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino, dieta, metas e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
+  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Progresso, loja, finanças e ajustes'] };
   const [h, p] = titles[ui.tab];
   const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   $('#top').innerHTML = `${hud}<h1 class="px">${h}</h1><p>${p}</p>`;
@@ -1484,7 +1483,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
-dinInit(); euInit(); dietInit(); load(); applyTheme(); save(); render();
+dinInit(); euInit(); dietInit(); trInit(); load(); applyTheme(); save(); render();
 if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');
