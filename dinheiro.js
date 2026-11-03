@@ -148,8 +148,8 @@ function vDinheiro() {
   const scen = (o, rs) => rs.map(rv => `<div class="grp">${rv === rendas[0] ? 'Hoje · ' : 'Se eu ganhasse · '}${brl(rv)}</div><div class="grid3 sm">${mm3.map(x => { const s = dinMonth(x, Object.assign({ renda: rv }, o)).sobra; return `<div><b class="${s < 0 ? 'neg' : ''}">${brl(s)}</b><small>${dMl(x)}</small></div>`; }).join('')}</div>`).join('');
   out += acc('dcen', 'Cenários', '', `<div class="mut">Sobra do mês em cada renda.</div>${scen({}, rendas)}<div class="grp" style="margin-top:16px">Morando sozinho (mercado ${brl(num(so.mercado))} + internet ${brl(num(so.internet))})</div>${scen({ mercado: num(so.mercado), extraFixo: num(so.internet) }, rendas)}`, false);
   /* 8) lista de desejos */
-  const wants = [...(P.desejos || []).map((x, i) => ({ ...x, src: 'p' })), ...d.want.map(x => ({ ...x, src: 'a' }))];
-  out += acc('ddes', 'Lista de desejos', wants.length ? wants.length + '' : '', `<div class="mut">O app diz o primeiro mês em que cabe sem a sobra ficar abaixo de ${brl(dinFolga())}. Comprar sempre atrasa um pouco o colchão.</div>${wants.map(x => { const f = dinFit(x, mo), n = x.tipo === 'parcelado' ? Math.max(2, Math.round(num(x.parcelas)) || 2) : 1; return `<div class="item"><div class="t"><b>${esc(x.nome)}</b><div class="mut">${brl(num(x.valor))}${n > 1 ? ` em ${n}x de ${brl(num(x.valor) / n)}` : ' à vista'} · ${f ? (f === mo ? 'cabe agora' : 'cabe em ' + dMl(f)) : 'não cabe até o fim do plano'}</div></div>${x.src === 'a' ? ib('edit', 'Editar desejo', 'dineditwant', x.id) : ''}</div>`; }).join('') || '<div class="mut">Nada na lista.</div>'}<button class="btn sm ghost" data-a="dinaddwant">${ic('plus')}Desejo</button>`, false);
+  const wants = [...(P.desejos || []).map((x, i) => ({ ...x, src: 'p', classe: x.classe || 'compra' })), ...d.want.map(x => ({ ...x, src: 'a', classe: x.classe || 'compra' }))];
+  out += acc('ddes', 'Lista de desejos', wants.length ? wants.length + '' : '', `<div class="mut">O app diz o primeiro mês em que cabe sem a sobra ficar abaixo de ${brl(dinFolga())}. Comprar sempre atrasa um pouco o colchão.</div>${wants.map(x => { const f = dinFit(x, mo), n = x.tipo === 'parcelado' ? Math.max(2, Math.round(num(x.parcelas)) || 2) : 1; return `<div class="item"><div class="t"><b>${esc(x.nome)}</b><div class="mut">${esc(({compra:'Compra',investimento:'Investimento',necessidade:'Necessidade',lazer:'Lazer/viagem'})[x.classe] || 'Compra')} · ${brl(num(x.valor))}${n > 1 ? ` em ${n}x de ${brl(num(x.valor) / n)}` : ' à vista'} · ${f ? (f === mo ? 'cabe agora' : 'cabe em ' + dMl(f)) : 'não cabe até o fim do plano'}</div></div>${x.src === 'a' ? ib('edit', 'Editar desejo', 'dineditwant', x.id) : ''}</div>`; }).join('') || '<div class="mut">Nada na lista.</div>'}<button class="btn sm ghost" data-a="dinaddwant">${ic('plus')}Desejo</button>`, false);
   /* 9) cartão parado + gastos pontuais */
   const cf = dinCardCfg(), nowCard = d.cards.flatMap(dinCardFlows).filter(f => f.mo === mo).reduce((a, f) => a + f.v, 0);
   const vd = `${mo}-${pad(cf.vence)}`;
@@ -244,8 +244,15 @@ function dinPontForm(ix) {
   }, ix >= 0 ? () => { P.pontuais.splice(ix, 1); } : null);
 }
 function dinWantForm(x) {
-  form(x.id ? 'Editar desejo' : 'Desejo', [{ k: 'nome', label: 'O que quero', value: x.nome || '' }, { k: 'valor', label: 'Valor (R$)', type: 'number', value: x.valor || '' }, { k: 'parcelas', label: 'Em quantas vezes (1 = à vista)', type: 'number', value: x.tipo === 'parcelado' ? x.parcelas : 1 }], r => {
-    const n = Math.round(num(r.parcelas)) || 1, o = { id: x.id || uid(), nome: r.nome.trim() || 'Desejo', valor: num(r.valor), tipo: n > 1 ? 'parcelado' : 'avista', parcelas: n }, d = dinS();
+  form(x.id ? 'Editar meta de compra' : 'Meta de compra', [
+    { k: 'nome', label: 'O que quero', value: x.nome || '' },
+    { k: 'valor', label: 'Valor (R$)', type: 'number', value: x.valor || '' },
+    { k: 'classe', label: 'Tipo', type: 'select', value: x.classe || 'compra', options: [['compra', 'Compra / consumo'], ['investimento', 'Investimento em mim / trabalho'], ['necessidade', 'Necessidade'], ['lazer', 'Lazer / viagem']] },
+    { k: 'parcelas', label: 'Em quantas vezes (1 = à vista)', type: 'number', value: x.tipo === 'parcelado' ? x.parcelas : 1 }
+  ], r => {
+    const n = Math.round(num(r.parcelas)) || 1;
+    const o = { id: x.id || uid(), nome: r.nome.trim() || 'Meta', valor: num(r.valor), classe: r.classe || 'compra', tipo: n > 1 ? 'parcelado' : 'avista', parcelas: n };
+    const d = dinS();
     if (x.id) d.want[d.want.findIndex(y => y.id === x.id)] = o; else d.want.push(o);
   }, x.id ? () => { const d = dinS(); d.want = d.want.filter(y => y.id !== x.id); } : null);
 }
