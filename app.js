@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v51';
+const APP_V = 'v52';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const pad = n => String(n).padStart(2, '0');
 const dkey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -895,10 +895,19 @@ function render() {
   chipMem.pos = [...document.querySelectorAll('#view .chips, #top .chips')].map(c => c.scrollLeft);
   const n = new Date(), k = dkey(n), hr = n.getHours();
   const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Jornada, dinheiro, semana e ajustes'] };
-  const [h, p] = titles[ui.tab];
-  const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" aria-label="Ajustes">${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" aria-label="Moedas: abrir loja">${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
+  let [h, p] = titles[ui.tab];
+  /* migalhas: o título mostra a tela em que você está e o caminho até ela */
+  const MN = { jor: 'Jornada', din: 'Dinheiro', prog: 'Semana', eu: 'Eu', hab: 'Missões', cfg: 'Ajustes', vida: 'Mapa da vida', rem: 'Lembretes', loja: 'Loja', rev: 'Revisão', pork: 'Porkinho', exp: 'Quero explorar', laz: 'Tempo livre' };
+  const MP = { vida: 'jor', rem: 'jor', loja: 'jor', rev: 'prog', pork: 'din', exp: 'cfg', laz: 'cfg' };
+  const crumb = (...a) => a.map((x, i) => i < a.length - 1 ? `<button class="crumb" data-a="${x[1]}" data-v="${x[2]}">${esc(x[0])}</button>` : `<b>${esc(x[0])}</b>`).join('<span aria-hidden="true">›</span>');
+  if (ui.tab === 'mais' && MN[ui.mais]) { h = MN[ui.mais]; const par = MP[ui.mais]; p = `<nav class="crumbs" aria-label="Você está em">${crumb(['Mais', 'mtab', 'jor'], ...(par ? [[MN[par], 'mtab', par]] : []), [MN[ui.mais]])}</nav>`; }
+  else if (ui.tab === 'corpo') { const CN = { treino: 'Treino', dieta: 'Dieta', metas: 'Metas e peso' }; p = `<nav class="crumbs" aria-label="Você está em">${crumb(['Corpo', 'ctab', 'treino'], [CN[ui.corpo] || 'Treino'])}</nav>`; }
+  else if (ui.tab === 'desafios') p = `<nav class="crumbs" aria-label="Você está em">${crumb(['Desafios', 'dt', 'detox'], [ui.dt === 'melhorar' ? 'Melhorar' : 'Detox'])}</nav>`;
+  else p = esc(p);
+  const onCfg = ui.tab === 'mais' && ui.mais === 'cfg', onLoja = ui.tab === 'mais' && ui.mais === 'loja';
+  const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" class="${onCfg ? 'on' : ''}" aria-label="Ajustes" ${onCfg ? 'aria-current="page"' : ''}>${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" class="${onLoja ? 'on' : ''}" aria-label="Moedas: abrir loja" ${onLoja ? 'aria-current="page"' : ''}>${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   const prev = /github\.io$/.test(location.hostname) ? `<div class="banner warn">${ic('info-box')}<span>Versão web provisória. Treino, rotina e fotos funcionam. Planilha, Notion e avisos voltam no app oficial dia 20/11 (leve um backup para lá).</span></div>` : '';
-  $('#top').innerHTML = `${hud}${prev}<h1 class="px">${h}</h1><p>${p}</p>`;
+  $('#top').innerHTML = `${hud}${prev}<h1 class="px">${esc(h)}</h1><div class="subt">${p}</div>`;
   $('#view').innerHTML = { hoje: vHoje, corpo: vCorpo, estudos: vEstudos, desafios: vDesafios, mais: vMais }[ui.tab]();
   $('#nav').innerHTML = TABS.map(([i, c, l]) => `<button class="${ui.tab === i ? 'on' : ''}" data-a="tab" data-v="${i}" aria-label="${l}" ${ui.tab === i ? 'aria-current="page"' : ''}>${ic(c)}<span>${l}</span></button>`).join('');
   hydratePhotos();

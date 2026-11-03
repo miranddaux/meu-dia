@@ -318,3 +318,10 @@ details.card>.col{display:flex;flex-direction:column;gap:var(--s3)}
 
 .hedit{padding-top:var(--s2);border-top:2px solid var(--soft)}
 .hab .btn.ico{flex:none}
+
+/* ---------- migalhas e onde estou (v52) ---------- */
+header#top .subt{margin:var(--s1) 0 0;color:var(--mut);font-size:13px;line-height:18px}
+.crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;line-height:18px;color:var(--mut)}
+.crumbs b{color:var(--ink)}
+.crumb{background:none;border:0;padding:4px 0;min-height:32px;font:inherit;color:var(--mut);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.hud>button.on{background:var(--ink);color:var(--card)}
