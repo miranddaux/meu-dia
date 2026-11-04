@@ -350,3 +350,8 @@ details.sub>summary::after{content:'+';font-family:'PixelPS',monospace;margin-le
 details.sub[open]>summary::after{content:'–'}
 .banner .ic{flex:none;margin-right:6px;vertical-align:-3px}
 .item.now{background:var(--soft);border-radius:var(--r);padding-left:var(--s2);padding-right:var(--s2)}
+/* v63: salário ideal em destaque no card Casa */
+.ideal{border:3px solid var(--ink);border-radius:var(--r);background:var(--soft);padding:var(--s2) var(--s3);margin:var(--s2) 0;display:grid;gap:6px}
+.ideal .big{font-size:22px;line-height:28px}
+.ideal .dist .bar{margin-top:2px}
+.ideal .dist.save b{color:var(--ok)}
