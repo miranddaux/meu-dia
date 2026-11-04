@@ -344,3 +344,8 @@ header#top .subt{margin:var(--s1) 0 0;color:var(--mut);font-size:13px;line-heigh
 .grid3.kv b{font-size:18px;line-height:24px}
 
 hr.sep{border:0;border-top:2px solid var(--soft);margin:var(--s2) 0}
+/* v60: sub-blocos abríveis dentro de um card (Casa 2027) */
+details.sub{border-top:2px dashed var(--mut);margin-top:var(--s2);padding-top:var(--s1)}
+details.sub>summary::after{content:'+';font-family:'PixelPS',monospace;margin-left:10px}
+details.sub[open]>summary::after{content:'–'}
+.banner .ic{flex:none;margin-right:6px;vertical-align:-3px}
