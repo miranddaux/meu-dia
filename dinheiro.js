@@ -307,6 +307,7 @@ function dinAjustes(a) {
     out.push(e.nome + ' pago, sai dos próximos meses'); });
   (a.caixinhas || []).forEach(c => { const i = d.caixinhas.findIndex(x => same(x.nome, c.nome)); const o = Object.assign({ id: uid(), tipo: 'colchao', liquidez: 'diária', fgc: true }, i >= 0 ? d.caixinhas[i] : {}, c, { saldo: i >= 0 ? num(d.caixinhas[i].saldo) : num(c.saldo), pctCdi: num(c.pctCdi) }); if (i >= 0) d.caixinhas[i] = o; else d.caixinhas.push(o); out.push('caixinha ' + c.nome + (i >= 0 ? ' (saldo mantido)' : '')); });
   (a.lembretes || []).forEach(r => { S.reminders = S.reminders || []; if (!S.reminders.some(x => same(x.title, r.title) && x.date === r.date)) S.reminders.push({ id: uid(), title: r.title, date: r.date, time: r.time || '', note: r.note || '', done: false }); out.push('lembrete ' + r.title); });
+  (a.lembretesRemover || []).forEach(t => { const rx = new RegExp(String(t).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), n0 = (S.reminders || []).length; S.reminders = (S.reminders || []).filter(x => !rx.test(x.title || '')); if ((S.reminders || []).length < n0) out.push('lembrete tirado: ' + t); });
   (a.variaveisMes || []).forEach(v => { if (!v || !v.cat || !/^\d{4}-\d{2}$/.test(v.mes || '')) return; d.varMes = d.varMes || {}; d.varMes[v.mes] = d.varMes[v.mes] || {}; d.varMes[v.mes][v.cat] = num(v.valor); out.push(`${v.cat} em ${v.mes}: ${brl(num(v.valor))}`); });
   (a.remover || []).forEach(nm => { const rx = new RegExp(String(nm).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); ((P && P.pontuais) || []).filter(x => rx.test(x.nome || '')).forEach(x => { d.hide['x:' + x.nome] = 1; }); d.want = (d.want || []).filter(x => !rx.test(x.nome || x.title || '')); out.push(nm + ': fora do plano'); });
   if (a.xpNotion && typeof a.xpNotion.total === 'number') { S.xpNotion = Object.assign({}, S.xpNotion, a.xpNotion, { at: Date.now() }); out.push('XP do Notion: ' + a.xpNotion.total.toLocaleString('pt-BR') + ' (' + (a.xpNotion.n || 0) + ' tópicos concluídos)'); }
@@ -316,27 +317,32 @@ function dinAjustes(a) {
   save(); render(); alert('Ajustes aplicados:\n· ' + out.join('\n· '));
 }
 /* ---------- Casa 2027: os números vêm do arquivo de ajustes (nada pessoal fica no código) ----------
-   casa: { planilha, renda, rendaMin, rendaConf, prazoRenda, foco:[{ate,t}], semAumento:{total,ate,porMes,depois,planoB},
-           metas:[{nome,valor,ate,caixinha}], marcos:[{mes,t}], pendencias:[{t,quem}] } */
+   casa: { planilha, renda, rendaPrecisa, extraMeta, mudaEm, cenarios:[{extra,muda}], caixinha, metas:[{nome,valor,ate,depois}],
+           passos:[{t,ate}], marcos:[{mes,t}], pendencias:[{t,quem}] } */
 const casaCx = nome => dinS().caixinhas.find(x => String(x.nome).trim().toLowerCase() === String(nome || '').trim().toLowerCase());
 function casaCard() {
   const c = S.casa; if (!c) return '';
-  const ok = c.ok || (c.ok = {}), hoje = dkey().slice(0, 7), r = num(c.renda), mn = num(c.rendaMin), cf = num(c.rendaConf);
-  const foco = (c.foco || []).find(f => f.ate >= hoje) || (c.foco || [])[(c.foco || []).length - 1];
-  const metas = c.metas || (c.entrada ? [{ nome: 'Entrada' + (c.entrada.para ? ' do ' + c.entrada.para : ''), valor: c.entrada.valor, ate: c.entrada.ate }] : []);
-  const pend = c.pendencias || [], abertas = pend.map((p, i) => ({ p, i })).filter(x => !ok['p' + x.i]), feitas = pend.length - abertas.length, marcos = (c.marcos || []).filter(m => m.mes >= hoje).slice(0, 4);
-  const sa = c.semAumento || {};
-  const mItem = m => { const tp = /^tipo:/.test(m.caixinha || '') ? m.caixinha.slice(5) : '', tl = tp ? dinS().caixinhas.filter(x => (x.tipo || 'colchao') === tp) : [], cx = tp ? tl[0] || null : m.caixinha ? casaCx(m.caixinha) : null, v = num(m.valor), jt = tp ? tl.reduce((a, x) => a + num(x.saldo), 0) : cx ? num(cx.saldo) : num(c.juntado), falta = Math.max(0, v - jt), n = m.ate ? Math.max(1, moNum(m.ate) - moNum(hoje)) : 1;
-    return `<div class="item"><div class="t"><b>${esc(m.nome)}</b><div class="mut">${brl(jt)} de ${brl(v)} · até ${dMl(m.ate)}${falta ? ' · ' + brl(falta / n) + '/mês' : ' · pronto!'}</div><div class="bar thin"><i style="width:${v ? Math.min(100, jt / v * 100) : 0}%"></i></div></div>${cx ? `<button class="btn sm ghost" data-a="cxedit" data-v="${cx.id}">Atualizar</button>` : m.caixinha ? `<button class="btn sm" data-a="casacx" data-v="${esc(tp ? 'Reserva' : m.caixinha)}">${ic('plus')}Caixinha</button>` : ''}</div>`; };
-  const body = `${foco ? `<div class="banner"><span>${ic('bullseye')}<b>Foco agora:</b> ${esc(foco.t)}</span></div>` : ''}
-<div class="grp">Renda</div><div class="grid3 sm"><div><b>${brl(r)}</b><small>hoje</small></div><div><b class="warnc">${brl(mn)}</b><small>mínima</small></div><div><b class="ok">${brl(cf)}</b><small>com folga</small></div></div>
-<div class="bar"><i style="width:${mn ? Math.min(100, r / mn * 100) : 0}%"></i></div><div class="mut">${r >= mn ? 'Sua renda já cobre a casa.' : `Falta subir <b>${brl(mn - r)}</b> por mês${c.prazoRenda ? ' até ' + esc(c.prazoRenda) : ''}.`}</div>
-${metas.length ? `<div class="grp">Dinheiro guardado para a casa</div>${metas.map(mItem).join('')}<div class="mut">Cada meta tem a sua caixinha. Guardou? Toque em Atualizar e ponha o saldo novo.</div>` : ''}
-${sa.total ? `<details class="sub"${ui.open.dcasas ? ' open' : ''} data-w="dcasas"><summary><b>E se a renda não subir?</b></summary><div class="mut">Você precisaria ter <b>${brl(num(sa.total))}</b> guardados até ${dMl(sa.ate)} (≈ ${brl(num(sa.porMes))} por mês). Depois da mudança, cada mês sem aumento tira uns <b>${brl(num(sa.depois))}</b> da reserva, então guardar só compra tempo.</div>${sa.planoB ? `<div class="mut"><b>Plano B:</b> ${esc(sa.planoB)}</div>` : ''}</details>` : ''}
-${marcos.length ? `<div class="grp">Próximos marcos</div>${marcos.map(m => `<div class="item"><div class="t"><b>${dMl(m.mes)}</b><div class="mut">${esc(m.t)}</div></div></div>`).join('')}` : ''}
+  const ok = c.ok || (c.ok = {}), hoje = dkey().slice(0, 7), r = num(c.renda), need = num(c.rendaPrecisa || c.rendaMin), cxs = dinS().caixinhas;
+  const cx = c.caixinha ? casaCx(c.caixinha) : null, saldo = cx ? num(cx.saldo) : 0;
+  const passos = c.passos || [], prox = passos.findIndex((p, i) => !ok['s' + i]);
+  const pend = c.pendencias || [], abertas = pend.map((p, i) => ({ p, i })).filter(x => !ok['p' + x.i]), feitas = pend.length - abertas.length;
+  const marcos = (c.marcos || []).filter(m => m.mes >= hoje).slice(0, 4);
+  const metas = (c.metas || []).filter(m => !m.ate || m.ate >= hoje), m1 = metas[0];
+  const mItem = (m, i) => { const v = num(m.valor), base = i === 0 ? saldo : (m1 && m1.ate >= hoje && i > 0 ? 0 : saldo), falta = Math.max(0, v - base), n = m.ate ? Math.max(1, moNum(m.ate) - moNum(hoje)) : 1, wait = i > 0 && m1 && m1.ate >= hoje;
+    return `<div class="item"><div class="t"><b>${i + 1}. ${esc(m.nome)}</b><div class="mut">${wait ? `${brl(v)} até ${dMl(m.ate)} · começa depois da meta 1` : `${brl(base)} de ${brl(v)} · até ${dMl(m.ate)}${falta ? ' · guarde ' + brl(falta / n) + '/mês' : ' · pronto!'}`}</div><div class="bar thin"><i style="width:${wait || !v ? 0 : Math.min(100, base / v * 100)}%"></i></div></div></div>`; };
+  const outras = cxs.filter(x => x !== cx);
+  const body = `<div class="banner"><span>${ic('home')}<b>Dá para morar sozinho em ${c.mudaEm ? dMl(c.mudaEm) : '—'}</b>${c.extraMeta ? ` se você ganhar <b>${brl(num(c.extraMeta))} a mais</b> por mês (freela ou aumento).` : ''}</span></div>
+${(c.cenarios || []).length ? `<div class="grid3 sm">${c.cenarios.map(x => `<div><b class="${x.muda ? '' : 'neg'}">${x.muda ? dMl(x.muda) : 'não dá'}</b><small>${num(x.extra) ? '+' + brl(num(x.extra)) + '/mês' : 'só com a renda de hoje'}</small></div>`).join('')}</div>` : ''}
+<div class="mut">Renda de hoje ${brl(r)}. Para morar sozinho sem vermelho: <b>${brl(need)}</b> por mês (fixa + extra).</div>
+<div class="grp">Caixinha ${esc(c.caixinha || 'Casa')} · ${brl(saldo)}</div>
+${outras.length ? `<div class="banner warn"><span>Você tem mais ${outras.length} caixinha(s): ${outras.map(x => esc(x.nome)).join(', ')}.</span><button class="btn sm" data-a="casajuntar">Juntar tudo</button></div>` : ''}
+${cx ? '' : `<button class="btn sm" data-a="casacx" data-v="${esc(c.caixinha || 'Casa')}">${ic('plus')}Criar a caixinha ${esc(c.caixinha || 'Casa')}</button>`}
+${metas.map(mItem).join('')}${cx ? `<button class="btn sm ghost" data-a="cxedit" data-v="${cx.id}">${ic('coin')}Atualizar o saldo da caixinha</button>` : ''}
+${passos.length ? `<div class="grp">Passo a passo · ${passos.filter((p, i) => ok['s' + i]).length} de ${passos.length}</div>${passos.map((p, i) => `<div class="item${i === prox ? ' now' : ''}"><div class="t" style="${ok['s' + i] ? 'opacity:.55;text-decoration:line-through' : ''}">${i === prox ? '<b>Agora: </b>' : ''}${esc(p.t)}${p.ate ? `<div class="mut">${/^\d{4}-\d{2}$/.test(p.ate) ? 'até ' + dMl(p.ate) : esc(p.ate)}</div>` : ''}</div><button class="btn sm ${ok['s' + i] ? '' : 'ghost'}" data-a="casapasso" data-v="${i}" aria-pressed="${!!ok['s' + i]}">${ok['s' + i] ? ic('check') + 'Feito' : 'Feito?'}</button></div>`).join('')}` : ''}
+${marcos.length ? `<details class="sub"${ui.open.dcasam ? ' open' : ''} data-w="dcasam"><summary><b>Próximos marcos</b></summary>${marcos.map(m => `<div class="item"><div class="t"><b>${dMl(m.mes)}</b><div class="mut">${esc(m.t)}</div></div></div>`).join('')}</details>` : ''}
 ${pend.length ? `<details class="sub"${ui.open.dcasap ? ' open' : ''} data-w="dcasap"><summary><b>Pendências · ${abertas.length} para resolver</b></summary>${abertas.map(x => `<div class="item"><div class="t">${esc(x.p.t)}${x.p.quem ? `<div class="mut">com ${esc(x.p.quem)}</div>` : ''}</div><button class="btn sm ghost" data-a="casaok" data-v="${x.i}" aria-pressed="false">${ic('check')}Resolvi</button></div>`).join('') || '<div class="mut">Tudo resolvido!</div>'}${feitas ? `<details class="sub"><summary>Resolvidas (${feitas})</summary>${pend.map((p, i) => ok['p' + i] ? `<div class="item"><div class="t" style="opacity:.6;text-decoration:line-through">${esc(p.t)}</div><button class="btn sm ghost" data-a="casaok" data-v="${i}" aria-pressed="true">Desfazer</button></div>` : '').join('')}</details>` : ''}</details>` : ''}
-${c.planilha ? `<a class="btn ghost full" href="${esc(c.planilha)}" target="_blank" rel="noopener">${ic('external-link')}Abrir a planilha (aba CASA 2027)</a>` : ''}<div class="mut">Estimativa para planejar, não é aconselhamento financeiro. Mudou algo? Ajuste a planilha e importe os ajustes de novo.</div>`;
-  return acc('dcasa', 'Casa 2027', mn > r ? 'falta ' + brl(mn - r) + '/mês' : 'ok', body, true);
+${c.planilha ? `<a class="btn ghost full" href="${esc(c.planilha)}" target="_blank" rel="noopener">${ic('external-link')}Abrir a planilha (aba CASA)</a>` : ''}<div class="mut">Estimativa para planejar, não é aconselhamento financeiro. Mudou algo? Ajuste a planilha e importe os ajustes de novo.</div>`;
+  return acc('dcasa', 'Casa 2027', c.mudaEm ? 'mudar em ' + dMl(c.mudaEm) : '', body, true);
 }
 /* ---------- caixinhas: onde está o dinheiro guardado (colchão, investimento, meta de compra) ---------- */
 const CX_TIPO = { colchao: 'Colchão / reserva', invest: 'Investimento', meta: 'Meta de compra' };
@@ -355,6 +361,11 @@ function cxForm(c) {
 }
 function dinCxInit() { Object.assign(A, {
   casaok: v => { const c = S.casa; if (!c) return false; c.ok = c.ok || {}; c.ok['p' + v] = !c.ok['p' + v]; save(); },
+  casapasso: v => { const c = S.casa; if (!c) return false; c.ok = c.ok || {}; c.ok['s' + v] = !c.ok['s' + v]; save(); },
+  casajuntar: () => { const c = S.casa, d = dinS(); if (!c) return false; const nome = c.caixinha || 'Casa'; let cx = casaCx(nome); const out = d.caixinhas.filter(x => x !== cx); if (!out.length) return false;
+    const tot = out.reduce((a, x) => a + num(x.saldo), 0); if (!confirm(`Juntar ${out.map(x => x.nome).join(', ')} na caixinha ${nome}? O saldo (${brl(tot)}) é somado e as outras somem do app. No banco, faça a mesma coisa.`)) return false;
+    if (!cx) { cx = { id: uid(), nome, tipo: 'meta', instituicao: 'Nubank', produto: 'Caixinha', pctCdi: 100, saldo: 0, liquidez: 'diária', fgc: true }; d.caixinhas.push(cx); }
+    cx.saldo = num(cx.saldo) + tot; d.caixinhas = d.caixinhas.filter(x => x === cx); save(); toast('Tudo numa caixinha só: ' + brl(cx.saldo)); },
   casacx: v => { cxForm({ nome: v, tipo: v.toLowerCase().includes('reserva') ? 'colchao' : 'meta', instituicao: 'Nubank', produto: 'Caixinha', pctCdi: 100 }); return false; },
   cxadd: () => { cxForm({}); return false; },
   cxedit: v => { const c = dinS().caixinhas.find(x => x.id === v); if (c) cxForm(c); return false; },

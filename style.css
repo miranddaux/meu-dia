@@ -349,3 +349,4 @@ details.sub{border-top:2px dashed var(--mut);margin-top:var(--s2);padding-top:va
 details.sub>summary::after{content:'+';font-family:'PixelPS',monospace;margin-left:10px}
 details.sub[open]>summary::after{content:'–'}
 .banner .ic{flex:none;margin-right:6px;vertical-align:-3px}
+.item.now{background:var(--soft);border-radius:var(--r);padding-left:var(--s2);padding-right:var(--s2)}
