@@ -355,3 +355,8 @@ details.sub[open]>summary::after{content:'–'}
 .ideal .big{font-size:22px;line-height:28px}
 .ideal .dist .bar{margin-top:2px}
 .ideal .dist.save b{color:var(--ok)}
+/* v66: prioridades do mês em destaque no card Casa */
+.now-box{border:3px solid var(--ink);border-radius:var(--r);background:var(--gold);color:#1f2a2e;padding:var(--s2) var(--s3);margin:var(--s1) 0 var(--s2);display:grid;gap:4px}
+.now-box .mut{color:#1f2a2e;opacity:.8}
+.now-box .item{border-color:rgba(31,42,46,.25)}
+.now-box .nw{white-space:nowrap;margin-left:8px}
