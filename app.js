@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v68';
+const APP_V = 'v69';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -200,6 +200,31 @@ function load() {
   S.flags = (raw && raw.flags) || {};
   if (raw) migrate(); else S.flags.fresh = 1;
   dropOnly();
+  seedCareerRemindersNov2026();
+}
+/* Career appointments and confirmation reminders, Nov-Dec 2026.
+   Store locally and in cloud backup. They are not external ADPList bookings.
+   If push is enabled, the existing agendaAvisos() sends them to the scheduled push backend. */
+function seedCareerRemindersNov2026() {
+  S.flags = S.flags || {};
+  if (S.flags.careerRemindersNov26) return;
+  const records = [
+    ['mentoria-aline-carreira-1011','Mentoria Aline — carreira (conferir ADPList)','2026-11-10','17:00','45 min. Revisar CV, LinkedIn e estratégia Product Designer Pleno.'],
+    ['mentoria-aline-portfolio-1811','Confirmar horário — Aline, revisão portfólio','2026-11-18','09:00','Data desejada. Horário e reserva na ADPList não confirmados; ajustar quando confirmado.'],
+    ['mentoria-aline-carreira-2411','Verificar segunda sessão Aline — carreira','2026-11-24','17:00','Pacote recorrente mostrado no print; confirmar se está reservado na ADPList.'],
+    ['pdi-vini-preparo-0911','Preparar PDI e pedir 1:1 ao Vini','2026-11-09','09:00','Enviar solicitação de alinhamento até 12/11. Levar oportunidades de DS, QA e critérios PJ.'],
+    ['pdi-vini-prazo-1211','Prazo: alinhar PDI com Vini','2026-11-12','09:00','Meta de agendamento, NÃO reunião confirmada. Definir piloto e próximos checkpoints.'],
+    ['mentoria-henrique-busca-2011','Procurar mentoria Henrique — DesignOps','2026-11-20','09:00','Nina indisponível. Buscar horário em dezembro, sem reserva ainda.'],
+    ['mentorias-dezembro-0712','Radar: Henrique / Adailson para dezembro','2026-12-07','09:00','Verificar vaga real; não tratar como sessão confirmada.']
+  ];
+  const today = dkey();
+  for (const [id,title,date,time,note] of records) {
+    if (date < today) continue;
+    if (!S.reminders.some(r => r.id === id || (r.date === date && r.title === title))) {
+      S.reminders.push({ id, title, date, time, note, done: false });
+    }
+  }
+  S.flags.careerRemindersNov26 = 1;
 }
 /* migração suave: nunca apaga dado do usuário */
 function migrate() {
