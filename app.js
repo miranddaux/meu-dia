@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v66';
+const APP_V = 'v67';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -109,13 +109,13 @@ function college(gym) {
     b('22:00', '22:45', 'Voltar, higiene e oração da noite', 'flex'),
     b('22:45', '23:59', 'Dormir (meta)', 'fixo')];
 }
-function sat() { /* sábado: conteúdo até 12h; tarde e domingo livres (Nayara) */
+function sat() { /* sábado: 09–12 estudos e carreira; tarde livre */
   return [
-    b('08:00', '08:30', 'Acordar, oração e café', 'livre'),
-    b('08:30', '10:30', 'LinkedIn: criar e agendar os posts da semana', 'flex'),
-    b('10:30', '10:45', 'Pausa', 'livre'),
-    b('10:45', '11:45', 'YouTube (semana de vídeo) ou ANIMAE (semana sem vídeo)', 'flex'),
-    b('11:45', '12:00', 'Atualizar status no Notion', 'flex'),
+    b('08:00', '09:00', 'Acordar, oração e café', 'livre'),
+    b('09:00', '10:00', 'Python Guanabara: 1 aula + 1 desafio', 'flex'),
+    b('10:00', '10:15', 'Pausa', 'livre'),
+    b('10:15', '11:45', 'Portfólio e candidaturas (alternar com ANIMAE após V1)', 'flex'),
+    b('11:45', '12:00', 'Revisão da semana e Notion', 'flex'),
     b('12:00', '13:30', 'Almoço e descanso', 'livre'),
     b('13:30', '23:59', 'Tarde e noite livres (Nayara)', 'livre')
   ];
@@ -138,7 +138,7 @@ const DEF_HABITS = () => [
   hb('Oração e agradecimento', 'm', D6, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', D6, 1, 0, 2, '05:55'), hb('Leitura', 'm', D6, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', D6, 0, 1, 5, '07:15'),
   hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
   hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3, 4, 5], 0, 0, 4, '17:00'),
-  hb('LinkedIn: criar e agendar os posts', 'm', [6], 1, 0, 5, '08:30'), hb('YouTube ou ANIMAE: etapa de hoje', 'm', [6], 1, 0, 6, '10:45'), hb('Atualizar status no Notion', 'm', [6], 1, 0, 7, '11:45'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
+  hb('Python: aula + desafio (sábado)', 'm', [6], 1, 0, 5, '09:00'), hb('Portfólio/candidaturas (sábado)', 'm', [6], 1, 0, 6, '10:15'), hb('Atualizar status no Notion', 'm', [6], 1, 0, 7, '11:45'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
   hb('Passear com o cachorro', 'n', D6, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', D6, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', D6, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
   hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
@@ -165,7 +165,7 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
-    study: { 0: th('', ''), 1: th('Front-end (Udemy: aula do professor do dia)', 'Front-end web (Udemy)'), 2: th('Inglês (aula com o Claude)', 'Inglês'), 3: th('Python (Curso em Vídeo, Guanabara)', 'Python (Guanabara)'), 4: th('Produto, UX e UI', 'UI/UX e Product Design'), 5: th('Fixação: flashcards, questões e diagnóstico', 'UI/UX e Product Design'), 6: th('Matemática (opcional)', 'Matemática de apoio') },
+    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design'), 2: th('Inglês (60 min)', 'Inglês'), 3: th('HTML/CSS (60 min) + matemática (30 min)', 'Front-end web (Udemy)'), 4: th('UI/Design Systems (60 min) + português (30 min)', 'UI/UX e Product Design'), 5: th('Revisão e flashcards (60–90 min)', 'UI/UX e Product Design'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
@@ -292,6 +292,43 @@ function migrate() {
     const rk = g => /mini/i.test(g.title) ? 0 : /reserva|colch/i.test(g.title) ? 1 : /anel/i.test(g.title) ? 2 : /ps5/i.test(g.title) ? 3 : /cel|iphone/i.test(g.title) ? 4 : 3.5;
     S.goals = S.goals.map((g, i) => [g, i]).sort((a, b) => rk(a[0]) - rk(b[0]) || a[1] - b[1]).map(x => x[0]);
   }
+  migrateStudyNov2026();
+}
+/* Plano 06/11/2026: migração conservadora. Mantém dados diários, conclusões, hábitos pessoais e horários personalizados. */
+function migrateStudyNov2026() {
+  const f = S.flags;
+  if (f.estudosNov26) return;
+  f.estudosNov26 = 1;
+  const d = defaults();
+  const oldThemes = {
+    1: ['Front-end (Udemy: aula do professor do dia)', 'Front-end web (Udemy)'],
+    2: ['Inglês (aula com o Claude)', 'Inglês'],
+    3: ['Python (Curso em Vídeo, Guanabara)', 'Python (Guanabara)'],
+    4: ['Produto, UX e UI', 'UI/UX e Product Design'],
+    5: ['Fixação: flashcards, questões e diagnóstico'],
+    6: ['Matemática (opcional)']
+  };
+  [1, 2, 3, 4, 5, 6].forEach(day => {
+    const cur = S.study[day];
+    if (!cur || oldThemes[day]?.includes(cur.theme)) S.study[day] = { ...d.study[day], ...(cur && cur.link ? { link: cur.link } : {}), ...(cur && cur.next ? { next: cur.next } : {}) };
+  });
+  if (!S.study[1] || !S.study[1].theme) S.study[1] = d.study[1];
+  const satOld = (S.schedule[6] || []).some(x => /LinkedIn: criar e agendar os posts da semana/.test(x.t));
+  if (satOld) S.schedule[6] = sat();
+  [3, 4].forEach(day => {
+    const blocks = S.schedule[day] || [];
+    const t = day === 3 ? 'Matemática: 30 min (apoio)' : 'Português: 30 min (apoio)';
+    if (!blocks.some(x => x.t === t)) {
+      const free = blocks.find(x => x.s === '20:00' && x.e === '21:15' && x.type === 'livre');
+      if (free) { free.s = '20:30'; blocks.push(b('20:00','20:30',t,'flex')); }
+    }
+  });
+  const oldSatTitles = ['LinkedIn: criar e agendar os posts', 'YouTube ou ANIMAE: etapa de hoje'];
+  const oldSat = S.habits.filter(h => oldSatTitles.includes(h.title) && Array.isArray(h.days) && h.days.join() === '6');
+  oldSat.forEach(h => { h.days = []; });
+  d.habits.filter(h => /^(Python: aula|Portfólio\/candidaturas)/.test(h.title)).forEach(h => {
+    if (!S.habits.some(e => e.title === h.title)) S.habits.push(h);
+  });
 }
 function backfill(c, n) {
   c.start = dkey(addD(new Date(), -n)); c.log = c.log || {};
