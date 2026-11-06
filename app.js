@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v67';
+const APP_V = 'v68';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -166,7 +166,7 @@ function defaults() {
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
     study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design'), 2: th('Inglês (60 min)', 'Inglês'), 3: th('HTML/CSS (60 min) + matemática (30 min)', 'Front-end web (Udemy)'), 4: th('UI/Design Systems (60 min) + português (30 min)', 'UI/UX e Product Design'), 5: th('Revisão e flashcards (60–90 min)', 'UI/UX e Product Design'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
-    studyLog: {}, reminders: [],
+    studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Python (Guanabara)', link: '', now: '' },
@@ -195,6 +195,7 @@ function load() {
   S.settings.pom = Object.assign(dpm, (raw && raw.settings && raw.settings.pom) || {});
   if (!S.learn || !S.learn.done) S.learn = { done: {}, days: {}, xp: 0 };
   S.reminders = Array.isArray(S.reminders) ? S.reminders : [];
+  S.saturdayLog = (raw && raw.saturdayLog && typeof raw.saturdayLog === 'object') ? raw.saturdayLog : {};
   S.ideas = Object.assign({ done: [], mine: [] }, (raw && raw.ideas) || {});
   S.flags = (raw && raw.flags) || {};
   if (raw) migrate(); else S.flags.fresh = 1;
@@ -448,6 +449,26 @@ function petCard(k) {
 }
 const acc = (key, title, right, body, def) => `<details class="card" data-w="${key}" ${(ui.open[key] !== undefined ? ui.open[key] : def) ? 'open' : ''}><summary><span class="px">${title}</span><span class="mut">${right || ''}</span></summary>${body}</details>`;
 function icsSig() { return JSON.stringify([S.habits.filter(h => h.at).map(h => [h.title, h.at, h.days]), S.pet, S.bills.map(b => [b.title, b.day, b.amount]), S.planDays || {}, S.goals.map(g => [g.title, num(g.target) > num(g.saved)]), payNth()]); }
+/* Saturday log: Python stays fixed; portfolio/ANIMAE is chosen on the day. */
+function saturdayCard() {
+  const k = dkey(), day = new Date().getDay();
+  if (day !== 6) return '';
+  const log = (S.saturdayLog || {})[k] || {}, choice = log.focus || 'portfolio';
+  const opts = [['portfolio','Portfólio'],['animae','ANIMAE']];
+  const status = (log.pythonDone ? 'Python feito' : 'Python pendente') + ' · ' + (log.focusDone ? 'segundo bloco feito' : 'segundo bloco pendente');
+  const history = Object.entries(S.saturdayLog || {}).filter(([date, v]) => date !== k && (v.pythonDone || v.focusDone)).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,4);
+  return `<div class="card"><div class="row sp"><h3 class="px">${ic('book-open')}<span>Meu sábado · 09h–12h</span></h3><span class="mut">Sem obrigação de fazer tudo</span></div>
+<div class="mut">09h–10h · Python Guanabara, toda semana</div>
+<button class="btn ${log.pythonDone ? '' : 'ghost'} full" data-a="satpython">${ic(log.pythonDone ? 'check' : 'book-open')}${log.pythonDone ? 'Python concluído · desfazer' : 'Marcar Python como feito'}</button>
+<div class="grp">10h15–11h45 · O que você escolheu hoje?</div>
+<div class="chips">${opts.map(([id,label])=>`<button class="chip ${choice===id?'on':''}" data-a="satfocus" data-v="${id}" aria-pressed="${choice===id}">${label}</button>`).join('')}</div>
+<button class="btn ${log.focusDone ? '' : 'ghost'} full" data-a="satfocusdone">${ic(log.focusDone ? 'check' : 'flag')}${log.focusDone ? 'Bloco concluído · desfazer' : 'Marcar '+(choice==='animae'?'ANIMAE':'portfólio')+' como feito'}</button>
+<label>O que fiz hoje? (opcional)</label><textarea data-c="satnote" rows="2" placeholder="Uma aula, um exercício, uma entrega…">${esc(log.note || '')}</textarea>
+<div class="mut">${status}. Salvo no Meu Dia. Com sincronização ativada, entra no resumo diário do Notion.</div>
+<button class="btn sm ghost" data-a="satsync">${ic('sync')}Enviar registro ao Notion</button>
+${history.length ? '<div class="grp">Últimos sábados</div>'+history.map(([date,v])=>`<div class="mut">${date.split('-').reverse().join('/')} · ${v.pythonDone?'Python ✓':'Python —'} · ${v.focusDone?(v.focus==='animae'?'ANIMAE ✓':'Portfólio ✓'):'Segundo bloco —'}</div>`).join('') : ''}
+</div>`;
+}
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
@@ -456,7 +477,7 @@ function vHoje() {
   const st = S.study[dow] || {}, sl = S.studyLog[k] || {};
   const pr = S.prios[k] || [{}, {}, {}];
   const skip = (S.skipHoje || {})[k] || [], habs = S.habits.filter(h => h.days.includes(dow) && (!hard || isMin(h)) && !skip.includes(h.id));
-  let out = seg;
+  let out = seg + saturdayCard();
   /* 1) Prioridades: sempre no topo */
   const pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
   const pdone = [0, 1, 2].filter(i => pst(i) === 'done').length;
@@ -506,6 +527,7 @@ function vPlano() {
   const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '' }, k = dkey(), sl = S.studyLog[k] || {};
   let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
   out += estudoSemana();
+  if (d === 6 && today === 6) out += saturdayCard();
   out += roadCard();
   out += histCard();
   out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>
@@ -852,7 +874,9 @@ function dayReport(k = dkey()) {
   const wts = S.weights.find(x => x.date === k), ch = S.challenges.filter(c => !c.arq).map(c => `${c.title}: ${Math.min(c.days, chDays(c))}/${c.days}${c.log[k] === 'ok' ? ' (hoje ok)' : ''}`).join('; ');
   const rp = typeof rpgStats === 'function' ? rpgStats() : null;
   const nx = typeof journeyNext === 'function' ? journeyNext().slice(0,3).map(x=>x.title).join(' | ') : '';
-  return `Sistema XP · registro do dia ${k}\nNível: ${rp ? rp.level + ' · ' + rp.total + ' XP' : '—'}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPróximas ações: ${nx || '—'}\nLições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}`;
+  const sat = dow === 6 ? ((S.saturdayLog||{})[k]||{}) : null;
+  const satText = sat ? `\nSábado: Python ${sat.pythonDone?'feito':'pendente'}; ${sat.focus==='animae'?'ANIMAE':'Portfólio'} ${sat.focusDone?'feito':'pendente'}${sat.note?' — '+sat.note:''}` : '';
+  return `Sistema XP · registro do dia ${k}\nNível: ${rp ? rp.level + ' · ' + rp.total + ' XP' : '—'}\nMissões: ${dn}/${hs.length}\nEstudo: ${(S.studyLog[k] && S.studyLog[k].done) ? 'feito' : 'não feito'} — ${st.theme || '—'}\nÁgua: ${L(S.water[k] || 0)} L\nTreino: ${wk || '—'}\nDieta: ${Math.round(sum(ms, 'kcal'))} kcal, ${Math.round(sum(ms, 'prot'))} g proteína\nPeso: ${wts ? r1(num(wts.kg)) + ' kg' : '—'}\nDesafios: ${ch || '—'}\nHumor/energia: ${md.m || '—'}/${md.e || '—'}\nPrioridades: ${pr.join(' | ') || '—'}\nPróximas ações: ${nx || '—'}\nLições: ${S.learn.days[k] || 0}\nMoedas: ${coins()}${satText}`;
 }
 function weekSummary(ws) {
   const days = [...Array(7)].map((_, i) => addD(ws, i)), ks = days.map(d => dkey(d)), today = dkey(), past = ks.filter(k => k <= today), a = ks[0], z = ks[6];
@@ -1004,6 +1028,10 @@ const A = {
   cyc: v => { const k = dkey(); S.log[k] = S.log[k] || {}; const i = ST.indexOf(S.log[k][v] || ''); const nx = ST[(i + 1) % ST.length]; if (nx) S.log[k][v] = nx; else delete S.log[k][v]; save(); },
   hard: () => { const k = dkey(); S.hardDay[k] = !S.hardDay[k]; save(); },
   studydone: () => { const k = dkey(); S.studyLog[k] = { done: !(S.studyLog[k] && S.studyLog[k].done) }; save(); },
+  satpython: () => { const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; l.pythonDone=!l.pythonDone; save(); },
+  satfocus: v => { if (!['portfolio','animae'].includes(v)) return false; const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; if(l.focus!==v){l.focus=v;l.focusDone=false;} save(); },
+  satfocusdone: () => { const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; l.focus=l.focus||'portfolio';l.focusDone=!l.focusDone;save(); },
+  satsync: () => { doSync(false); return false; },
   mood: (v, w) => { const k = dkey(); S.mood[k] = S.mood[k] || {}; S.mood[k][v] = S.mood[k][v] === +w ? undefined : +w; save(); ui.open.mood = true; },
   water: v => { const k = dkey(); S.water[k] = Math.max(0, (S.water[k] || 0) + Number(v)); save(); },
   waterrec: v => { S.settings.waterGoal = String(v); save(); },
@@ -1176,6 +1204,7 @@ const C = {
   pt: (v, i) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { t: v }); save(); },
   pd: (v, i, el) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { d: el.checked }); save(); },
   mnote: v => { const k = dkey(); S.mood[k] = S.mood[k] || {}; S.mood[k].note = v; save(); },
+  satnote: v => { const k=dkey(),l=S.saturdayLog[k]=S.saturdayLog[k]||{};l.note=v.slice(0,600);save(); },
   sth: v => stSet('theme', v), str: v => stSet('track', v), sln: v => { stSet('link', v); render(); }, snx: v => stSet('next', v),
   rv: (v, f) => { const wk = dkey(wkStart()); S.reviews[wk] = S.reviews[wk] || {}; S.reviews[wk][f] = v; save(); },
   cc: (v, f) => { S.settings.calc[f] = v; save(); render(); },
