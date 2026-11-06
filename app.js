@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v70';
+const APP_V = 'v71';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -202,6 +202,7 @@ function load() {
   dropOnly();
   seedCareerRemindersNov2026();
   refreshMentorRadarNov2026();
+  seedNewMentorRequestsNov2026();
 }
 /* Career appointments and confirmation reminders, Nov-Dec 2026.
    Store locally and in cloud backup. They are not external ADPList bookings.
@@ -240,6 +241,20 @@ function refreshMentorRadarNov2026() {
     if (next && !rem.done) { rem.title = next[0]; if (!rem.note || /Henrique|Nina|reserva|vaga real/.test(rem.note)) rem.note = next[1]; }
   }
   S.flags.mentorRadarNov26v2 = 1;
+}
+/* Added mentorship requests. Booking request is not confirmation. */
+function seedNewMentorRequestsNov2026() {
+  S.flags = S.flags || {};
+  if (S.flags.newMentorRequestsNov26) return;
+  const records = [
+    {id:'adplist-adailson-0911', title:'Adailson — pedido enviado, aguardar aceite', date:'2026-11-09', time:'19:15', note:'Solicitação enviada na ADPList. Sessão prevista de 30min; revisar confirmação e convite por e-mail. Carreira Product Design + código.'},
+    {id:'adplist-daniel-1211', title:'Daniel R. Campos — confirmar solicitação ADPList', date:'2026-11-12', time:'17:30', note:'Horário escolhido no formulário, mas pedido ainda não confirmado. 30min para discutir Design System da Disco, governança e case profissional.'}
+  ];
+  const today = dkey();
+  records.filter(r => r.date >= today).forEach(r => {
+    if (!(S.reminders || []).some(x => x.id===r.id || (x.date===r.date && x.title===r.title))) S.reminders.push({...r,done:false});
+  });
+  S.flags.newMentorRequestsNov26=1;
 }
 /* migração suave: nunca apaga dado do usuário */
 function migrate() {
