@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v69';
+const APP_V = 'v70';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -201,6 +201,7 @@ function load() {
   if (raw) migrate(); else S.flags.fresh = 1;
   dropOnly();
   seedCareerRemindersNov2026();
+  refreshMentorRadarNov2026();
 }
 /* Career appointments and confirmation reminders, Nov-Dec 2026.
    Store locally and in cloud backup. They are not external ADPList bookings.
@@ -214,8 +215,8 @@ function seedCareerRemindersNov2026() {
     ['mentoria-aline-carreira-2411','Verificar segunda sessão Aline — carreira','2026-11-24','17:00','Pacote recorrente mostrado no print; confirmar se está reservado na ADPList.'],
     ['pdi-vini-preparo-0911','Preparar PDI e pedir 1:1 ao Vini','2026-11-09','09:00','Enviar solicitação de alinhamento até 12/11. Levar oportunidades de DS, QA e critérios PJ.'],
     ['pdi-vini-prazo-1211','Prazo: alinhar PDI com Vini','2026-11-12','09:00','Meta de agendamento, NÃO reunião confirmada. Definir piloto e próximos checkpoints.'],
-    ['mentoria-henrique-busca-2011','Procurar mentoria Henrique — DesignOps','2026-11-20','09:00','Nina indisponível. Buscar horário em dezembro, sem reserva ainda.'],
-    ['mentorias-dezembro-0712','Radar: Henrique / Adailson para dezembro','2026-12-07','09:00','Verificar vaga real; não tratar como sessão confirmada.']
+    ['mentoria-henrique-busca-2011','Pesquisar mentores DS — Daniel, Davi e Eduardo','2026-11-20','09:00','Henrique e Nina indisponíveis. Consultar Daniel R Campos, Davi Callegari e Eduardo Ferreira na ADPList. Nenhuma reserva feita.'],
+    ['mentorias-dezembro-0712','Radar: Daniel / Davi / Eduardo — dezembro','2026-12-07','09:00','Verificar agenda PT-BR e sessões gratuitas; não tratar como call confirmada.']
   ];
   const today = dkey();
   for (const [id,title,date,time,note] of records) {
@@ -225,6 +226,20 @@ function seedCareerRemindersNov2026() {
     }
   }
   S.flags.careerRemindersNov26 = 1;
+}
+/* Single migration: update earlier seeded mentor reminders without resetting completion or custom notes. */
+function refreshMentorRadarNov2026() {
+  S.flags = S.flags || {};
+  if (S.flags.mentorRadarNov26v2) return;
+  const repl = {
+    'mentoria-henrique-busca-2011': ['Pesquisar mentores DS — Daniel, Davi e Eduardo', 'Henrique e Nina indisponíveis. Verificar Daniel R Campos, Davi Callegari e Eduardo Ferreira na ADPList. Não existe reserva.'],
+    'mentorias-dezembro-0712': ['Radar: Daniel / Davi / Eduardo — dezembro', 'Conferir disponibilidade de mentores brasileiros de Design Systems. Adailson permanece como opção de carreira.']
+  };
+  for (const rem of S.reminders || []) {
+    const next = repl[rem.id];
+    if (next && !rem.done) { rem.title = next[0]; if (!rem.note || /Henrique|Nina|reserva|vaga real/.test(rem.note)) rem.note = next[1]; }
+  }
+  S.flags.mentorRadarNov26v2 = 1;
 }
 /* migração suave: nunca apaga dado do usuário */
 function migrate() {
