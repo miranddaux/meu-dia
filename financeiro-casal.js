@@ -12,8 +12,7 @@ function casalPainel() {
   const pessoal=n('combustivel')+n('manutCarro')+n('saude')+n('academia')+n('celular')+n('mei')+n('assinaturas')+n('emprestimos')+n('norival')+n('lazer')+n('outros');
   const reserva=n('saldoColchao'), conjunta=n('saldoConjunto'), fatura=n('parcelasCartao')+n('extraCartao');
   const renda=n('renda'), folga=n('folga'), disponivel=renda-own-pessoal-fatura-folga;
-  const aporte=Math.max(0,disponivel), save70=Math.min(Math.max(0,1000-reserva),aporte*.7);
-  const meta30=aporte-save70;
+  const aporte=Math.max(0,disponivel), save70=aporte*.7, meta30=aporte*.3;
   const status=disponivel<0?'Faltam '+brl(-disponivel)+' para fechar o mes': 'Disponivel para metas: '+brl(disponivel);
   const row=(name,value)=>'<div class="row sp"><span>'+name+'</span><b>'+brl(value)+'</b></div>';
   return '<div class="card">'+sec('house','Plano do casal · 70/30','<button class="btn sm ghost" data-a="casalsetup">'+ic('sliders')+'Editar</button>')+
@@ -24,7 +23,7 @@ function casalPainel() {
    '<div class="banner '+(disponivel<0?'warn':'')+'"><span>'+status+'</span></div>'+
    '<div class="grp">Metas que nao se misturam</div>'+row('Colchao pessoal',reserva)+row('Falta para R$ 1.000',Math.max(0,1000-reserva))+
    row('Meta conjunta (outro banco/papel)',conjunta)+row('Falta para R$ 10.000',Math.max(0,10000-conjunta))+
-   (disponivel>0?'<div class="mut">Sugestao 70/30 ate os primeiros R$1.000: '+brl(save70)+' no colchao e '+brl(aporte*.3)+' na meta conjunta. Excedentes vao para ampliar sua reserva, nao para consumo automatico.</div>':'<div class="mut">Sem saldo livre, nao programar aporte automatico. Ajuste custos ou renda antes.</div>')+
+   (disponivel>0?'<div class="mut">Sugestao 70/30 ate os primeiros R$1.000: '+brl(save70)+' no colchao e '+brl(meta30)+' na meta conjunta. A parcela de 70% continua fortalecendo sua reserva pessoal depois dos primeiros R$1.000.</div>':'<div class="mut">Sem saldo livre, nao programar aporte automatico. Ajuste custos ou renda antes.</div>')+
    '<div class="mut">Os valores sao cadastrados manualmente. A planilha financeira continua sendo a fonte para despesas mensais; esta tela e um simulador complementar e salva apenas no aparelho.</div></div>';
 }
 function casalPlanejamentoSetup() {
