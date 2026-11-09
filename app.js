@@ -1721,6 +1721,7 @@ function planCard(mo) {
   else {
     const L2 = p.despesas.filter(x => !x.livre || x.valor > 0), pg = L2.filter(x => x.pago).reduce((a, x) => a + x.valor, 0), tt = L2.reduce((a, x) => a + x.valor, 0);
     b = `<div class="mut">${esc(p.tab)}${(S.sheetQ || []).length ? ' · ' + S.sheetQ.length + ' envio(s) pendente(s)' : ''} · pago ${brl(pg)} de ${brl(tt)}${typeof p.sobra === 'number' ? ' · sobra prevista ' + brl(p.sobra) : ''}</div><div class="bar"><i style="width:${tt ? Math.min(100, pg / tt * 100) : 0}%"></i></div>`;
+    if (Number.isFinite(p.reservaCartao)) b += `<div class="banner"><span><b>Guardar para a fatura: ${brl(p.reservaCartao)}</b> · inclui a margem de novas compras, sem somar a fatura de novo como despesa. O valor é previsão; a fatura não está marcada como paga.</span></div>`;
     let g = '';
     b += L2.map(x => { const h = x.grupo !== g ? `<div class="grp">${esc(x.grupo)}</div>` : ''; g = x.grupo; return `${h}<div class="item"><div class="t">${esc(x.desc)}<div class="mut">${brl(x.valor)}${x.pago ? ' · pago' : ''}</div></div><div class="row"><button class="btn sm ghost" data-a="plandia" data-v="${esc(x.desc)}" aria-label="Dia do vencimento de ${esc(x.desc)}">${pdays()[pkey(x.desc)] ? 'Dia ' + pdays()[pkey(x.desc)].day : '+ dia'}</button>${x.pago ? doneBtn('Pago', 'Desfazer', `data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}"`) : `<button class="btn sm" data-a="planpago" data-v="${x.row}" data-w="${esc(x.desc)}">${ic('check')}Paguei</button>`}</div></div>`; }).join('');
   }
