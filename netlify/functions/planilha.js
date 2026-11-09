@@ -32,12 +32,16 @@ exports.handler = async event => {
   const tab = tabName(y, m), vbase = base(SHEET_ID) + '/values/';
   try {
     const tk = await token(sa), H = { Authorization: 'Bearer ' + tk, 'content-type': 'application/json' };
-    const read = async () => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!A1:G70`) + '?valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro ao ler a planilha'); return j.values || []; };
+    const read = async () => { const r = await fetch(vbase + encodeURIComponent(`'${tab}'!A1:I70`) + '?valueRenderOption=UNFORMATTED_VALUE', { headers: H }); const j = await r.json(); if (!r.ok) throw new Error((j.error && j.error.message) || 'Erro ao ler a planilha'); return j.values || []; };
     const put = async (cell, v) => { if (/^F/.test(cell) && typeof v === 'string') v = v.toLocaleUpperCase('pt-BR'); const r = await fetch(vbase + encodeURIComponent(`'${tab}'!${cell}`) + '?valueInputOption=USER_ENTERED', { method: 'PUT', headers: H, body: JSON.stringify({ values: [[v]] }) }); if (!r.ok) throw new Error('Erro ao escrever: ' + (await r.text()).slice(0, 200)); };
     const arrumar = async () => { const d = ordenar(await read(), tab); if (d.length) { const r = await fetch(base(SHEET_ID) + '/values:batchUpdate', { method: 'POST', headers: H, body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data: d }) }); if (!r.ok) throw new Error('Erro ao ordenar: ' + (await r.text()).slice(0, 200)); } return d.length; };
     const made = await ensureTab(SHEET_ID, tk, y, m, true);
     const rows = await read(), data = parse(rows);
-    if (event.httpMethod !== 'POST') return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, created: made.created, from: made.from, ...data }) };
+    // Somente exibe a previsão de reserva do cartão já calculada na planilha.
+    // Nunca adiciona a fatura outra vez às despesas e não a confunde com pagamento.
+    const reservaCartao = rows.map(row => ({ descricao: String(row[7] || '').trim(), valor: row[8] })).find(item =>
+      /^TOTAL A GUARDAR CART[AÃ]O$/i.test(item.descricao) && typeof item.valor === 'number' && Number.isFinite(item.valor));
+    if (event.httpMethod !== 'POST') return { statusCode: 200, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ok: true, tab, created: made.created, from: made.from, ...data, ...(reservaCartao ? { reservaCartao: reservaCartao.valor } : {}) }) };
     let ac = body.action, v = Math.round(Number(body.valor) * 100) / 100;
 
     if (ac === 'plano') { // manda o plano do app para a aba do mês: atualiza valores das linhas que já existem e usa "LINHA VARIÁVEL" para as novas. Nunca apaga nada.
