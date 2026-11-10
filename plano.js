@@ -6,26 +6,26 @@ const PLANO_MESES = [
     ['2026-11-20','Diagnóstico 1 · Matemática (sexta)','diag'],['2026-11-27','Diagnóstico 2 · Linguagens (sexta)','diag']] },
   { m:'2026-12', nome:'Dezembro 2026', nivel:1, h:'1h', foco:'Fechar diagnóstico e montar o mapa de erros por causa. Início do Projeto Final do CC é só em dez/2027.', ev:[
     ['2026-12-04','Diagnóstico 3 · Humanas (sexta)','diag'],['2026-12-11','Diagnóstico 4 · Natureza (sexta)','diag'],['2026-12-18','Diagnóstico 5 · Redação (sexta)','diag']] },
-  { m:'2027-01', nome:'Janeiro 2027', nivel:2, h:'2,5h', foco:'ENEM base: Matemática e Português. CC1 termina com prova. Meu PIM: quiz em Python.', ev:[
+  { m:'2027-01', nome:'Janeiro 2027', nivel:2, h:'2h', foco:'ENEM base: Matemática e Português. CC1 termina com prova. Meu PIM: quiz em Python.', ev:[
     ['2027-01-16','Prova rank D · CC1 (lógica/Python)','prova'],['2027-01-30','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-02', nome:'Fevereiro 2027', nivel:2, h:'2,5h', foco:'ENEM base + CC2 (JavaScript e Git).', ev:[['2027-02-27','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-03', nome:'Março 2027', nivel:2, h:'2,5h', foco:'ENEM base + CC2. Diagnóstico 2 mostra se a base subiu.', ev:[
+  { m:'2027-02', nome:'Fevereiro 2027', nivel:2, h:'2h', foco:'ENEM base + CC2 (JavaScript e Git).', ev:[['2027-02-27','Mini-prova mensal ENEM','mini']] },
+  { m:'2027-03', nome:'Março 2027', nivel:2, h:'2h', foco:'ENEM base + CC2. Diagnóstico 2 mostra se a base subiu.', ev:[
     ['2027-03-26','Diagnóstico 2 (sexta): comparar com o de nov/dez','diag'],['2027-03-27','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-04', nome:'Abril 2027', nivel:3, h:'3–4h', foco:'Sobe a carga SE o G1 estiver ok. PIM: Caderno de Erros do ENEM. CC3: estruturas de dados.', ev:[
-    ['2027-04-01','G1 · decidir se a carga sobe (base subiu? rotina aguentou?)','gate'],['2027-04-24','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-05', nome:'Maio 2027', nivel:3, h:'3–4h', foco:'Questões por competência + redação quinzenal. CC3.', ev:[['2027-05-29','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-06', nome:'Junho 2027', nivel:3, h:'3–4h', foco:'Fechar semestre. Decidir FUVEST/UNESP e carga das fases finais.', ev:[
-    ['2027-06-26','Mini-prova mensal ENEM','mini'],['2027-06-30','G2 · decidir FUVEST/UNESP e carga de jul–out','gate']] },
-  { m:'2027-07', nome:'Julho 2027', nivel:4, h:'4–5h', foco:'Fase de simulados começa. Prova rank B do CC2. Corrigir cada simulado por causa do erro.', ev:[
+  { m:'2027-04', nome:'Abril 2027', nivel:3, h:'3h', foco:'Sobe para 3h SE o G1 estiver ok (1h do sábado sai do portfólio). PIM: Caderno de Erros do ENEM. CC3: estruturas de dados.', ev:[
+    ['2027-04-01','G1 · decidir se sobe para 3h (base subiu? rotina aguentou?)','gate'],['2027-04-24','Mini-prova mensal ENEM','mini']] },
+  { m:'2027-05', nome:'Maio 2027', nivel:3, h:'3h', foco:'Questões por competência + redação quinzenal. CC3.', ev:[['2027-05-29','Mini-prova mensal ENEM','mini']] },
+  { m:'2027-06', nome:'Junho 2027', nivel:3, h:'3h', foco:'Fechar semestre. Decidir FUVEST/UNESP e carga das fases finais.', ev:[
+    ['2027-06-26','Mini-prova mensal ENEM','mini'],['2027-06-30','G2 · decidir FUVEST/UNESP e se jul–out usa 4–5h (trocando com código)','gate']] },
+  { m:'2027-07', nome:'Julho 2027', nivel:4, h:'4h', foco:'Fase de simulados começa. ENEM sobe para 4h tirando 1h dos blocos de código. Prova rank B do CC2. Corrigir cada simulado por causa do erro.', ev:[
     ['2027-07-03','Prova rank B · CC2 (JS/Git)','prova'],['2027-07-17','Simulado 1 ENEM','simulado']] },
-  { m:'2027-08', nome:'Agosto 2027', nivel:4, h:'4–5h', foco:'Simulados + revisão dos pontos fracos.', ev:[['2027-08-14','Simulado 2 ENEM','simulado']] },
-  { m:'2027-09', nome:'Setembro 2027', nivel:5, h:'6–8h (só com sinais verdes)', foco:'Reta final. Trilha de código pausada. Sono e treino protegidos.', ev:[
+  { m:'2027-08', nome:'Agosto 2027', nivel:4, h:'4h', foco:'Simulados + revisão dos pontos fracos.', ev:[['2027-08-14','Simulado 2 ENEM','simulado']] },
+  { m:'2027-09', nome:'Setembro 2027', nivel:5, h:'5h (no lugar do código)', foco:'Reta final: o ENEM ocupa o lugar do código (pausado). Trabalho, sono, treino, espiritual e casal ficam intactos.', ev:[
     ['2027-09-11','Simulado 3 ENEM','simulado'],['2027-09-25','Simulado 4 ENEM','simulado']] },
-  { m:'2027-10', nome:'Outubro 2027', nivel:5, h:'6–8h (só com sinais verdes)', foco:'Simulados finais, redação e descanso. Não começar assunto novo.', ev:[
+  { m:'2027-10', nome:'Outubro 2027', nivel:5, h:'5h (no lugar do código)', foco:'Simulados finais, redação e descanso. Não começar assunto novo.', ev:[
     ['2027-10-09','Simulado 5 ENEM','simulado'],['2027-10-16','Simulado 6 ENEM (último)','simulado']] },
   { m:'2027-11', nome:'Novembro 2027', nivel:3, h:'leve', foco:'ENEM 2027 (conferir datas oficiais do Inep). Depois: descansar e voltar ao código.', ev:[
     ['2027-11-01','G3 · conferir datas oficiais do ENEM e plano de prova','gate']] },
-  { m:'2027-12', nome:'Dezembro 2027', nivel:3, h:'código 4–5h', foco:'CC4: SQL + Projeto Final (vira o TCC do ciclo). Resultado do ENEM em janeiro.', ev:[
+  { m:'2027-12', nome:'Dezembro 2027', nivel:3, h:'só código, 2–3h/dia', foco:'CC4: SQL + Projeto Final (vira o TCC do ciclo). Resultado do ENEM em janeiro.', ev:[
     ['2027-12-06','Início do Projeto Final · CC4','tcc']] }
 ];
 const PLANO_ANOS = [
@@ -36,6 +36,8 @@ const PLANO_ANOS = [
   ['2031','TCC da faculdade (se estiver cursando). Posição de Product Engineer.'],
   ['2032+','Concurso e/ou carreira internacional, conforme o resultado de cada etapa.']
 ];
+const PLANO_TETO = 'Teto: 2–3h de estudo por dia, contando tudo. Quando o ENEM sobe, ele TROCA com blocos de código/portfólio, não soma. Trabalho, sono, treino, espiritual e casal não entram na conta.';
+const PLANO_SEMANA = [['Nov–Dez/26','Sex 1h (diagnóstico)'],['Jan–Mar/27','Qua 30min mat + Qui 30min PT + Sex 1h = 2h (já são seus blocos atuais)'],['Abr–Jun/27','Igual + Sáb 1h (sai do portfólio) = 3h'],['Jul–Ago/27','Qua, Qui, Sex e Sáb 1h cada = 4h (sai do código)'],['Set–Out/27','até 5h, tudo trocando com código; o dia do simulado é a exceção (cerca de 5h, só 6 vezes)']];
 const PLANO_LEAD = { prova:1, simulado:1, gate:1, tcc:1 };
 function planoSeed() {
   S.flags = S.flags || {}; S.reminders = Array.isArray(S.reminders) ? S.reminders : [];
@@ -54,6 +56,15 @@ function planoSeed() {
     }
   }
 }
+function planoAjusteV2() {
+  S.flags = S.flags || {};
+  if (S.flags.planoTeto3h) return;
+  S.flags.planoTeto3h = 1;
+  for (const mes of PLANO_MESES) {
+    const r = (S.reminders || []).find(x => x.id === 'plano-mes-' + mes.m);
+    if (r && !r.done) { r.title = `Novo mês: ${mes.nome} · nível ${mes.nivel}/5`; r.note = `Carga ENEM: ${mes.h}/semana. ${mes.foco}`; }
+  }
+}
 function planoCard() {
   const nowM = dkey().slice(0, 7), nivel = n => '●'.repeat(n) + '○'.repeat(5 - n);
   const cur = PLANO_MESES.find(x => x.m === nowM) || PLANO_MESES[0];
@@ -61,6 +72,7 @@ function planoCard() {
   const rows = PLANO_MESES.map(x => `<div class="item"><div class="t"><b>${esc(x.nome)}</b> <span class="mut">nível ${nivel(x.nivel)} · ENEM ${esc(x.h)}/sem</span><div class="mut">${esc(x.foco)}</div>${x.ev.map(e => `<div class="mut">• ${esc(e[0].slice(8, 10) + '/' + e[0].slice(5, 7))} ${esc(e[1])}</div>`).join('')}</div></div>`).join('');
   const anos = PLANO_ANOS.map(a => `<div class="item"><div class="t"><b>${esc(a[0])}</b><div class="mut">${esc(a[1])}</div></div></div>`).join('');
   return `<div class="card">${sec('list', 'Plano mês a mês')}<div class="mut">${esc(cur.nome)} · dificuldade ${nivel(cur.nivel)} · ENEM ${esc(cur.h)}/semana</div><div class="mut">${esc(cur.foco)}</div>${mm}
+<div class="mut">${esc(PLANO_TETO)}</div><details><summary>Divisão da semana por fase</summary>${PLANO_SEMANA.map(x => `<div class="mut">• <b>${esc(x[0])}</b>: ${esc(x[1])}</div>`).join('')}</details>
 <details><summary>Ver todos os meses até dez/2027</summary>${rows}</details>
 <details><summary>Ver ano a ano (2028 em diante)</summary>${anos}<div class="mut">É plano, não promessa. Datas do ENEM 2027 e do SISU 2028 ainda precisam ser conferidas no edital.</div></details></div>`;
 }

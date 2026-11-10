@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v73';
+const APP_V = 'v74';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -353,6 +353,7 @@ function migrate() {
   migrateStudyNov2026();
   migrateEnemNov2026();
   planoSeed();
+  planoAjusteV2();
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {
