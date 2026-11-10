@@ -2,30 +2,30 @@
    Dados estáticos + avisos semeados em S.reminders (uma vez, sem apagar nada).
    Datas de ENEM 2027/SISU 2028 ainda NÃO verificadas: conferir no edital do Inep. */
 const PLANO_MESES = [
-  { m:'2026-11', nome:'Novembro 2026', nivel:1, h:'1h', foco:'Diagnóstico do ENEM 2024 (1 bloco por sexta). CC1: lógica e Python.', ev:[
-    ['2026-11-20','Diagnóstico 1 · Matemática (sexta)','diag'],['2026-11-27','Diagnóstico 2 · Linguagens (sexta)','diag']] },
-  { m:'2026-12', nome:'Dezembro 2026', nivel:1, h:'1h', foco:'Fechar diagnóstico e montar o mapa de erros por causa. Início do Projeto Final do CC é só em dez/2027.', ev:[
-    ['2026-12-04','Diagnóstico 3 · Humanas (sexta)','diag'],['2026-12-11','Diagnóstico 4 · Natureza (sexta)','diag'],['2026-12-18','Diagnóstico 5 · Redação (sexta)','diag']] },
-  { m:'2027-01', nome:'Janeiro 2027', nivel:2, h:'2h', foco:'ENEM base: Matemática e Português. CC1 termina com prova. Meu PIM: quiz em Python.', ev:[
-    ['2027-01-16','Prova rank D · CC1 (lógica/Python)','prova'],['2027-01-30','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-02', nome:'Fevereiro 2027', nivel:2, h:'2h', foco:'ENEM base + CC2 (JavaScript e Git).', ev:[['2027-02-27','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-03', nome:'Março 2027', nivel:2, h:'2h', foco:'ENEM base + CC2. Diagnóstico 2 mostra se a base subiu.', ev:[
-    ['2027-03-26','Diagnóstico 2 (sexta): comparar com o de nov/dez','diag'],['2027-03-27','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-04', nome:'Abril 2027', nivel:3, h:'3h', foco:'Sobe para 3h SE o G1 estiver ok (1h do sábado sai do portfólio). PIM: Caderno de Erros do ENEM. CC3: estruturas de dados.', ev:[
-    ['2027-04-01','G1 · decidir se sobe para 3h (base subiu? rotina aguentou?)','gate'],['2027-04-24','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-05', nome:'Maio 2027', nivel:3, h:'3h', foco:'Questões por competência + redação quinzenal. CC3.', ev:[['2027-05-29','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-06', nome:'Junho 2027', nivel:3, h:'3h', foco:'Fechar semestre. Decidir FUVEST/UNESP e carga das fases finais.', ev:[
-    ['2027-06-26','Mini-prova mensal ENEM','mini'],['2027-06-30','G2 · decidir FUVEST/UNESP e se jul–out usa 4–5h (trocando com código)','gate']] },
-  { m:'2027-07', nome:'Julho 2027', nivel:4, h:'4h', foco:'Fase de simulados começa. ENEM sobe para 4h tirando 1h dos blocos de código. Prova rank B do CC2. Corrigir cada simulado por causa do erro.', ev:[
+  { m:'2026-11', nome:'Novembro 2026', nivel:1, h:'5h', foco:'BASE, sem prova e sem questão. Noite (20h): Matemática Básica do Prof. Ferretto (aulas 6 a 47) e leitura. Manhã (6h): carreira e código como já está.', ev:[] },
+  { m:'2026-12', nome:'Dezembro 2026', nivel:1, h:'5h (leve de 14 a 27/12)', foco:'Base continua. Férias leves de 14 a 27/12: só flashcards e inglês. Volta ao ritmo em 04/01.', ev:[] },
+  { m:'2027-01', nome:'Janeiro 2027', nivel:2, h:'5h', foco:'Terminar Matemática Básica. Começar razão, proporção e porcentagem. Português: leitura e interpretação. CC1 termina com prova.', ev:[
+    ['2027-01-16','Prova rank D · CC1 (lógica/Python)','prova'],['2027-01-29','Checkpoint de base: 15 questões fáceis de Matemática (só para medir)','check']] },
+  { m:'2027-02', nome:'Fevereiro 2027', nivel:2, h:'5h', foco:'Regra de três, porcentagem e juros. Redação: aprender a estrutura (introdução, desenvolvimento, proposta). CC2 (JS e Git) em paralelo.', ev:[
+    ['2027-02-26','Primeira redação de treino (só estrutura, sem nota)','check']] },
+  { m:'2027-03', nome:'Março 2027', nivel:2, h:'5h', foco:'Estatística, gráficos, tabelas e geometria plana. Português: figuras de linguagem e gêneros.', ev:[
+    ['2027-03-26','Diagnóstico 1 · Matemática (sexta, 2h: manhã e noite)','diag']] },
+  { m:'2027-04', nome:'Abril 2027', nivel:3, h:'5h', foco:'Começam as questões por assunto (provas antigas) e os diagnósticos das outras áreas. CC3: estruturas de dados.', ev:[
+    ['2027-04-02','Diagnóstico 2 · Linguagens (sexta)','diag'],['2027-04-09','Diagnóstico 3 · Humanas (sexta)','diag'],['2027-04-16','Diagnóstico 4 · Natureza (sexta)','diag'],['2027-04-23','Diagnóstico 5 · Redação (sexta)','diag'],
+    ['2027-04-30','G1 · a base subiu? decidir se vai para 6h','gate']] },
+  { m:'2027-05', nome:'Maio 2027', nivel:3, h:'6h', foco:'Funções, geometria espacial e probabilidade. Questões por competência e 1 redação por semana. PIM: Caderno de Erros.', ev:[['2027-05-29','Mini-prova mensal ENEM','mini']] },
+  { m:'2027-06', nome:'Junho 2027', nivel:3, h:'6h', foco:'Fechar o semestre de base. Decidir FUVEST/UNESP e a carga das fases finais.', ev:[
+    ['2027-06-26','Mini-prova mensal ENEM','mini'],['2027-06-30','G2 · decidir FUVEST/UNESP e se jul–out usa 7–8h (trocando com código)','gate']] },
+  { m:'2027-07', nome:'Julho 2027', nivel:4, h:'7h (no lugar do código)', foco:'Fase de simulados. Prova rank B do CC2. Corrigir cada simulado por causa do erro.', ev:[
     ['2027-07-03','Prova rank B · CC2 (JS/Git)','prova'],['2027-07-17','Simulado 1 ENEM','simulado']] },
-  { m:'2027-08', nome:'Agosto 2027', nivel:4, h:'4h', foco:'Simulados + revisão dos pontos fracos.', ev:[['2027-08-14','Simulado 2 ENEM','simulado']] },
-  { m:'2027-09', nome:'Setembro 2027', nivel:5, h:'5h (no lugar do código)', foco:'Reta final: o ENEM ocupa o lugar do código (pausado). Trabalho, sono, treino, espiritual e casal ficam intactos.', ev:[
+  { m:'2027-08', nome:'Agosto 2027', nivel:4, h:'7h (no lugar do código)', foco:'Simulados e revisão dos pontos fracos.', ev:[['2027-08-14','Simulado 2 ENEM','simulado']] },
+  { m:'2027-09', nome:'Setembro 2027', nivel:5, h:'8h (no lugar do código)', foco:'Reta final: o ENEM ocupa o lugar do código (pausado). Trabalho, sono, treino, espiritual e casal ficam intactos.', ev:[
     ['2027-09-11','Simulado 3 ENEM','simulado'],['2027-09-25','Simulado 4 ENEM','simulado']] },
-  { m:'2027-10', nome:'Outubro 2027', nivel:5, h:'5h (no lugar do código)', foco:'Simulados finais, redação e descanso. Não começar assunto novo.', ev:[
+  { m:'2027-10', nome:'Outubro 2027', nivel:5, h:'8h (no lugar do código)', foco:'Simulados finais, redação e descanso. Não começar assunto novo.', ev:[
     ['2027-10-09','Simulado 5 ENEM','simulado'],['2027-10-16','Simulado 6 ENEM (último)','simulado']] },
   { m:'2027-11', nome:'Novembro 2027', nivel:3, h:'leve', foco:'ENEM 2027 (conferir datas oficiais do Inep). Depois: descansar e voltar ao código.', ev:[
     ['2027-11-01','G3 · conferir datas oficiais do ENEM e plano de prova','gate']] },
-  { m:'2027-12', nome:'Dezembro 2027', nivel:3, h:'só código, 2–3h/dia', foco:'CC4: SQL + Projeto Final (vira o TCC do ciclo). Resultado do ENEM em janeiro.', ev:[
+  { m:'2027-12', nome:'Dezembro 2027', nivel:3, h:'só código', foco:'CC4: SQL + Projeto Final (vira o TCC do ciclo). Resultado do ENEM em janeiro.', ev:[
     ['2027-12-06','Início do Projeto Final · CC4','tcc']] }
 ];
 const PLANO_ANOS = [
@@ -36,8 +36,8 @@ const PLANO_ANOS = [
   ['2031','TCC da faculdade (se estiver cursando). Posição de Product Engineer.'],
   ['2032+','Concurso e/ou carreira internacional, conforme o resultado de cada etapa.']
 ];
-const PLANO_TETO = 'Teto: 2–3h de estudo por dia, contando tudo. Quando o ENEM sobe, ele TROCA com blocos de código/portfólio, não soma. Trabalho, sono, treino, espiritual e casal não entram na conta.';
-const PLANO_SEMANA = [['Nov–Dez/26','Sex 1h (diagnóstico)'],['Jan–Mar/27','Qua 30min mat + Qui 30min PT + Sex 1h = 2h (já são seus blocos atuais)'],['Abr–Jun/27','Igual + Sáb 1h (sai do portfólio) = 3h'],['Jul–Ago/27','Qua, Qui, Sex e Sáb 1h cada = 4h (sai do código)'],['Set–Out/27','até 5h, tudo trocando com código; o dia do simulado é a exceção (cerca de 5h, só 6 vezes)']];
+const PLANO_TETO = 'Teto: 2–3h de estudo por dia, contando tudo. Manhã (6h–7h): carreira e código, como já é. Noite (20h–21h): ENEM. Quando o ENEM sobe, ele TROCA com código/portfólio, não soma. Trabalho, sono, treino, espiritual e casal não entram na conta.';
+const PLANO_SEMANA = [['Seg','Manhã UX · Noite Matemática'],['Ter','Manhã Inglês · Noite Português e leitura'],['Qua','Manhã HTML/CSS · Noite Matemática'],['Qui','Manhã UI/Design System · Noite Natureza ou Humanas (alterna)'],['Sex','Manhã revisão e flashcards · Noite Redação'],['Sáb','Python, portfólio e candidaturas (a partir de abr/27, 1h do sábado vira ENEM)'],['Dom','Soft skills 20–30min, só se der vontade (opcional, sem cobrança)'],['Fase de provas','Nov/26 a mar/27 só base. Diagnósticos em mar–abr/27. Simulados de jul a out/27 no sábado (cerca de 5h, 6 vezes).']];
 const PLANO_LEAD = { prova:1, simulado:1, gate:1, tcc:1 };
 function planoSeed() {
   S.flags = S.flags || {}; S.reminders = Array.isArray(S.reminders) ? S.reminders : [];
@@ -58,12 +58,12 @@ function planoSeed() {
 }
 function planoAjusteV2() {
   S.flags = S.flags || {};
-  if (S.flags.planoTeto3h) return;
-  S.flags.planoTeto3h = 1;
-  for (const mes of PLANO_MESES) {
-    const r = (S.reminders || []).find(x => x.id === 'plano-mes-' + mes.m);
-    if (r && !r.done) { r.title = `Novo mês: ${mes.nome} · nível ${mes.nivel}/5`; r.note = `Carga ENEM: ${mes.h}/semana. ${mes.foco}`; }
-  }
+  if (S.flags.planoBase75) return;
+  S.flags.planoBase75 = 1;
+  /* troca só os avisos que eu mesmo semeei e que ainda não foram concluídos */
+  S.reminders = (S.reminders || []).filter(r => !(String(r.id || '').startsWith('plano-') && !r.done));
+  S.flags.planoNov26 = 0;
+  planoSeed();
 }
 function planoCard() {
   const nowM = dkey().slice(0, 7), nivel = n => '●'.repeat(n) + '○'.repeat(5 - n);
@@ -72,7 +72,7 @@ function planoCard() {
   const rows = PLANO_MESES.map(x => `<div class="item"><div class="t"><b>${esc(x.nome)}</b> <span class="mut">nível ${nivel(x.nivel)} · ENEM ${esc(x.h)}/sem</span><div class="mut">${esc(x.foco)}</div>${x.ev.map(e => `<div class="mut">• ${esc(e[0].slice(8, 10) + '/' + e[0].slice(5, 7))} ${esc(e[1])}</div>`).join('')}</div></div>`).join('');
   const anos = PLANO_ANOS.map(a => `<div class="item"><div class="t"><b>${esc(a[0])}</b><div class="mut">${esc(a[1])}</div></div></div>`).join('');
   return `<div class="card">${sec('list', 'Plano mês a mês')}<div class="mut">${esc(cur.nome)} · dificuldade ${nivel(cur.nivel)} · ENEM ${esc(cur.h)}/semana</div><div class="mut">${esc(cur.foco)}</div>${mm}
-<div class="mut">${esc(PLANO_TETO)}</div><details><summary>Divisão da semana por fase</summary>${PLANO_SEMANA.map(x => `<div class="mut">• <b>${esc(x[0])}</b>: ${esc(x[1])}</div>`).join('')}</details>
+<div class="mut">${esc(PLANO_TETO)}</div><details><summary>Divisão da semana (manhã e noite)</summary>${PLANO_SEMANA.map(x => `<div class="mut">• <b>${esc(x[0])}</b>: ${esc(x[1])}</div>`).join('')}</details>
 <details><summary>Ver todos os meses até dez/2027</summary>${rows}</details>
 <details><summary>Ver ano a ano (2028 em diante)</summary>${anos}<div class="mut">É plano, não promessa. Datas do ENEM 2027 e do SISU 2028 ainda precisam ser conferidas no edital.</div></details></div>`;
 }

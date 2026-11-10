@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v74';
+const APP_V = 'v75';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -96,7 +96,8 @@ function wk(gym) {
     ...(gym ? [b('17:00', '18:40', 'Treino (parar o trabalho, me arrumar e treinar)', 'flex')] : [b('17:00', '18:40', 'Fim do expediente: livre, caminhada ou ANIMAE', 'livre')]),
     b('18:40', '19:15', 'Passear com o cachorro', 'flex'),
     b('19:15', '20:00', 'Banho e jantar', 'flex'),
-    b('20:00', '21:15', 'Tempo livre (sem metas obrigatórias)', 'livre'),
+    b('20:00', '21:00', 'Estudo da noite (ENEM, base)', 'flex', { study: 2 }),
+    b('21:00', '21:15', 'Tempo livre', 'livre'),
     b('21:15', '22:00', 'Higiene e oração da noite', 'flex'),
     b('22:00', '23:59', 'Dormir (meta; adaptação gradual)', 'fixo')];
 }
@@ -155,7 +156,7 @@ const FOODS = () => [
 ].map(f => ({ id: uid(), name: f[0], kcal: f[1], prot: f[2], carb: '', fat: '' }));
 function defaults() {
   const REWD = [['Episódio extra de anime', 5], ['Filme ou sessão de jogo single-player', 10], ['Jantar com a Nayara', 30], ['Um presente que eu quero (definir)', 80]];
-  const th = (theme, track, next = '') => ({ theme, track, link: '', next });
+  const th = (theme, track, next = '', night = '') => ({ theme, track, link: '', next, night });
   return {
     v: VER, flags: {},
     settings: {
@@ -165,14 +166,14 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
-    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design'), 2: th('Inglês (60 min)', 'Inglês'), 3: th('HTML/CSS (60 min) + matemática (30 min)', 'Front-end web (Udemy)'), 4: th('UI/Design Systems (60 min) + português (30 min)', 'UI/UX e Product Design'), 5: th('Revisão, flashcards e ENEM: diagnóstico nas sextas (60–90 min)', 'ENEM (diagnóstico e base)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
+    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design', '', 'Matemática (base)'), 2: th('Inglês (60 min)', 'Inglês', '', 'Português e leitura (base)'), 3: th('HTML/CSS (60 min)', 'Front-end web (Udemy)', '', 'Matemática (base)'), 4: th('UI/Design Systems (60 min)', 'UI/UX e Product Design', '', 'Natureza ou Humanas (alterna)'), 5: th('Revisão da semana e flashcards (60 min)', 'ENEM (diagnóstico e base)', '', 'Redação (escrever)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Python (Guanabara)', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Front-end web (Udemy)', link: '', now: 'Aula que o professor passar no dia' },
       { id: uid(), group: 'Apoio', name: 'Matemática de apoio', link: '', now: 'Divisão' },
-      { id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Diagnóstico de Matemática em 20/11' },
+      { id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027' },
       { id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' },
       { id: uid(), group: 'Idioma', name: 'Inglês', link: '', now: '' }
     ],
@@ -257,6 +258,31 @@ function seedNewMentorRequestsNov2026() {
     if (!(S.reminders || []).some(x => x.id===r.id || (x.date===r.date && x.title===r.title))) S.reminders.push({...r,done:false});
   });
   S.flags.newMentorRequestsNov26=1;
+}
+/* v75: estudo em dois blocos (manhã 06h e noite 20h). Só troca blocos que ainda estão como o padrão; nunca apaga o que você editou. */
+function migrateRotinaManhaNoite() {
+  S.flags = S.flags || {};
+  if (S.flags.rotinaNoite75) return;
+  S.flags.rotinaNoite75 = 1;
+  const nights = { 1: 'Matemática (base)', 2: 'Português e leitura (base)', 3: 'Matemática (base)', 4: 'Natureza ou Humanas (alterna)', 5: 'Redação (escrever)' };
+  for (const d of [1, 2, 3, 4, 5]) {
+    const blocks = S.schedule && S.schedule[d];
+    if (!Array.isArray(blocks) || blocks.some(x => x.study === 2)) continue;
+    const apoio = blocks.find(x => x.s === '20:00' && x.e === '20:30' && /\(apoio\)$/.test(x.t));
+    const livre = blocks.find(x => x.type === 'livre' && ((x.s === '20:00' && x.e === '21:15') || (apoio && x.s === '20:30' && x.e === '21:15')));
+    if (!livre) continue;
+    if (apoio) blocks.splice(blocks.indexOf(apoio), 1);
+    livre.s = '21:00'; livre.t = 'Tempo livre';
+    blocks.push(b('20:00', '21:00', 'Estudo da noite (ENEM, base)', 'flex', { study: 2 }));
+    S.study = S.study || {};
+    const st = S.study[d] || (S.study[d] = { theme: '', track: '', link: '', next: '' });
+    if (!st.night) st.night = nights[d];
+    if (d === 3 && /\+ matemática \(30 min\)$/.test(st.theme || '')) st.theme = st.theme.replace(/ \+ matemática \(30 min\)$/, '');
+    if (d === 5 && /diagnóstico nas sextas/.test(st.theme || '')) { st.theme = 'Revisão da semana e flashcards (60 min)'; }
+    if (d === 4 && / \+ português \(30 min\)$/.test(st.theme || '')) st.theme = st.theme.replace(/ \+ português \(30 min\)$/, '');
+  }
+  const et = (S.tracks || []).find(t => t.name === 'ENEM (diagnóstico e base)');
+  if (et && /Diagnóstico de Matemática em 20\/11/.test(et.now || '')) et.now = 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027';
 }
 /* migração suave: nunca apaga dado do usuário */
 function migrate() {
@@ -354,6 +380,7 @@ function migrate() {
   migrateEnemNov2026();
   planoSeed();
   planoAjusteV2();
+  migrateRotinaManhaNoite();
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {
@@ -363,7 +390,7 @@ function migrateEnemNov2026() {
   const cur = S.study && S.study[5];
   if (cur && cur.theme === 'Revisão e flashcards (60–90 min)') S.study[5] = { ...cur, theme: 'Revisão, flashcards e ENEM: diagnóstico nas sextas (60–90 min)', track: 'ENEM (diagnóstico e base)' };
   S.tracks = S.tracks || [];
-  if (!S.tracks.some(t => /^ENEM/.test(t.name))) S.tracks.push({ id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Diagnóstico de Matemática em 20/11' });
+  if (!S.tracks.some(t => /^ENEM/.test(t.name))) S.tracks.push({ id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027' });
   if (!S.tracks.some(t => /Computação \(trilha CC\)/.test(t.name))) S.tracks.push({ id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' });
 }
 /* Plano 06/11/2026: migração conservadora. Mantém dados diários, conclusões, hábitos pessoais e horários personalizados. */
@@ -429,7 +456,7 @@ function hydratePhotos() {
 
 /* ---------- helpers ---------- */
 const sched = dow => [...(S.schedule[dow] || [])].sort((a, c) => tm(a.s) - tm(c.s));
-const bt = (x, dow) => x.study ? `Estudo: ${(S.study[dow] && S.study[dow].theme) || 'tema do dia'}` : x.t;
+const bt = (x, dow) => x.study === 2 ? `ENEM (noite): ${(S.study[dow] && S.study[dow].night) || 'base'}` : x.study ? `Estudo: ${(S.study[dow] && S.study[dow].theme) || 'tema do dia'}` : x.t;
 const TL = { fixo: 'fixo', flex: 'flexível', livre: 'livre' };
 const TLI = { fixo: 'pin', flex: 'sync', livre: 'cloud-sun' };
 const ST = ['', 'done', 'partial', 'postponed', 'na'];
@@ -604,6 +631,7 @@ function vPlano() {
   out += histCard();
   out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>
 <label>Tema do dia</label><input data-c="sth" value="${esc(st.theme)}" placeholder="Ex.: Front-end (Udemy)">
+<label>Tema da noite (20h, ENEM)</label><input data-c="stn" value="${esc(st.night || '')}" placeholder="Ex.: Matemática básica">
 <label>Trilha</label><select data-c="str">${['', ...S.tracks.map(t => t.name)].map(n => `<option ${n === st.track ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
 <label>Link do material (Notion, vídeo, curso)</label><input data-c="sln" type="url" value="${esc(st.link)}" placeholder="https://…">
 ${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${ic('external-link')}Abrir material</a>` : ''}
@@ -1277,7 +1305,7 @@ const C = {
   pd: (v, i, el) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { d: el.checked }); save(); },
   mnote: v => { const k = dkey(); S.mood[k] = S.mood[k] || {}; S.mood[k].note = v; save(); },
   satnote: v => { const k=dkey(),l=S.saturdayLog[k]=S.saturdayLog[k]||{};l.note=v.slice(0,600);save(); },
-  sth: v => stSet('theme', v), str: v => stSet('track', v), sln: v => { stSet('link', v); render(); }, snx: v => stSet('next', v),
+  sth: v => stSet('theme', v), stn: v => stSet('night', v), str: v => stSet('track', v), sln: v => { stSet('link', v); render(); }, snx: v => stSet('next', v),
   rv: (v, f) => { const wk = dkey(wkStart()); S.reviews[wk] = S.reviews[wk] || {}; S.reviews[wk][f] = v; save(); },
   cc: (v, f) => { S.settings.calc[f] = v; save(); render(); },
   ws: (v, f) => { S.settings[f] = v; save(); render(); },
