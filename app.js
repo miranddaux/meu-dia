@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v75';
+const APP_V = 'v76';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -115,8 +115,8 @@ function sat() { /* sábado: 09–12 estudos e carreira; tarde livre */
     b('08:00', '09:00', 'Acordar, oração e café', 'livre'),
     b('09:00', '10:00', 'Python Guanabara: 1 aula + 1 desafio', 'flex'),
     b('10:00', '10:15', 'Pausa', 'livre'),
-    b('10:15', '11:45', 'Portfólio e candidaturas (alternar com ANIMAE após V1)', 'flex'),
-    b('11:45', '12:00', 'Revisão da semana e Notion', 'flex'),
+    b('10:15', '11:30', 'Portfólio e candidaturas (alternar com ANIMAE após V1)', 'flex'),
+    b('11:30', '12:00', 'Revisão dos erros do ENEM e Notion', 'flex'),
     b('12:00', '13:30', 'Almoço e descanso', 'livre'),
     b('13:30', '23:59', 'Tarde e noite livres (Nayara)', 'livre')
   ];
@@ -131,6 +131,7 @@ function sun() { /* domingo é dia livre: só a igreja é meta */
 function buildSchedule(col) {
   const f = col ? college : wk, s = {};
   [1, 2, 3, 4, 5].forEach(d => s[d] = f(true)); s[6] = sat(); s[0] = sun();
+  if (!col) s[5] = s[5].map(x => x.study === 2 ? b('20:00', '21:00', 'Sexta à noite: livre (Nayara)', 'livre') : x);
   return s;
 }
 const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5], D6 = [1, 2, 3, 4, 5, 6];
@@ -166,7 +167,7 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
-    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design', '', 'Matemática (base)'), 2: th('Inglês (60 min)', 'Inglês', '', 'Português e leitura (base)'), 3: th('HTML/CSS (60 min)', 'Front-end web (Udemy)', '', 'Matemática (base)'), 4: th('UI/Design Systems (60 min)', 'UI/UX e Product Design', '', 'Natureza ou Humanas (alterna)'), 5: th('Revisão da semana e flashcards (60 min)', 'ENEM (diagnóstico e base)', '', 'Redação (escrever)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
+    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design', '', 'Matemática (base)'), 2: th('Inglês (60 min)', 'Inglês', '', 'Português e leitura (base)'), 3: th('HTML/CSS (60 min)', 'Front-end web (Udemy)', '', 'Matemática (base)'), 4: th('UI/Design Systems (60 min)', 'UI/UX e Product Design', '', 'Natureza ou Humanas (alterna)'), 5: th('Flashcards (30 min) + redação (30 a 40 min)', 'ENEM (diagnóstico e base)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
@@ -284,6 +285,29 @@ function migrateRotinaManhaNoite() {
   const et = (S.tracks || []).find(t => t.name === 'ENEM (diagnóstico e base)');
   if (et && /Diagnóstico de Matemática em 20\/11/.test(et.now || '')) et.now = 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027';
 }
+/* v76: sexta à noite livre, sábado com revisão do ENEM, segunda 09/11 registrada como estudo feito */
+function migrateSextaSabado76() {
+  S.flags = S.flags || {};
+  if (S.flags.sextaSab76) return;
+  S.flags.sextaSab76 = 1;
+  const f5 = S.schedule && S.schedule[5];
+  if (Array.isArray(f5)) {
+    const n = f5.find(x => x.study === 2 && x.s === '20:00' && x.e === '21:00');
+    if (n) { n.t = 'Sexta à noite: livre (Nayara)'; n.type = 'livre'; delete n.study; }
+  }
+  const sb = S.schedule && S.schedule[6];
+  if (Array.isArray(sb)) {
+    const p = sb.find(x => x.s === '10:15' && x.e === '11:45' && /^Portfólio e candidaturas/.test(x.t));
+    const r = sb.find(x => x.s === '11:45' && x.e === '12:00' && x.t === 'Revisão da semana e Notion');
+    if (p && r) { p.e = '11:30'; r.s = '11:30'; r.e = '12:00'; r.t = 'Revisão dos erros do ENEM e Notion'; }
+  }
+  S.study = S.study || {};
+  const s5 = S.study[5];
+  if (s5 && /^Revisão da semana e flashcards \(60 min\)$/.test(s5.theme || '')) s5.theme = 'Flashcards (30 min) + redação (30 a 40 min)';
+  if (s5 && s5.night === 'Redação (escrever)') s5.night = '';
+  S.studyLog = S.studyLog || {};
+  if (!S.studyLog['2026-11-09']) S.studyLog['2026-11-09'] = { done: true };
+}
 /* migração suave: nunca apaga dado do usuário */
 function migrate() {
   const f = S.flags;
@@ -345,7 +369,7 @@ function migrate() {
       if (/^Revisão semanal/i.test(h.title)) { h.days = []; return; }
       if (Array.isArray(h.days) && h.days.includes(0)) h.days = h.days.filter(d => d !== 0);
     });
-    if (!S.habits.some(h => /^Igreja/i.test(h.title))) S.habits.push(DEF_HABITS().find(h => /^Igreja/.test(h.title)));
+    if (!S.habits.some(h => /^Igreja/i.test(h.title))) { const ig = DEF_HABITS().find(h => /^Igreja/.test(h.title)); if (ig) S.habits.push(ig); }
   }
   if (!f.sabConteudo) { /* sábado = rotina de conteúdo até 12h; sem estudo no fim de semana */
     f.sabConteudo = 1; S.schedule[6] = sat();
@@ -381,6 +405,7 @@ function migrate() {
   planoSeed();
   planoAjusteV2();
   migrateRotinaManhaNoite();
+  migrateSextaSabado76();
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {
@@ -621,22 +646,50 @@ const blkFields = x => [
 
 /* ---------- Estudos ---------- */
 function vEstudos() { return vPlano(); }
+function planoFoco() {
+  const today = new Date().getDay(), k = dkey(), sl = S.studyLog[k] || {}, st = S.study[today] || {}, sy = (S.settings && S.settings.sync) || {};
+  const pr = (S.prios[k] || []).map(p => p && p.t).filter(Boolean);
+  const nx = typeof planoProximo === 'function' ? planoProximo() : null;
+  const manha = today >= 1 && today <= 5, noite = today >= 1 && today <= 4;
+  const ln = (lbl, tema, done, act) => `<div class="row sp" style="gap:8px"><div class="grow"><div class="mut">${lbl}</div><b>${esc(tema || '—')}</b></div>${act ? `<button class="chip ${done ? 'on' : ''}" data-a="${act}" aria-pressed="${!!done}">${done ? 'Feito' : 'Marcar'}</button>` : ''}</div>`;
+  let b = '';
+  if (manha) b += ln('Manhã · 06h', st.theme, sl.done, 'studydone');
+  if (noite) b += ln('Noite · 20h', (today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? 'Natureza ou Humanas: ' + planoRodizio().materia : st.night, sl.night, 'nightdone');
+  if (today === 5) b += `<div class="mut">Sexta à noite é livre (Nayara).</div>`;
+  if (today === 6) b += ln('Sábado · 09h às 12h', st.theme, sl.done, 'studydone');
+  if (today === 0) b += `<div class="mut">Domingo: igreja e descanso. Soft skills só se der vontade (20–30 min).</div>`;
+  b += pr.length ? `<div class="grp">Prioridades de hoje</div>${pr.map(t => `<div class="mut">• ${esc(t)}</div>`).join('')}` : `<div class="mut">Sem prioridades escolhidas hoje. Defina 3 na aba Hoje.</div>`;
+  if (nx) b += `<div class="grp">Próximo marco</div><div class="mut">${esc(nx.title)} · ${nx.dias === 0 ? 'hoje' : nx.dias === 1 ? 'amanhã' : 'em ' + nx.dias + ' dias'} (${esc(nx.date.slice(8, 10) + '/' + nx.date.slice(5, 7))})</div>`;
+  b += `<div class="mut">${sy.on && sy.key ? 'Notion: envio ligado' + (sy.last ? ' · último ' + esc(String(sy.last).slice(0, 16).replace('T', ' ')) : ' · ainda sem envio') : 'Notion: envio desligado (ligue em Ajustes, ícone no topo)'}</div>`;
+  return `<div class="card">${sec('bullseye', 'Em foco hoje')}${b}</div>`;
+}
 function vPlano() {
-  const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '' }, k = dkey(), sl = S.studyLog[k] || {};
-  let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
-  out += estudoSemana();
-  out += planoCard();
-  if (d === 6 && today === 6) out += saturdayCard();
-  out += roadCard();
-  out += histCard();
-  out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>
-<label>Tema do dia</label><input data-c="sth" value="${esc(st.theme)}" placeholder="Ex.: Front-end (Udemy)">
-<label>Tema da noite (20h, ENEM)</label><input data-c="stn" value="${esc(st.night || '')}" placeholder="Ex.: Matemática básica">
+  const today = new Date().getDay(), d = ui.sd ?? today, st = S.study[d] || { theme: '', track: '', link: '', next: '', night: '' }, k = dkey(), sl = S.studyLog[k] || {};
+  const isWk = d >= 1 && d <= 5, hasNight = d >= 1 && d <= 4;
+  let out = planoFoco();
+  out += `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="sday" data-v="${i}" aria-pressed="${i === d}">${DN[i]}${i === today ? ' •' : ''}</button>`).join('')}</div>`;
+  out += `<div class="card"><h3 class="px">${DF[d]}${d === today ? ' · hoje' : ''}</h3>`;
+  if (isWk) out += `<div class="grp">Manhã · 06h às 07h</div>`;
+  else if (d === 6) out += `<div class="grp">Sábado · janela das 09h às 12h</div>`;
+  else out += `<div class="grp">Domingo · opcional</div>`;
+  out += `<label>${isWk ? 'Tema da manhã' : 'Tema do dia'}</label><input data-c="sth" value="${esc(st.theme)}" placeholder="Ex.: Front-end (Udemy)">
 <label>Trilha</label><select data-c="str">${['', ...S.tracks.map(t => t.name)].map(n => `<option ${n === st.track ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
-<label>Link do material (Notion, vídeo, curso)</label><input data-c="sln" type="url" value="${esc(st.link)}" placeholder="https://…">
-${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${ic('external-link')}Abrir material</a>` : ''}
 <label>Próxima ação</label><textarea data-c="snx" placeholder="O que fazer no próximo bloco">${esc(st.next)}</textarea>
-${d === today ? `<button class="btn full" data-a="studydone">${ic('check')}${sl.done ? 'Bloco de hoje feito (desfazer)' : 'Marcar bloco de hoje como feito'}</button>` : ''}</div>`;
+<label>Link do material (Notion, vídeo, curso)</label><input data-c="sln" type="url" value="${esc(st.link)}" placeholder="https://…">
+${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${ic('external-link')}Abrir material</a>` : ''}`;
+  if (d === today && d !== 0) out += `<button class="btn full" data-a="studydone">${ic('check')}${sl.done ? 'Bloco da manhã feito (desfazer)' : 'Marcar bloco da manhã como feito'}</button>`;
+  if (hasNight) {
+    out += `<div class="grp">Noite · 20h às 21h (ENEM)</div><label>Tema da noite</label><input data-c="stn" value="${esc(st.night || '')}" placeholder="Ex.: Matemática básica">`;
+    if (d === 4 && typeof planoRodizio === 'function') out += `<div class="mut">Esta semana: ${esc(planoRodizio().materia)}</div>`;
+    if (d === today) out += `<button class="btn full" data-a="nightdone">${ic('check')}${sl.night ? 'Bloco da noite feito (desfazer)' : 'Marcar bloco da noite como feito'}</button>`;
+  }
+  if (d === 5) out += `<div class="grp">Noite</div><div class="mut">Livre. Sexta à noite é da Nayara.</div>`;
+  out += `</div>`;
+  if (d === 6 && today === 6) out += saturdayCard();
+  out += planoCard();
+  out += roadCard();
+  out += estudoSemana();
+  out += histCard();
   const groups = {}; S.tracks.forEach(t => (groups[t.group] = groups[t.group] || []).push(t));
   out += `<div class="card">${sec('list', 'Trilhas', `<button class="btn sm ghost" data-a="addtrack">${ic('plus')}Trilha</button>`)}<div class="mut">UI/UX e Product Design é a formação principal. Programação é complementar. Curiosidade é hobby: fica em Mais, Explorar, sem tarefa.</div>`;
   for (const g in groups) out += `<div class="grp">${esc(g)}</div>` + groups[g].map(t => `<div class="item"><div class="t"><b>${esc(t.name)}</b>${t.now ? `<div class="mut">Aula atual: ${esc(t.now)}</div>` : ''}</div>${t.link ? `<a href="${esc(t.link)}" target="_blank" rel="noopener">abrir</a>` : ''}${ib('edit', 'Editar trilha', 'edittrack', t.id)}</div>`).join('');
@@ -1062,7 +1115,7 @@ function render() { if (rq) return; rq = requestAnimationFrame(() => { rq = 0; r
 function renderNow() {
   chipMem.pos = [...document.querySelectorAll('#view .chips, #top .chips')].map(c => c.scrollLeft);
   const n = new Date(), k = dkey(n), hr = n.getHours();
-  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', '1 hora pela manhã, 06h às 07h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Jornada, dinheiro, semana e ajustes'] };
+  const titles = { hoje: [hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite', `${DF[n.getDay()]}, ${n.getDate()}/${n.getMonth() + 1}`], corpo: ['Corpo', 'Treino de segunda a sexta, dieta e peso'], estudos: ['Estudos', 'Manhã 06h–07h · noite 20h–21h · sábado 09h–12h'], desafios: ['Desafios', 'Detox e melhorar'], mais: ['Mais', 'Jornada, dinheiro, semana e ajustes'] };
   let [h, p] = titles[ui.tab];
   /* migalhas: o título mostra a tela em que você está e o caminho até ela */
   const MN = { jor: 'Jornada', din: 'Dinheiro', prog: 'Semana', eu: 'Eu', hab: 'Missões', cfg: 'Ajustes', vida: 'Mapa da vida', rem: 'Lembretes', loja: 'Loja', rev: 'Revisão', pork: 'Porkinho', exp: 'Quero explorar', laz: 'Tempo livre' };
@@ -1127,7 +1180,8 @@ const A = {
   welcome: () => { S.settings.welcomed = true; save(); },
   cyc: v => { const k = dkey(); S.log[k] = S.log[k] || {}; const i = ST.indexOf(S.log[k][v] || ''); const nx = ST[(i + 1) % ST.length]; if (nx) S.log[k][v] = nx; else delete S.log[k][v]; save(); },
   hard: () => { const k = dkey(); S.hardDay[k] = !S.hardDay[k]; save(); },
-  studydone: () => { const k = dkey(); S.studyLog[k] = { done: !(S.studyLog[k] && S.studyLog[k].done) }; save(); },
+  nightdone: () => { const k = dkey(), c = S.studyLog[k] || {}; S.studyLog[k] = Object.assign({}, c, { night: !c.night }); save(); },
+  studydone: () => { const k = dkey(); S.studyLog[k] = Object.assign({}, S.studyLog[k], { done: !(S.studyLog[k] && S.studyLog[k].done) }); save(); },
   satpython: () => { const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; l.pythonDone=!l.pythonDone; save(); },
   satfocus: v => { if (!['portfolio','animae'].includes(v)) return false; const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; if(l.focus!==v){l.focus=v;l.focusDone=false;} save(); },
   satfocusdone: () => { const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; l.focus=l.focus||'portfolio';l.focusDone=!l.focusDone;save(); },
