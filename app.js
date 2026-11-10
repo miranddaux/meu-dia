@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v71';
+const APP_V = 'v72';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -165,13 +165,15 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {},
-    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design'), 2: th('Inglês (60 min)', 'Inglês'), 3: th('HTML/CSS (60 min) + matemática (30 min)', 'Front-end web (Udemy)'), 4: th('UI/Design Systems (60 min) + português (30 min)', 'UI/UX e Product Design'), 5: th('Revisão e flashcards (60–90 min)', 'UI/UX e Product Design'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
+    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design'), 2: th('Inglês (60 min)', 'Inglês'), 3: th('HTML/CSS (60 min) + matemática (30 min)', 'Front-end web (Udemy)'), 4: th('UI/Design Systems (60 min) + português (30 min)', 'UI/UX e Product Design'), 5: th('Revisão, flashcards e ENEM: diagnóstico nas sextas (60–90 min)', 'ENEM (diagnóstico e base)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Python (Guanabara)', link: '', now: '' },
       { id: uid(), group: 'Complementar — programação', name: 'Front-end web (Udemy)', link: '', now: 'Aula que o professor passar no dia' },
       { id: uid(), group: 'Apoio', name: 'Matemática de apoio', link: '', now: 'Divisão' },
+      { id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Diagnóstico de Matemática em 20/11' },
+      { id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' },
       { id: uid(), group: 'Idioma', name: 'Inglês', link: '', now: '' }
     ],
     explore: [], lazer: ['Anime ou série', 'Filme', 'Música', 'Desenho', 'Culinária', 'Leitura', 'Documentário', 'Conversa com alguém', 'Oração', 'Descansar sem fazer nada'],
@@ -349,6 +351,18 @@ function migrate() {
     S.goals = S.goals.map((g, i) => [g, i]).sort((a, b) => rk(a[0]) - rk(b[0]) || a[1] - b[1]).map(x => x[0]);
   }
   migrateStudyNov2026();
+  migrateEnemNov2026();
+}
+/* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
+function migrateEnemNov2026() {
+  const f = S.flags;
+  if (f.enemNov26) return;
+  f.enemNov26 = 1;
+  const cur = S.study && S.study[5];
+  if (cur && cur.theme === 'Revisão e flashcards (60–90 min)') S.study[5] = { ...cur, theme: 'Revisão, flashcards e ENEM: diagnóstico nas sextas (60–90 min)', track: 'ENEM (diagnóstico e base)' };
+  S.tracks = S.tracks || [];
+  if (!S.tracks.some(t => /^ENEM/.test(t.name))) S.tracks.push({ id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Diagnóstico de Matemática em 20/11' });
+  if (!S.tracks.some(t => /Computação \(trilha CC\)/.test(t.name))) S.tracks.push({ id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' });
 }
 /* Plano 06/11/2026: migração conservadora. Mantém dados diários, conclusões, hábitos pessoais e horários personalizados. */
 function migrateStudyNov2026() {
