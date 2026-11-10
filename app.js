@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v76';
+const APP_V = 'v77';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -652,7 +652,13 @@ function planoFoco() {
   const nx = typeof planoProximo === 'function' ? planoProximo() : null;
   const manha = today >= 1 && today <= 5, noite = today >= 1 && today <= 4;
   const ln = (lbl, tema, done, act) => `<div class="row sp" style="gap:8px"><div class="grow"><div class="mut">${lbl}</div><b>${esc(tema || '—')}</b></div>${act ? `<button class="chip ${done ? 'on' : ''}" data-a="${act}" aria-pressed="${!!done}">${done ? 'Feito' : 'Marcar'}</button>` : ''}</div>`;
-  let b = '';
+  const hr = new Date().getHours(), passo = (() => {
+    if (manha && !sl.done && hr < 12) return 'Bloco da manhã: ' + (st.theme || 'tema do dia');
+    if (noite && !sl.night && hr < 22) return 'Bloco da noite às 20h: ' + ((today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? planoRodizio().materia : (st.night || 'ENEM base'));
+    if (today === 6 && !sl.done) return 'Janela das 09h às 12h: ' + (st.theme || 'Python e portfólio');
+    return 'Nada pendente nos blocos de hoje. Descanse e proteja o sono.';
+  })();
+  let b = `<div class="banner">${ic('info-box')}<span><b>Próximo passo:</b> ${esc(passo)}</span></div>`;
   if (manha) b += ln('Manhã · 06h', st.theme, sl.done, 'studydone');
   if (noite) b += ln('Noite · 20h', (today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? 'Natureza ou Humanas: ' + planoRodizio().materia : st.night, sl.night, 'nightdone');
   if (today === 5) b += `<div class="mut">Sexta à noite é livre (Nayara).</div>`;
