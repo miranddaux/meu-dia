@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v79';
+const APP_V = 'v80';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -601,7 +601,9 @@ function vFoco() {
   const tiles = focoItems().map(it => { const d = focoDone(it, k); return `<div class="ftile ${d ? 'done' : ''}"><button class="fmain" data-a="focot" data-v="${esc(it.id)}" aria-pressed="${d}"><span class="fck">${d ? ic('check') : ''}</span><span class="ftx">${esc(it.t)}</span></button>${ed ? `<button class="chip sm" data-a="focoren" data-v="${esc(it.id)}" aria-label="Renomear ${esc(it.t)}">${ic('edit')}</button><button class="chip sm" data-a="focodel" data-v="${esc(it.id)}" aria-label="Remover ${esc(it.t)}">${ic('trash')}</button>` : ''}</div>`; }).join('');
   const sl = S.study[new Date().getDay()] || {};
   const tema = sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
-  return `<div class="card"><h2 class="px">Hoje</h2><div class="mut">Sem pressa. Marque quando fizer.</div>${tiles}${tema}<div class="row wrap">${ed ? `<button class="btn sm ghost" data-a="focoadd">${ic('plus')}Adicionar</button>` : ''}<button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button></div></div>${waterCard(k)}<div class="row wrap"><button class="chip" data-a="hv" data-v="semana">Ver semana</button><button class="chip" data-a="focooff">Ver tudo (modo completo)</button></div>`;
+  const pr = S.prios[k] || [{}, {}, {}], pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
+  const prios = `<div class="card"><h2 class="px">${ic('bullseye')}<span>Prioridades</span></h2>${[0, 1, 2].map(i => { const s = pst(i); return `<div class="pri"><button class="st ${s === 'done' ? 'done' : s === 'no' ? 'no' : ''}" data-a="prcyc" data-v="${i}" aria-label="Prioridade ${i + 1}">${s === 'done' ? ic('check') : s === 'no' ? ic('close') : ''}</button><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1} (escreva ou apague)"></div>`; }).join('')}</div>`;
+  return prios + `<div class="card"><h2 class="px">Hoje</h2><div class="mut">Sem pressa. Marque quando fizer.</div>${tiles}${tema}<div class="row wrap">${ed ? `<button class="btn sm ghost" data-a="focoadd">${ic('plus')}Adicionar</button>` : ''}<button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button></div></div>${waterCard(k)}<div class="row wrap"><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button><button class="chip" data-a="hv" data-v="semana">Ver semana</button><button class="chip" data-a="focooff">Ver tudo (modo completo)</button></div>`;
 }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
@@ -1114,7 +1116,7 @@ function vCfg() {
   const s = S.settings, cloud = s.sync.key ? (s.cloudLast ? 'Na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Atualiza sozinho.' : 'Ainda não foi para a nuvem.') : 'Sem nuvem: coloque a chave do app em Notion, acima.';
   return `<div class="card">${sec('sun', 'Aparência')}<div class="chips">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="chip ${(s.theme || 'auto') === v ? 'on' : ''}" data-a="theme" data-v="${v}">${l}</button>`).join('')}</div></div>
 <div class="card">${sec('clock', 'Rotina')}<div class="row sp"><span>Modo faculdade (aulas seg a sex, 19h–22h)</span><button class="chip ${s.college ? 'on' : ''}" data-a="college" aria-pressed="${!!s.college}">${s.college ? 'Ligado' : 'Desligado'}</button></div><div class="mut">Troca a agenda de seg a sex: treino mais curto, jantar rápido e sono até 22h45.</div></div>
-${FOCO() ? `<div class="card"><h2 class="px">Home simples</h2><div class="mut">Ligada: Home com 3 blocos, sem sino, sem avisos e sem contagem.</div><button class="btn sm ghost" data-a="focooff">Voltar ao modo completo</button></div>` : `<div class="card"><h2 class="px">Home simples</h2><button class="btn sm" data-a="focoon">Ligar Home simples (sem avisos)</button></div>${pushCard()}`}
+${FOCO() ? `<div class="card"><h2 class="px">Home simples</h2><div class="mut">Ligada: Home com Prioridades e 3 blocos, sem contagem. Avisos só de contas, metas e lembretes que você marcou.</div><button class="btn sm ghost" data-a="focooff">Voltar ao modo completo</button></div>` : `<div class="card"><h2 class="px">Home simples</h2><button class="btn sm" data-a="focoon">Ligar Home simples</button></div>${pushCard()}`}
 ${acc('cfgcal', `${ic('calendar')}<span>Avisos pelo Calendário e cachorros</span>`, '', `<div class="mut">Alternativa aos avisos do app: baixe e toque em Adicionar tudo no Calendário do iPhone.</div><button class="btn ghost full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button>`, false)}
 <div class="card">${sec('sync', 'Notion')}<div class="row sp"><span>Enviar o dia sozinho</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn ghost full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'}</div><label>Link do seu Notion</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}</div>
 <div class="card">${sec('save', 'Backup')}<div class="mut">${cloud}${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') + '.' : ''} As fotos não entram no backup.</div>${s.sync.key ? `<div class="row"><button class="btn ghost sm grow" data-a="cbk">${ic('upload')}Nuvem agora</button><button class="btn ghost sm grow" data-a="crest">${ic('download')}Trazer da nuvem</button></div>` : ''}<button class="btn full" data-a="export">${ic('download')}Exportar backup (arquivo)</button><label>Restaurar de arquivo</label><input type="file" accept=".json,application/json" data-c="restore"></div>
@@ -1144,7 +1146,7 @@ function renderNow() {
   else if (ui.tab === 'desafios') p = `<nav class="crumbs" aria-label="Você está em">${crumb(['Desafios', 'dt', 'detox'], [ui.dt === 'melhorar' ? 'Melhorar' : 'Detox'])}</nav>`;
   else p = esc(p);
   const onCfg = ui.tab === 'mais' && ['cfg', 'exp', 'laz'].includes(ui.mais), onLoja = ui.tab === 'mais' && ui.mais === 'loja';
-  const nn = FOCO() ? 0 : notifs().length, hud = `<div class="hud">${FOCO() ? '' : `<button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button>`}<button data-a="cfg" class="${onCfg ? 'on' : ''}" aria-label="Ajustes" ${onCfg ? 'aria-current="page"' : ''}>${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" class="${onLoja ? 'on' : ''}" aria-label="Moedas: abrir loja" ${onLoja ? 'aria-current="page"' : ''}>${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
+  const nn = notifs().length, hud = `<div class="hud"><button data-a="notif" aria-label="Avisos${nn ? ': ' + nn : ''}">${ic('bell')}${nn ? `<span class="nbadge">${nn}</span>` : ''}</button><button data-a="cfg" class="${onCfg ? 'on' : ''}" aria-label="Ajustes" ${onCfg ? 'aria-current="page"' : ''}>${ic('sliders')}</button>${S.settings.gamify ? `<button data-a="loja" class="${onLoja ? 'on' : ''}" aria-label="Moedas: abrir loja" ${onLoja ? 'aria-current="page"' : ''}>${ic('coin')}<span>${coins()}</span></button>` : ''}<span>${ic('drop')}<span>${L(S.water[k] || 0)}/${L(num(S.settings.waterGoal))} L</span></span></div>`;
   const prev = /github\.io$/.test(location.hostname) ? `<div class="banner warn">${ic('info-box')}<span>Versão web provisória. Treino, rotina e fotos funcionam. Planilha, Notion e avisos voltam no app oficial dia 20/11 (leve um backup para lá).</span></div>` : '';
   $('#top').innerHTML = `${hud}${prev}<h1 class="px">${esc(h)}</h1><div class="subt">${p}</div>`;
   $('#view').innerHTML = { hoje: vHoje, corpo: vCorpo, estudos: vEstudos, desafios: vDesafios, mais: vMais }[ui.tab]();
@@ -1203,7 +1205,7 @@ const A = {
   focoren: v => { const it = focoItems().find(x => x.id === v); if (!it) return false; const t = (prompt('Novo nome:', it.t) || '').trim(); if (!t) return false; S.focoItems = focoItems().map(x => x.id === v ? Object.assign({}, x, { t: t.slice(0, 40) }) : x); save(); },
   focodel: v => { if (!confirm('Tirar este bloco da Home? (O histórico não é apagado.)')) return false; S.focoItems = focoItems().filter(x => x.id !== v); save(); },
   focooff: () => { S.settings.foco = false; save(); },
-  focoon: () => { S.settings.foco = true; save(); focoQuiet(); },
+  focoon: () => { S.settings.foco = true; save(); },
   hard: () => { const k = dkey(); S.hardDay[k] = !S.hardDay[k]; save(); },
   nightdone: () => { const k = dkey(), c = S.studyLog[k] || {}; S.studyLog[k] = Object.assign({}, c, { night: !c.night }); save(); },
   studydone: () => { const k = dkey(); S.studyLog[k] = Object.assign({}, S.studyLog[k], { done: !(S.studyLog[k] && S.studyLog[k].done) }); save(); },
@@ -1725,8 +1727,7 @@ Object.assign(A, { roadrefresh: () => { roadFetch(true); return false; }, roaddo
 /* ---- Central de avisos (sino no topo): Guardei / Paguei / Depois ---- */
 const snzd = id => ((S.snz || {})[id]) === dkey();
 function notifs() {
-  if (FOCO()) return [];
-  const k = dkey(), mo = k.slice(0, 7), out = [], add = (id, icon, text, acts) => { if (!snzd(id)) out.push({ id, icon, text, acts }); };
+  const k = dkey(), mo = k.slice(0, 7), out = [], essencial = id => !FOCO() || /^(g|b|p|r):/.test(id), add = (id, icon, text, acts) => { if (essencial(id) && !snzd(id)) out.push({ id, icon, text, acts }); };
   S.goals.filter(g => goalDue(g, k)).forEach(g => add(`g:${g.id}:${mo}`, 'flag', `Dia do pagamento: guardar ${brl(goalM(g, mo))} para ${g.title}.`, [['Guardei', 'goalpaid', g.id, '']]));
   const paid = S.billPaid[mo] || {}, rel = d => { const diff = Math.round((new Date(d + 'T12:00') - new Date(k + 'T12:00')) / 864e5); return diff < 0 ? 'venceu dia ' + d.slice(8) : diff <= 3 ? 'vence ' + (diff === 0 ? 'hoje' : diff === 1 ? 'amanhã' : 'em ' + diff + ' dias') : ''; };
   S.bills.forEach(b => { if (paid[b.id]) return; const r = rel(billDue(b, mo)); if (r) add(`b:${b.id}:${mo}`, 'wallet', `${b.title} ${r} (${brl(num(b.amount))}).`, [['Paguei', 'paybill', b.id, mo]]); });
@@ -2018,17 +2019,15 @@ function agendaAvisos() {
   const seen = new Set(); return out.filter(x => !seen.has(x.id) && seen.add(x.id));
 }
 async function pushAgenda(quiet) {
-  if (FOCO()) return;
   if (!(S.settings.push && S.settings.push.on) || !S.settings.sync.key) return;
-  try { await pushCall('POST', { action: 'agenda', items: agendaAvisos() }); S.settings.push.err = ''; } catch (e) { S.settings.push.err = String(e.message || e); if (!quiet) toast('Avisos: ' + S.settings.push.err); }
+  try { await pushCall('POST', { action: 'agenda', items: agendaAvisos().filter(x => !FOCO() || !/^(road|c):/.test(x.id)) }); S.settings.push.err = ''; } catch (e) { S.settings.push.err = String(e.message || e); if (!quiet) toast('Avisos: ' + S.settings.push.err); }
 }
 Object.assign(A, {
   pushon: () => { pushOn(); return false; },
   pushtest: async () => { try { await pushAgenda(true); const r = await pushCall('POST', { action: 'teste' }); toast(r.enviados ? 'Aviso de teste enviado.' : 'Nenhum aparelho recebeu. Desligue e ligue de novo.'); } catch (e) { toast('Teste: ' + (e.message || e)); } return false; },
   pushoff: async () => { try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) { await pushCall('POST', { action: 'off', endpoint: sub.endpoint }); await sub.unsubscribe(); } } catch (e) { } S.settings.push = { on: false, err: '' }; save(); toast('Avisos desligados.'); return true; }
 });
-async function focoQuiet() { if (!FOCO() || !(S.settings.push && S.settings.push.on)) return; try { await A.pushoff(); } catch (e) { } }
-setTimeout(() => { focoQuiet(); pushAgenda(true); }, 6000);
+setTimeout(() => pushAgenda(true), 6000);
 
 
 /* ---------- rotina de conteúdo (atualizada em 27/10/2026): lembretes da semana e do ciclo de cada vídeo ---------- */
