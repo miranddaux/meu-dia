@@ -360,3 +360,12 @@ details.sub[open]>summary::after{content:'–'}
 .now-box .mut{color:#1f2a2e;opacity:.8}
 .now-box .item{border-color:rgba(31,42,46,.25)}
 .now-box .nw{white-space:nowrap;margin-left:8px}
+
+/* home simples */
+.ftile{display:flex;gap:var(--s2);align-items:stretch}
+.fmain{flex:1;display:flex;align-items:center;gap:var(--s3);min-height:72px;padding:0 var(--s3);border:3px solid var(--ink);border-radius:var(--r2);background:var(--card);color:var(--ink);font:inherit;font-size:20px;font-weight:700;text-align:left;cursor:pointer}
+.ftile.done .fmain{background:var(--soft)}
+.ftile.done .ftx{opacity:.7}
+.fck{width:32px;height:32px;border:3px solid var(--ink);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:var(--card);flex:none}
+.ftile.done .fck{background:var(--ok)}
+.fck .ic{width:20px;height:20px}
