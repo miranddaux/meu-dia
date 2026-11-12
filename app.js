@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v80';
+const APP_V = 'v81';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -594,19 +594,24 @@ ${history.length ? '<div class="grp">Últimos sábados</div>'+history.map(([date
 }
 /* ---------- HOME SIMPLES (modo foco): 3 blocos, sem contagem, sem avisos ---------- */
 const FOCO = () => S.settings.foco !== false;
-const focoItems = () => (S.focoItems && S.focoItems.length ? S.focoItems : [{ id: 'trab', t: 'Trabalho' }, { id: 'est', t: 'Estudo' }, { id: 'trn', t: 'Treino' }]);
+const FDEF = [{ id: 'est', t: 'Estudo', w: 'm' }, { id: 'trab', t: 'Trabalho', w: 't' }, { id: 'trn', t: 'Treino', w: 'n' }];
+const FW = [['m', 'Manhã'], ['t', 'Tarde'], ['n', 'Noite']];
+const focoItems = () => (S.focoItems && S.focoItems.length ? S.focoItems : FDEF).map(x => x.w ? x : Object.assign({}, x, { w: (FDEF.find(d => d.id === x.id) || {}).w || 'm' }));
 const focoDone = (it, k) => !!((S.focoLog && S.focoLog[k] || {})[it.id]) || (it.id === 'est' && !!(S.studyLog[k] || {}).done) || (it.id === 'trn' && typeof trDone === 'function' && trDone(k).length > 0);
 function vFoco() {
-  const k = dkey(), ed = !!ui.focoEdit;
-  const tiles = focoItems().map(it => { const d = focoDone(it, k); return `<div class="ftile ${d ? 'done' : ''}"><button class="fmain" data-a="focot" data-v="${esc(it.id)}" aria-pressed="${d}"><span class="fck">${d ? ic('check') : ''}</span><span class="ftx">${esc(it.t)}</span></button>${ed ? `<button class="chip sm" data-a="focoren" data-v="${esc(it.id)}" aria-label="Renomear ${esc(it.t)}">${ic('edit')}</button><button class="chip sm" data-a="focodel" data-v="${esc(it.id)}" aria-label="Remover ${esc(it.t)}">${ic('trash')}</button>` : ''}</div>`; }).join('');
-  const sl = S.study[new Date().getDay()] || {};
-  const tema = sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
+  const k = dkey(), ed = !!ui.focoEdit, items = focoItems();
+  const top = `<div class="chips"><button class="chip on" data-a="hv" data-v="hoje">Hoje</button><button class="chip" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focooff">Ver tudo</button></div>`;
   const pr = S.prios[k] || [{}, {}, {}], pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
   const prios = `<div class="card"><h2 class="px">${ic('bullseye')}<span>Prioridades</span></h2>${[0, 1, 2].map(i => { const s = pst(i); return `<div class="pri"><button class="st ${s === 'done' ? 'done' : s === 'no' ? 'no' : ''}" data-a="prcyc" data-v="${i}" aria-label="Prioridade ${i + 1}">${s === 'done' ? ic('check') : s === 'no' ? ic('close') : ''}</button><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1} (escreva ou apague)"></div>`; }).join('')}</div>`;
-  return prios + `<div class="card"><h2 class="px">Hoje</h2><div class="mut">Sem pressa. Marque quando fizer.</div>${tiles}${tema}<div class="row wrap">${ed ? `<button class="btn sm ghost" data-a="focoadd">${ic('plus')}Adicionar</button>` : ''}<button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button></div></div>${waterCard(k)}<div class="row wrap"><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button><button class="chip" data-a="hv" data-v="semana">Ver semana</button><button class="chip" data-a="focooff">Ver tudo (modo completo)</button></div>`;
+  const tile = it => { const d = focoDone(it, k); return `<div class="ftile ${d ? 'done' : ''}"><button class="fmain" data-a="focot" data-v="${esc(it.id)}" aria-pressed="${d}"><span class="fck">${d ? ic('check') : ''}</span><span class="ftx">${esc(it.t)}</span></button>${ed ? `<button class="chip sm" data-a="focomv" data-v="${esc(it.id)}" aria-label="Mudar período de ${esc(it.t)}">${FW.find(x => x[0] === it.w)[1]}</button><button class="chip sm" data-a="focoren" data-v="${esc(it.id)}" aria-label="Renomear ${esc(it.t)}">${ic('edit')}</button><button class="chip sm" data-a="focodel" data-v="${esc(it.id)}" aria-label="Remover ${esc(it.t)}">${ic('trash')}</button>` : ''}</div>`; };
+  const hr = new Date().getHours(), cur = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
+  const blocks = FW.map(([w, nm]) => { const l = items.filter(x => x.w === w); if (!l.length && !ed) return ''; return `<div class="card fper ${w === cur ? 'now' : ''}"><div class="row sp"><h3 class="px">${nm}</h3>${w === cur ? '<span class="mut">agora</span>' : ''}</div>${l.map(tile).join('') || '<div class="mut">Nada aqui.</div>'}${ed ? `<button class="btn sm ghost" data-a="focoadd" data-v="${w}">${ic('plus')}Adicionar em ${nm}</button>` : ''}</div>`; }).join('');
+  const sl = S.study[new Date().getDay()] || {};
+  const tema = sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
+  return top + waterCard(k) + prios + blocks + tema + `<div class="row wrap"><button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button></div>`;
 }
 function vHoje() {
-  const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button></div>`;
+  const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focoon">Simples</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
   if (FOCO()) return vFoco();
   const n = new Date(), k = dkey(n), dow = n.getDay(), hard = !!S.hardDay[k], mins = n.getHours() * 60 + n.getMinutes();
@@ -1201,7 +1206,8 @@ const A = {
   cyc: v => { const k = dkey(); S.log[k] = S.log[k] || {}; const i = ST.indexOf(S.log[k][v] || ''); const nx = ST[(i + 1) % ST.length]; if (nx) S.log[k][v] = nx; else delete S.log[k][v]; save(); },
   focot: v => { const k = dkey(), l = S.focoLog = S.focoLog || {}, d = l[k] = l[k] || {}; d[v] = !d[v]; if (v === 'est') S.studyLog[k] = Object.assign({}, S.studyLog[k], { done: d[v] }); save(); },
   focoed: () => { ui.focoEdit = !ui.focoEdit; },
-  focoadd: () => { const t = (prompt('Nome do bloco (ex.: Desenhar, Ler):') || '').trim(); if (!t) return false; S.focoItems = focoItems().concat([{ id: 'x' + Date.now().toString(36), t: t.slice(0, 40) }]); save(); },
+  focoadd: v => { const t = (prompt('Nome do bloco (ex.: Desenhar, Ler):') || '').trim(); if (!t) return false; S.focoItems = focoItems().concat([{ id: 'x' + Date.now().toString(36), t: t.slice(0, 40), w: v || 'm' }]); save(); },
+  focomv: v => { S.focoItems = focoItems().map(x => x.id === v ? Object.assign({}, x, { w: { m: 't', t: 'n', n: 'm' }[x.w] }) : x); save(); },
   focoren: v => { const it = focoItems().find(x => x.id === v); if (!it) return false; const t = (prompt('Novo nome:', it.t) || '').trim(); if (!t) return false; S.focoItems = focoItems().map(x => x.id === v ? Object.assign({}, x, { t: t.slice(0, 40) }) : x); save(); },
   focodel: v => { if (!confirm('Tirar este bloco da Home? (O histórico não é apagado.)')) return false; S.focoItems = focoItems().filter(x => x.id !== v); save(); },
   focooff: () => { S.settings.foco = false; save(); },

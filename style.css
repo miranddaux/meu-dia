@@ -369,3 +369,7 @@ details.sub[open]>summary::after{content:'–'}
 .fck{width:32px;height:32px;border:3px solid var(--ink);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;background:var(--card);flex:none}
 .ftile.done .fck{background:var(--ok)}
 .fck .ic{width:20px;height:20px}
+.fper{gap:var(--s2)}
+.fper.now{background:var(--soft)}
+.fper h3.px{font-size:13px}
+.ftile .chip.sm{min-height:72px;padding:0 10px}
