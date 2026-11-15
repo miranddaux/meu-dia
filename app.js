@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v81';
+const APP_V = 'v82';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -166,7 +166,7 @@ function defaults() {
       rewards: REWD.map(r => ({ id: uid(), title: r[0], at: r[1] })), phase: 1, pom: { f: 25, b: 5 }, sync: { url: '/.netlify/functions/sync', key: '', on: false, last: '' }
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
-    log: {}, prios: {}, hardDay: {}, mood: {},
+    log: {}, prios: {}, hardDay: {}, mood: {}, dump: [],
     study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design', '', 'Matemática (base)'), 2: th('Inglês (60 min)', 'Inglês', '', 'Português e leitura (base)'), 3: th('HTML/CSS (60 min)', 'Front-end web (Udemy)', '', 'Matemática (base)'), 4: th('UI/Design Systems (60 min)', 'UI/UX e Product Design', '', 'Natureza ou Humanas (alterna)'), 5: th('Flashcards (30 min) + redação (30 a 40 min)', 'ENEM (diagnóstico e base)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
@@ -598,6 +598,29 @@ const FDEF = [{ id: 'est', t: 'Estudo', w: 'm' }, { id: 'trab', t: 'Trabalho', w
 const FW = [['m', 'Manhã'], ['t', 'Tarde'], ['n', 'Noite']];
 const focoItems = () => (S.focoItems && S.focoItems.length ? S.focoItems : FDEF).map(x => x.w ? x : Object.assign({}, x, { w: (FDEF.find(d => d.id === x.id) || {}).w || 'm' }));
 const focoDone = (it, k) => !!((S.focoLog && S.focoLog[k] || {})[it.id]) || (it.id === 'est' && !!(S.studyLog[k] || {}).done) || (it.id === 'trn' && typeof trDone === 'function' && trDone(k).length > 0);
+/* ---------- Cuidar de mim (v82): humor em 1 toque, dia difícil, respirar, esvaziar a cabeça ---------- */
+const MOODS = [['mood-sad', 1, 'Muito mal'], ['mood-sad', 2, 'Mal'], ['mood-neutral', 3, 'Ok'], ['mood-happy', 4, 'Bem'], ['mood-happy', 5, 'Muito bem']];
+function cuidarCard(k) {
+  const md = S.mood[k] || {}, hard = !!S.hardDay[k], dump = S.dump || [], hr = new Date().getHours();
+  const moodRow = `<div class="chips mrow">${MOODS.map(([i, v, l]) => `<button class="chip ${md.m === v ? 'on' : ''}" data-a="mood" data-v="m" data-w="${v}" aria-label="${l}">${ic(i)}${v}</button>`).join('')}</div>`;
+  const low = md.m && md.m <= 2 ? `<div class="banner">${ic('heart')}<span>Dia pesado, tudo bem sentir isso. ${hard ? '' : 'Que tal ligar o Dia difícil e fazer só o mínimo? '} Se piorar muito, fale com alguém ou ligue 188 (CVV).</span></div>` : '';
+  const acts = `<div class="row wrap"><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button><button class="chip" data-a="respirar">${ic('heart')}Respirar 1 min</button></div>`;
+  const dumpBody = `<div class="mut">Escreveu aqui, pode soltar da cabeça. Quando resolver (ou perceber que não depende de você), toque no X.</div><input data-c="dumpadd" placeholder="O que está pesando? (Enter para guardar)" enterkeyhint="done">${dump.map(d => `<div class="row sp dumpi"><span class="grow">${esc(d.t)}</span><span class="mut">${sd2(d.d)}</span>${ib('close', 'Soltar: ' + d.t, 'dumpdel', d.id)}</div>`).join('')}`;
+  const dumpAcc = `<details class="dumpbox" data-w="dump" ${(ui.open.dump !== undefined ? ui.open.dump : hr >= 20) ? 'open' : ''}><summary><b>Esvaziar a cabeça</b><span class="mut">${dump.length ? dump.length + ' guardado(s)' : 'antes de dormir'}</span></summary>${dumpBody}</details>`;
+  const good = `<input data-c="mgood" value="${esc(md.good)}" placeholder="1 coisa boa de hoje (opcional)">`;
+  return `<div class="card cuidar"><div class="row sp"><h3 class="px">${ic('heart')}<span>Cuidar de mim</span></h3><span class="mut">privado</span></div><div class="mut">Como você está agora?</div>${moodRow}${low}${acts}${dumpAcc}${good}</div>`;
+}
+function respirar() {
+  const m = document.createElement('div'); m.className = 'modal breath'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-label', 'Respirar 1 minuto');
+  m.innerHTML = `<div class="sheet center"><h3 class="px">Respirar 1 min</h3><div class="bcirc" aria-hidden="true"></div><div class="h2" data-bt aria-live="polite">Puxe o ar…</div><div class="mut" data-bc>5 ciclos · solte os ombros</div><button class="btn ghost" data-x>Parar</button></div>`;
+  document.body.appendChild(m);
+  const steps = [['Puxe o ar…', 4000], ['Segure…', 2000], ['Solte devagar…', 6000]];
+  let i = 0, c = 0, t = null; const bt = m.querySelector('[data-bt]'), bc = m.querySelector('[data-bc]');
+  const end = () => { clearTimeout(t); m.remove(); };
+  const tick = () => { const [txt, ms] = steps[i]; bt.textContent = txt; t = setTimeout(() => { i = (i + 1) % 3; if (i === 0) { c++; bc.textContent = `${5 - c} ciclo(s) restante(s)`; } if (c >= 5) { bt.textContent = 'Pronto. Volte devagar.'; bc.textContent = ''; m.querySelector('.bcirc').style.animation = 'none'; t = setTimeout(end, 2500); return; } tick(); }, ms); };
+  tick();
+  m.addEventListener('click', e => { if (e.target === m || e.target.dataset.x !== undefined) end(); });
+}
 function vFoco() {
   const k = dkey(), ed = !!ui.focoEdit, items = focoItems();
   const top = `<div class="chips"><button class="chip on" data-a="hv" data-v="hoje">Hoje</button><button class="chip" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focooff">Ver tudo</button></div>`;
@@ -608,7 +631,10 @@ function vFoco() {
   const blocks = FW.map(([w, nm]) => { const l = items.filter(x => x.w === w); if (!l.length && !ed) return ''; return `<div class="card fper ${w === cur ? 'now' : ''}"><div class="row sp"><h3 class="px">${nm}</h3>${w === cur ? '<span class="mut">agora</span>' : ''}</div>${l.map(tile).join('') || '<div class="mut">Nada aqui.</div>'}${ed ? `<button class="btn sm ghost" data-a="focoadd" data-v="${w}">${ic('plus')}Adicionar em ${nm}</button>` : ''}</div>`; }).join('');
   const sl = S.study[new Date().getDay()] || {};
   const tema = sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
-  return top + waterCard(k) + prios + blocks + tema + `<div class="row wrap"><button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button></div>`;
+  const hard = !!S.hardDay[k], night = hr >= 20, care = cuidarCard(k);
+  const tools = `<div class="row wrap"><button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button></div>`;
+  if (hard && !ed) return top + `<div class="banner">${ic('shield')}<span>Dia difícil: hoje vale o mínimo. Beba água, faça 1 prioridade se der e cuide de você. O resto fica para outro dia, sem dívida.</span></div>` + care + waterCard(k) + prios + tools;
+  return top + (night ? care : '') + waterCard(k) + prios + blocks + tema + (night ? '' : care) + tools;
 }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focoon">Simples</button></div>`;
@@ -644,8 +670,7 @@ function vHoje() {
     const act = S.challenges.filter(c => !c.arq && (!c.completedAt || c.log[k]));
     out += acc('des', 'Desafios', `${act.filter(c => c.log[k] === 'ok').length}/${act.length} hoje`, `${act.map(c => chRow(c, k)).join('') || '<div class="mut">Sem desafios ativos.</div>'}<div class="row wrap hedit"><button class="btn sm ghost" data-a="addch" data-v="">${ic('plus')}Adicionar</button><button class="btn sm ${ui.chEdit ? '' : 'ghost'}" data-a="chedit" aria-pressed="${!!ui.chEdit}">${ic(ui.chEdit ? 'check' : 'edit')}${ui.chEdit ? 'Pronto' : 'Editar lista'}</button></div>`, false);
   }
-  const md = S.mood[k] || {};
-  out += `<details class="card" data-w="mood" ${ui.open.mood ? 'open' : ''}><summary><span class="px">Como estou</span><span class="mut">opcional, privado</span></summary><div class="mut">Humor</div><div class="chips">${[['mood-sad', 1], ['mood-sad', 2], ['mood-neutral', 3], ['mood-happy', 4], ['mood-happy', 5]].map(([i, v]) => `<button class="chip ${md.m === v ? 'on' : ''}" data-a="mood" data-v="m" data-w="${v}" aria-label="Humor ${v} de 5">${ic(i)}${v}</button>`).join('')}</div><div class="mut">Energia</div><div class="chips">${[1, 2, 3, 4, 5].map(i => `<button class="chip ${md.e === i ? 'on' : ''}" data-a="mood" data-v="e" data-w="${i}" aria-label="Energia ${i} de 5">${ic('battery-full')}${i}</button>`).join('')}</div><input data-c="mnote" value="${esc(md.note)}" placeholder="Nota rápida (só você vê)"></details>`;
+  out += cuidarCard(k);
   return out;
 }
 
@@ -1213,6 +1238,8 @@ const A = {
   focooff: () => { S.settings.foco = false; save(); },
   focoon: () => { S.settings.foco = true; save(); },
   hard: () => { const k = dkey(); S.hardDay[k] = !S.hardDay[k]; save(); },
+  respirar: () => { respirar(); return false; },
+  dumpdel: v => { S.dump = (S.dump || []).filter(d => d.id !== v); save(); toast('Soltou. Menos uma coisa na cabeça.'); },
   nightdone: () => { const k = dkey(), c = S.studyLog[k] || {}; S.studyLog[k] = Object.assign({}, c, { night: !c.night }); save(); },
   studydone: () => { const k = dkey(); S.studyLog[k] = Object.assign({}, S.studyLog[k], { done: !(S.studyLog[k] && S.studyLog[k].done) }); save(); },
   satpython: () => { const k=dkey(), l=S.saturdayLog[k]=S.saturdayLog[k]||{}; l.pythonDone=!l.pythonDone; save(); },
@@ -1390,6 +1417,8 @@ Object.assign(A,{jgo:v=>{if(v==='estudos'){ui.tab='estudos';window.scrollTo(0,0)
 const C = {
   pt: (v, i) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { t: v }); save(); },
   pd: (v, i, el) => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; S.prios[k][i] = Object.assign(S.prios[k][i] || {}, { d: el.checked }); save(); },
+  mgood: v => { const k = dkey(); S.mood[k] = S.mood[k] || {}; S.mood[k].good = v; save(); },
+  dumpadd: (v, _, el) => { v = String(v || '').trim(); if (!v) return; S.dump = S.dump || []; S.dump.unshift({ id: uid(), t: v, d: dkey() }); el.value = ''; ui.open.dump = true; save(); render(); },
   mnote: v => { const k = dkey(); S.mood[k] = S.mood[k] || {}; S.mood[k].note = v; save(); },
   satnote: v => { const k=dkey(),l=S.saturdayLog[k]=S.saturdayLog[k]||{};l.note=v.slice(0,600);save(); },
   sth: v => stSet('theme', v), stn: v => stSet('night', v), str: v => stSet('track', v), sln: v => { stSet('link', v); render(); }, snx: v => stSet('next', v),
