@@ -373,3 +373,16 @@ details.sub[open]>summary::after{content:'–'}
 .fper.now{background:var(--soft)}
 .fper h3.px{font-size:13px}
 .ftile .chip.sm{min-height:72px;padding:0 10px}
+
+/* v82 Cuidar de mim */
+.cuidar .chips .chip{padding:0 12px}
+.dumpbox{border:3px solid var(--ink);border-radius:var(--r);padding:var(--s2) var(--s3);background:var(--bg)}
+.dumpbox summary{display:flex;justify-content:space-between;align-items:center;gap:var(--s2);min-height:44px;cursor:pointer;list-style:none}
+.dumpbox summary::-webkit-details-marker{display:none}
+.dumpbox[open]{display:flex;flex-direction:column;gap:var(--s2)}
+.dumpi{border-top:2px dashed var(--soft);padding-top:var(--s1)}
+.breath .sheet{align-items:center;text-align:center;gap:var(--s3);padding-top:var(--s4)}
+.bcirc{width:160px;height:160px;border-radius:50%;background:var(--water);border:3px solid var(--ink);box-shadow:0 4px 0 var(--ink);animation:breathe 12s ease-in-out infinite}
+@keyframes breathe{0%{transform:scale(.55)}33%{transform:scale(1)}50%{transform:scale(1)}100%{transform:scale(.55)}}
+@media (prefers-reduced-motion:reduce){.bcirc{animation:none}}
+.cuidar .mrow{flex-wrap:nowrap;overflow:visible}.cuidar .mrow .chip{flex:1;min-width:0;justify-content:center;padding:0 4px;gap:4px}
