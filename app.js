@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v83';
+const APP_V = 'v84';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -167,7 +167,7 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {}, dump: [],
-    study: { 0: th('', ''), 1: th('Produto e UX: livro (30 min) + UI Boost até o certificado (30 min)', 'UI/UX e Product Design', '', 'Matemática + Português (base, ~30 min)'), 2: th('Inglês 1: escuta e fala (60 min)', 'Inglês', '', 'Matemática + Português (base, ~30 min)'), 3: th('Front-end: aula da Udemy do dia (60 min)', 'Front-end web (Udemy)', '', 'Matemática + Português (base, ~30 min)'), 4: th('IA e Agentes: Claude Academy + projeto prático (60 min)', 'IA e Agentes', '', 'Matemática + Português + Natureza ou Humanas (alterna)'), 5: th('Inglês 2: leitura e escrita (45–60 min) + revisão da semana (30 min)', 'Inglês'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
+    study: { 0: th('', ''), 1: th('Produto e UX: livro (30 min) + UI Boost até o certificado (30 min)', 'UI/UX e Product Design', '', 'Matemática + Português (base, ~30 min)'), 2: th('Inglês 1: escuta e fala (60 min)', 'Inglês', '', 'Matemática + Português (base, ~30 min)'), 3: th('Front-end: aula da Udemy do dia (60 min)', 'Front-end web (Udemy)', '', 'Matemática + Português (base, ~30 min)'), 4: th('IA e Agentes: Claude Academy + projeto prático (60 min)', 'IA e Agentes', '', 'Natureza ou Humanas (alterna)'), 5: th('Inglês 2: leitura e escrita (45–60 min) + revisão da semana (30 min)', 'Inglês'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
@@ -408,6 +408,7 @@ function migrate() {
   migrateRotinaManhaNoite();
   migrateSextaSabado76();
   migrateEstudos17Nov();
+  migrateQuintaRodizio();
   planoAjusteV3();
 }
 /* Roadmap 17/11/2026 (mentoria Daniel R. Campos): prioridade é ganhar dinheiro na área.
@@ -426,6 +427,14 @@ function migrateEstudos17Nov() {
   if (!S.tracks.some(t => t.name === 'IA e Agentes')) S.tracks.push({ id: uid(), group: 'Formação principal', name: 'IA e Agentes', link: 'https://academy.claude.com', now: 'Claude Academy: Claude Code 101' });
   const en = S.tracks.find(t => /^ENEM/.test(t.name));
   if (en) en.now = 'Conhecimento, sem cobrança: matemática + português de seg a qui (~30 min) e rodízio na quinta';
+}
+/* 17/11/2026 (2): quinta à noite é só o rodízio automático de natureza/humanas. */
+function migrateQuintaRodizio() {
+  const f = S.flags;
+  if (f.quintaRodizio) return;
+  f.quintaRodizio = 1;
+  S.study = S.study || {};
+  if (S.study[4]) S.study[4].night = 'Natureza ou Humanas (alterna)';
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {
@@ -757,6 +766,8 @@ ${st.link ? `<a href="${esc(st.link)}" target="_blank" rel="noopener">${ic('exte
   out += `</div>`;
   if (d === 6 && today === 6) out += saturdayCard();
   out += planoCard();
+  if (typeof vidaCard === 'function') out += vidaCard();
+  if (typeof arvoreCard === 'function') out += arvoreCard();
   out += roadCard();
   out += estudoSemana();
   out += histCard();
@@ -1062,7 +1073,7 @@ function vJornada() {
   const nx = journeyNext(), vw = (S.vida || {})[vwk()] || { s:{} };
   const vals = AREAS.map(a => vw.s[a[0]]).filter(v => v !== undefined), life = vals.length ? r1(vals.reduce((a,n)=>a+n,0)/vals.length) : '—';
   const row = x => `<div class="journey-step"><div class="journey-step-ic">${ic(x.icon)}</div><div class="grow"><b>${esc(x.title)}</b><div class="mut">${esc(x.meta)}</div></div><button class="btn sm ${x.a === 'jgo' ? 'ghost' : ''}" data-a="${x.a}" data-v="${esc(x.v)}">${esc(x.cta)}</button></div>`;
-  let out = rpgCard(false) + visaoStrip('vida');
+  let out = rpgCard(false) + (typeof vidaCard === 'function' ? vidaCard() : '') + visaoStrip('vida');
   out += `<div class="card">${sec('flag','Próximas ações',`<button class="btn sm ghost" data-a="jgo" data-v="rem">Lembretes</button>`)}<div class="mut">O app junta o que vence no Meu Dia com o Roadmap do Notion e mostra primeiro o que precisa da sua atenção.</div>${nx.length ? nx.map(row).join('') : '<div class="banner">'+ic('check')+'<span>Nada urgente agora. Continue a rotina e registre o que fizer.</span></div>'}</div>`;
   const map = AREAS.map(([id,nm,ico]) => `<button class="journey-area" data-a="jgo" data-v="vida"><span>${ic(ico)}</span><b>${esc(nm)}</b><small>${vw.s[id] === undefined ? 'avaliar' : vw.s[id] + '/10'}</small></button>`).join('');
   out += `<div class="card">${sec('heart','Mapa da vida',`<button class="btn sm ghost" data-a="jgo" data-v="vida">Abrir</button>`)}<div class="mut">Cada área tem nota semanal, uma ação pequena e XP quando você conclui.</div><div class="journey-map">${map}</div></div>` + rpgParts();
@@ -1837,7 +1848,7 @@ document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === 
 document.addEventListener('change', e => { const el = e.target.closest('[data-c]'); if (el && C[el.dataset.c]) C[el.dataset.c](el.value, el.dataset.v, el); });
 document.addEventListener('toggle', e => { const d = e.target; if (d.tagName === 'DETAILS' && d.dataset.w) ui.open[d.dataset.w] = d.open; }, true);
 
-dinInit(); euInit(); dietInit(); trInit(); visaoInit(); load(); applyTheme(); save(); render();
+dinInit(); euInit(); arvoreInit(); vidaInit(); lvInit(); dietInit(); trInit(); visaoInit(); load(); applyTheme(); save(); render();
 if (notifs().some(n => n.id.startsWith('g:')) && S.settings.notifSeen !== dkey()) { S.settings.notifSeen = dkey(); save(); notifOpen(); }
 setInterval(() => {
   const s = S.session, t = $('#restTxt'), el = $('#elap');
