@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v86';
+const APP_V = 'v87';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -175,9 +175,9 @@ function defaults() {
       { id: uid(), group: 'Complementar — programação', name: 'Front-end web (Udemy)', link: '', now: 'Aula que o professor passar no dia' },
       { id: uid(), group: 'Apoio', name: 'Matemática de apoio', link: '', now: 'Divisão' },
       { id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027' },
-      { id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' },
       { id: uid(), group: 'Idioma', name: 'Inglês', link: '', now: '' },
-      { id: uid(), group: 'Formação principal', name: 'IA e Agentes', link: 'https://academy.claude.com', now: 'Claude Academy: Claude Code 101' }
+      { id: uid(), group: 'Formação principal', name: 'IA e Agentes', link: 'https://academy.claude.com', now: 'Claude Academy: Claude Code 101' },
+      { id: uid(), group: 'Hobby', name: 'Oficina (hardware e eletrônica)', link: '', now: '1º projeto: medidor de som com LEDs. Sem XP e sem prazo, aos poucos' }
     ],
     explore: [], lazer: ['Anime ou série', 'Filme', 'Música', 'Desenho', 'Culinária', 'Leitura', 'Documentário', 'Conversa com alguém', 'Oração', 'Descansar sem fazer nada'],
     workouts: [], weights: [], photos: [], meals: {}, combos: [], pomo: {}, learn: { done: {}, days: {}, xp: 0 }, vida: {},
@@ -411,6 +411,7 @@ function migrate() {
   migrateQuintaRodizio();
   migrateNoiteUmaMateria();
   fixEnemTexto();
+  migrateTrilhasOficina();
   planoAjusteV3();
 }
 /* Roadmap 17/11/2026 (mentoria Daniel R. Campos): prioridade é ganhar dinheiro na área.
@@ -447,6 +448,12 @@ function migrateNoiteUmaMateria() {
   const n = { 1: 'Matemática (base, ~30 min)', 2: 'Português (base, ~30 min)', 3: 'Matemática (base, ~30 min)' };
   Object.entries(n).forEach(([d, t]) => { if (S.study[d]) S.study[d].night = t; });
 }
+/* 17/11/2026 (4): a trilha CC sai (Python e JS já estão nas outras trilhas; SQL e base de web ficam no Roadmap de Código). A Oficina entra como hobby. */
+function migrateTrilhasOficina() {
+  const f = S.flags; if (f.trilhasOficina) return; f.trilhasOficina = 1;
+  S.tracks = (S.tracks || []).filter(t => !/Computação \(trilha CC\)/.test(t.name));
+  if (!S.tracks.some(t => /^Oficina/.test(t.name))) S.tracks.push({ id: uid(), group: 'Hobby', name: 'Oficina (hardware e eletrônica)', link: '', now: '1º projeto: medidor de som com LEDs. Sem XP e sem prazo, aos poucos' });
+}
 function fixEnemTexto() {
   const f = S.flags; if (f.enemTxt2) return; f.enemTxt2 = 1;
   const en = (S.tracks || []).find(t => /^ENEM/.test(t.name));
@@ -461,8 +468,7 @@ function migrateEnemNov2026() {
   if (cur && cur.theme === 'Revisão e flashcards (60–90 min)') S.study[5] = { ...cur, theme: 'Revisão, flashcards e ENEM: diagnóstico nas sextas (60–90 min)', track: 'ENEM (diagnóstico e base)' };
   S.tracks = S.tracks || [];
   if (!S.tracks.some(t => /^ENEM/.test(t.name))) S.tracks.push({ id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027' });
-  if (!S.tracks.some(t => /Computação \(trilha CC\)/.test(t.name))) S.tracks.push({ id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' });
-}
+  }
 /* Plano 06/11/2026: migração conservadora. Mantém dados diários, conclusões, hábitos pessoais e horários personalizados. */
 function migrateStudyNov2026() {
   const f = S.flags;
