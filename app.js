@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v85';
+const APP_V = 'v86';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -410,6 +410,7 @@ function migrate() {
   migrateEstudos17Nov();
   migrateQuintaRodizio();
   migrateNoiteUmaMateria();
+  fixEnemTexto();
   planoAjusteV3();
 }
 /* Roadmap 17/11/2026 (mentoria Daniel R. Campos): prioridade é ganhar dinheiro na área.
@@ -427,7 +428,7 @@ function migrateEstudos17Nov() {
   S.tracks = S.tracks || [];
   if (!S.tracks.some(t => t.name === 'IA e Agentes')) S.tracks.push({ id: uid(), group: 'Formação principal', name: 'IA e Agentes', link: 'https://academy.claude.com', now: 'Claude Academy: Claude Code 101' });
   const en = S.tracks.find(t => /^ENEM/.test(t.name));
-  if (en) en.now = 'Conhecimento, sem cobrança: matemática + português de seg a qui (~30 min) e rodízio na quinta';
+  if (en) en.now = 'Conhecimento, sem cobrança (~30 min): seg matemática, ter português, qua matemática, qui rodízio';
 }
 /* 17/11/2026 (2): quinta à noite é só o rodízio automático de natureza/humanas. */
 function migrateQuintaRodizio() {
@@ -445,6 +446,11 @@ function migrateNoiteUmaMateria() {
   S.study = S.study || {};
   const n = { 1: 'Matemática (base, ~30 min)', 2: 'Português (base, ~30 min)', 3: 'Matemática (base, ~30 min)' };
   Object.entries(n).forEach(([d, t]) => { if (S.study[d]) S.study[d].night = t; });
+}
+function fixEnemTexto() {
+  const f = S.flags; if (f.enemTxt2) return; f.enemTxt2 = 1;
+  const en = (S.tracks || []).find(t => /^ENEM/.test(t.name));
+  if (en && /matemática \+ português/.test(en.now || '')) en.now = 'Conhecimento, sem cobrança (~30 min): seg matemática, ter português, qua matemática, qui rodízio';
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {
