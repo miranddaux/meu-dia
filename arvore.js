@@ -6,13 +6,15 @@ const ARV_GALHOS = {
   p: { nome: 'Produto/UX', cor: '#7fb89a' },
   u: { nome: 'UI', cor: '#ff8fa3' },
   i: { nome: 'IA', cor: '#4cc9ff' },
-  c: { nome: 'Tecnologia', cor: '#ffc83d' }
+  c: { nome: 'Tecnologia', cor: '#ffc83d' },
+  v: { nome: 'Comunicação', cor: '#ffa94d' }
 };
 const ARV_LIVROS = [
-  [1, 't', 'Articulando Decisões de Design'], [2, 'p', 'The Mom Test'], [3, 'u', 'Refactoring UI'], [4, 'i', 'Co-Intelligence'],
-  [5, 'p', 'Continuous Discovery Habits'], [6, 'u', 'Laws of UX'], [7, 'p', 'Lean Analytics'], [8, 'i', 'Prediction Machines'],
-  [9, 'u', 'Atomic Design'], [10, 'p', 'Inspired'], [11, 'u', 'Design Systems (Kholmatova)'], [12, 'p', 'Escaping the Build Trap'],
-  [13, 'i', 'AI Engineering'], [14, 'c', 'The Pragmatic Programmer'], [15, 'u', 'O Design do Dia a Dia'], [16, 'p', 'Revisão: Não Me Faça Pensar']
+  [1, 't', 'Articulando Decisões de Design'], [2, 'p', 'The Mom Test'], [3, 'v', 'Never Split the Difference'], [4, 'u', 'Refactoring UI'],
+  [5, 'i', 'Co-Intelligence'], [6, 'v', 'Talk Like TED'], [7, 'p', 'Continuous Discovery Habits'], [8, 'u', 'Laws of UX'],
+  [9, 'p', 'Lean Analytics'], [10, 'v', 'To Sell Is Human'], [11, 'i', 'Prediction Machines'], [12, 'u', 'Atomic Design'],
+  [13, 'p', 'Inspired'], [14, 'v', 'Influence'], [15, 'u', 'Design Systems (Kholmatova)'], [16, 'p', 'Escaping the Build Trap'],
+  [17, 'i', 'AI Engineering'], [18, 'c', 'The Pragmatic Programmer'], [19, 'u', 'O Design do Dia a Dia'], [20, 'p', 'Revisão: Não Me Faça Pensar']
 ];
 const arvAt = () => Math.min(ARV_LIVROS.length + 1, Math.max(1, num(S.arvoreAt) || 1));
 /* desenho: grade de 120 x 112 "pixels" */
@@ -20,21 +22,22 @@ function arvSvg() {
   const at = arvAt(); let r = '';
   const px = (x, y, w, h, c) => { r += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`; };
   /* céu, estrelas, chão e grama */
-  px(0, 0, 120, 112, '#1d2a2e');
+  px(0, 0, 120, 124, '#1d2a2e');
   [[6, 4], [58, 6], [114, 5], [62, 20], [3, 40], [117, 38]].forEach(([x, y]) => px(x, y, 1, 1, '#cfe6d6'));
-  px(0, 101, 120, 11, '#4a6b3f'); px(0, 101, 120, 2, '#7fb89a');
-  for (let x = 2; x < 120; x += 7) px(x, 99, 1, 2, '#7fb89a');
+  px(0, 113, 120, 11, '#4a6b3f'); px(0, 113, 120, 2, '#7fb89a');
+  for (let x = 2; x < 120; x += 7) px(x, 111, 1, 2, '#7fb89a');
   /* tronco com sombra e raízes */
-  px(55, 58, 10, 43, '#8a5a3c'); px(55, 58, 3, 43, '#6b4429'); px(51, 97, 4, 4, '#6b4429'); px(65, 97, 4, 4, '#8a5a3c');
+  px(55, 70, 10, 43, '#8a5a3c'); px(55, 70, 3, 43, '#6b4429'); px(51, 109, 4, 4, '#6b4429'); px(65, 109, 4, 4, '#8a5a3c');
   /* galhos em escada */
   const step = pts => pts.forEach(([x, y]) => px(x, y, 4, 3, '#8a5a3c'));
-  step([[52, 72], [48, 70], [44, 68], [40, 66], [37, 64]]);
-  step([[64, 72], [68, 70], [72, 68], [76, 66], [79, 64]]);
-  step([[55, 56], [52, 52], [49, 48], [46, 44], [43, 40]]);
-  step([[61, 56], [64, 52], [67, 48], [70, 44], [73, 40]]);
+  step([[52, 84], [48, 82], [44, 80], [40, 78], [37, 76]]);
+  step([[64, 84], [68, 82], [72, 80], [76, 78], [79, 76]]);
+  step([[55, 68], [52, 65], [49, 62], [46, 59], [43, 56]]);
+  step([[61, 68], [64, 65], [67, 62], [70, 59], [73, 56]]);
+  px(57, 26, 6, 44, '#8a5a3c'); px(57, 26, 2, 44, '#6b4429');
   /* copas em blocos */
   const copa = (cx, cy, c) => { px(cx - 18, cy - 10, 36, 20, c); px(cx - 14, cy - 13, 28, 26, c); px(cx - 21, cy - 6, 42, 12, c); px(cx - 14, cy - 13, 28, 2, 'rgba(255,255,255,.22)'); px(cx - 14, cy + 11, 28, 2, 'rgba(0,0,0,.18)'); };
-  const centros = { u: [30, 26], i: [90, 26], p: [24, 62], c: [96, 62] };
+  const centros = { v: [60, 15], u: [24, 46], i: [96, 46], p: [24, 80], c: [96, 80] };
   Object.entries(centros).forEach(([g, [x, y]]) => copa(x, y, ARV_GALHOS[g].cor));
   /* frutos = livros */
   const fruto = (x, y, l) => {
@@ -44,16 +47,16 @@ function arvSvg() {
     px(x, y, 10, 9, '#1f2a2e'); px(x + 1, y + 1, 8, 7, fill);
     r += `<text x="${x + 5}" y="${y + 6.6}" text-anchor="middle" font-size="5.5" fill="${st === 'fila' ? '#cfe6d6' : '#1f2a2e'}">${n}</text></g>`;
   };
-  const slots = { p: [], u: [], i: [], c: [] }; ARV_LIVROS.forEach(l => { if (slots[l[1]]) slots[l[1]].push(l); });
+  const slots = { p: [], u: [], i: [], c: [], v: [] }; ARV_LIVROS.forEach(l => { if (slots[l[1]]) slots[l[1]].push(l); });
   Object.entries(slots).forEach(([g, ls]) => {
     const [cx, cy] = centros[g], cols = 3, rows = Math.ceil(ls.length / cols);
     ls.forEach((l, k) => { const row = Math.floor(k / cols), col = k % cols, inRow = Math.min(cols, ls.length - row * cols); fruto(cx - (inRow * 12 - 2) / 2 + col * 12, cy - (rows * 10 - 1) / 2 + row * 10, l); });
   });
-  fruto(55, 80, ARV_LIVROS[0]);
+  fruto(55, 94, ARV_LIVROS[0]);
   /* nomes dos galhos */
   const nome = (x, y, t) => { r += `<text x="${x}" y="${y}" text-anchor="middle" font-size="4.5" fill="#f4efe6">${t}</text>`; };
-  nome(30, 9, 'UI'); nome(90, 9, 'IA'); nome(24, 81, 'PRODUTO/UX'); nome(96, 81, 'TECNOLOGIA'); nome(60, 109, 'TRONCO');
-  return `<svg class="arv-svg" viewBox="0 0 120 112" shape-rendering="crispEdges" role="img" aria-label="Árvore de livros em pixel art. Livro atual: ${esc((ARV_LIVROS[at - 1] || [0, 0, 'todos lidos'])[2])}">${r}</svg>`;
+  nome(24, 64, 'UI'); nome(96, 64, 'IA'); nome(60, 33, 'COMUNICAÇÃO'); nome(24, 99, 'PRODUTO/UX'); nome(96, 99, 'TECNOLOGIA'); nome(60, 121, 'TRONCO');
+  return `<svg class="arv-svg" viewBox="0 0 120 124" shape-rendering="crispEdges" role="img" aria-label="Árvore de livros em pixel art. Livro atual: ${esc((ARV_LIVROS[at - 1] || [0, 0, 'todos lidos'])[2])}">${r}</svg>`;
 }
 function arvoreCard() {
   const at = arvAt(), cur = ARV_LIVROS[at - 1], nxt = ARV_LIVROS[at];
@@ -80,24 +83,26 @@ function arvoreInit() {
    Cada galho tem 3 etapas. Status em S.vidaAt[galho] = quantas etapas já foram concluídas. */
 const VIDA = [
   { id: 'car', nome: 'CARREIRA', cor: '#ffc83d', pos: [70, 22], et: ['Portfólio V1 no ar', 'Vaga melhor (meta mar/2027)', 'Product Engineer'] },
-  { id: 'pro', nome: 'PRODUTO/UX', cor: '#7fb89a', pos: [24, 30], et: ['Livros de produto (árvore de livros)', 'Discovery real com usuários', 'Case com métricas (jul/2027)'] },
+  { id: 'pro', nome: 'PRODUTO/UX', cor: '#7fb89a', pos: [24, 30], et: ['Livros de produto (árvore de livros)', 'Discovery real com usuários', 'Métricas aplicadas num projeto real'] },
   { id: 'ia', nome: 'IA', cor: '#4cc9ff', pos: [116, 30], et: ['Claude Academy (quintas)', 'Certificação Claude (mar/2027)', 'Projeto de IA no ar (PIM 2027.1)'] },
   { id: 'cod', nome: 'CÓDIGO', cor: '#b39dff', pos: [70, 56], et: ['HTML/CSS (Udemy) e Python rank D', 'JavaScript e Git (rank B)', 'React (rank A)'] },
   { id: 'ui', nome: 'UI', cor: '#ff8fa3', pos: [22, 66], et: ['UI Boost: certificado', 'Design system em código', 'Craft de referência no portfólio'] },
-  { id: 'en', nome: 'INGLÊS', cor: '#ff6b57', pos: [118, 66], et: ['Inglês 2x por semana', 'Entrevista curta (jun/2027)', 'Entrevista completa (dez/2027)'] }
+  { id: 'en', nome: 'INGLÊS', cor: '#ff6b57', pos: [118, 66], et: ['Inglês 2x por semana', 'Entrevista curta (jun/2027)', 'Entrevista completa (dez/2027)'] },
+  { id: 'com', nome: 'COMUNICAÇÃO', cor: '#ffa94d', pos: [26, 98], et: ['Vender a ideia ao Vini (27/11)', 'Negociação de salário simulada (fev/2027)', 'Case com métricas apresentado (jul/2027)'] }
 ];
 const vidaN = id => Math.min(3, Math.max(0, num((S.vidaAt || {})[id])));
 function vidaSvg() {
   let r = ''; const px = (x, y, w, h, c) => { r += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`; };
   const tx = (x, y, t, sz, c) => { r += `<text x="${x}" y="${y}" text-anchor="middle" font-size="${sz}" fill="${c || '#f4efe6'}">${t}</text>`; };
-  px(0, 0, 140, 134, '#141b1d');
+  px(0, 0, 140, 146, '#141b1d');
   [[5, 5], [40, 3], [100, 4], [134, 8], [8, 48], [132, 46], [52, 40], [88, 38]].forEach(([x, y]) => px(x, y, 1, 1, '#cfe6d6'));
   /* terra e raízes (a base protegida) */
-  px(0, 106, 140, 28, '#2b1d17'); px(0, 106, 140, 2, '#7fb89a'); for (let x = 3; x < 140; x += 7) px(x, 104, 1, 2, '#7fb89a');
-  [[60, 108, 3, 8], [57, 114, 3, 4], [54, 117, 3, 3], [77, 108, 3, 8], [80, 114, 3, 4], [83, 117, 3, 3], [68, 108, 4, 10]].forEach(a => px(...a, '#6b4429'));
-  tx(70, 126, 'BASE: SONO · TREINO · FÉ · NAYARA', 4.2, '#ffc83d');
+  px(0, 118, 140, 28, '#2b1d17'); px(0, 118, 140, 2, '#7fb89a'); for (let x = 3; x < 140; x += 7) px(x, 116, 1, 2, '#7fb89a');
+  [[60, 120, 3, 8], [57, 126, 3, 4], [54, 129, 3, 3], [77, 120, 3, 8], [80, 126, 3, 4], [83, 129, 3, 3], [68, 120, 4, 10]].forEach(a => px(...a, '#6b4429'));
+  tx(70, 140, 'BASE: SONO · TREINO · FÉ · NAYARA', 4.2, '#ffc83d');
   /* tronco */
-  px(64, 62, 12, 44, '#8a5a3c'); px(64, 62, 4, 44, '#6b4429');
+  px(64, 62, 12, 56, '#8a5a3c'); px(64, 62, 4, 56, '#6b4429');
+  [[60, 104], [56, 102], [52, 100], [48, 98]].forEach(([x, y]) => px(x, y, 4, 3, '#8a5a3c'));
   const step = pts => pts.forEach(([x, y]) => px(x, y, 4, 3, '#8a5a3c'));
   step([[61, 82], [57, 80], [53, 78], [49, 76], [45, 74], [41, 72], [38, 70]]);
   step([[75, 82], [79, 80], [83, 78], [87, 76], [91, 74], [95, 72], [98, 70]]);
@@ -120,12 +125,13 @@ function vidaSvg() {
     });
     tx(cx, cy - 14.5, g.nome, 4.5);
   });
-  return `<svg class="arv-svg" viewBox="0 0 140 134" shape-rendering="crispEdges" role="img" aria-label="Árvore da vida em pixel art: seis galhos (carreira, produto e UX, IA, código, UI e inglês) e a base nas raízes">${r}</svg>`;
+  return `<svg class="arv-svg" viewBox="0 0 140 146" shape-rendering="crispEdges" role="img" aria-label="Árvore da vida em pixel art: sete galhos (carreira, produto e UX, IA, código, UI, inglês e comunicação) e a base nas raízes">${r}</svg>`;
 }
 const VIDA_PROJ = [
   ['2026-11-20', 'Portfólio V1 no ar'],
   ['2026-11-27', 'Levar ao Vini o agente de métricas da Disco'],
   ['2027-02-06', 'PIM 2027.1: escopo do projeto de IA'],
+  ['2027-02-20', 'Negociação de salário simulada'],
   ['2027-03-25', 'Prova Claude Certified Associate'],
   ['2027-06-12', 'PIM 2027.1: projeto de IA publicado'],
   ['2027-12-11', 'PIM 2027.2: versão 2 com métricas']
@@ -154,7 +160,7 @@ ${pj ? ag('flag', 'Próxima entrega', esc(pj.nome), `${pj.data} · ${quando(pj.d
 <div class="vg-a">${atual ? `<b>Agora:</b> ${esc(atual)}` : '<b>Galho completo</b>'}</div>${dep ? `<div class="mut">Depois: ${esc(dep)}</div>` : ''}
 ${n < 3 ? `<button class="btn sm ghost" data-a="vidaok" data-v="${g.id}">${ic('check')}Concluí esta etapa</button>` : ''}</div>`;
   }).join('');
-  return `<div class="card arv vida">${sec('trending-up', 'Árvore da vida', `${feitos}/18 etapas`)}
+  return `<div class="card arv vida">${sec('trending-up', 'Árvore da vida', `${feitos}/${VIDA.length * 3} etapas`)}
 <div class="px vida-lv">${st ? `LV ${st.level} · ${esc(st.cls.toUpperCase())}` : 'LIGUE O NOTION PARA LER O XP'}</div>
 ${st ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${st.road.toLocaleString('pt-BR')} XP · faltam ${st.toNext.toLocaleString('pt-BR')} para o Lv ${st.level + 1}</div>` : ''}
 ${agora}
