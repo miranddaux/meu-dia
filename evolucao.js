@@ -61,7 +61,7 @@ function rpgAvatar(cls, size) {
 }
 function rpgCard(full) {
   const r = rpgStats(), pct = Math.min(100, Math.round(r.cur / r.next * 100));
-  const hero = `<div class="card rpg-hero"><div class="row"><div class="rpg-ava">${rpgAvatar(r.cls, 88)}</div><div class="grow"><div class="px rpg-lv">LV ${r.level} · ${esc(r.cls.toUpperCase())}</div><b>Product Designer, UI Mage</b><div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${r.road ? `${r.road.toLocaleString('pt-BR')} XP do Roadmap · faltam ${r.toNext.toLocaleString('pt-BR')} para o Lv ${r.level + 1}` : 'Ligue o Notion para ler o XP do Roadmap.'}</div></div></div><div class="mut">+ ${r.life.toLocaleString('pt-BR')} XP das outras áreas da vida · ${r.free} ponto${r.free === 1 ? '' : 's'} de atributo para distribuir.${r.synced ? '' : ' (XP do Notion ainda não lido)'}</div></div>`;
+  const hero = `<div class="card rpg-hero"><div class="row"><div class="rpg-ava">${rpgAvatar(r.cls, 88)}</div><div class="grow"><div class="px rpg-lv">LV ${r.level} · ${esc(r.cls.toUpperCase())}</div><b>Product Designer, UI Mage</b><div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${r.road ? `${r.road.toLocaleString('pt-BR')} XP do Roadmap · faltam ${r.toNext.toLocaleString('pt-BR')} para o Lv ${r.level + 1}` : 'Ligue o Notion para ler o XP do Roadmap.'}</div></div></div><div class="mut">+ ${r.life.toLocaleString('pt-BR')} XP das outras áreas da vida · ${r.free} ponto${r.free === 1 ? '' : 's'} de atributo para distribuir.${r.synced ? '' : ' (XP do Notion ainda não lido)'}</div><div class="row"><button class="btn sm ghost" data-a="lvtest">${ic('zap')}Ver a animação de nível</button></div></div>`;
   return full ? hero + rpgParts() : hero;
 }
 function rpgParts() {
@@ -74,9 +74,38 @@ function rpgParts() {
 async function xpFetch(force) {
   const sy = S.settings.sync; if (!sy.key) return;
   const nx = S.xpNotion; if (!force && nx && nx.at && Date.now() - nx.at < 6 * 3600e3) return;
-  try { const r = await fetch(`${(sy.url || '/.netlify/functions/sync').replace(/sync$/, 'roadmap')}?xp=1`, { headers: { 'x-app-key': sy.key } }); if (!r.ok) return; const j = await r.json(); if (j && typeof j.total === 'number') { S.xpNotion = { total: j.total, cats: j.cats || {}, n: j.n || 0, at: Date.now() }; save(); if (ui.tab === 'mais') render(); } } catch (e) { }
+  try { const r = await fetch(`${(sy.url || '/.netlify/functions/sync').replace(/sync$/, 'roadmap')}?xp=1`, { headers: { 'x-app-key': sy.key } }); if (!r.ok) return; const j = await r.json(); if (j && typeof j.total === 'number') { S.xpNotion = { total: j.total, cats: j.cats || {}, n: j.n || 0, at: Date.now() }; save(); lvCheck(); if (ui.tab === 'mais') render(); } } catch (e) { }
 }
 setTimeout(() => xpFetch(false), 3000);
+/* ---------- Subiu de nível: modal com animação em pixel art + notificação ----------
+   Na primeira leitura do XP só guarda o nível atual (sem modal). Depois, sempre que o nível do Roadmap subir, mostra. */
+function lvCheck() {
+  if (!S.xpNotion) return;
+  const r = rpgStats();
+  if (S.lvSeen === undefined) { S.lvSeen = r.level; save(); return; }
+  if (r.level > num(S.lvSeen)) { S.lvSeen = r.level; save(); lvUp(r, true); }
+}
+function lvUp(r, real) {
+  const old = $('#lvup'); if (old) old.remove();
+  const pct = Math.min(100, Math.round(r.cur / r.next * 100));
+  const cores = ['#ffc83d', '#ff6b57', '#7fb89a', '#4cc9ff', '#ffffff'];
+  let sp = ''; for (let k = 0; k < 18; k++) { const ang = k / 18 * Math.PI * 2, d = 90 + (k % 3) * 22; sp += `<i class="lv-sp" style="--x:${Math.round(Math.cos(ang) * d)}px;--y:${Math.round(Math.sin(ang) * d)}px;background:${cores[k % 5]};animation-delay:${(k % 4) * 60}ms"></i>`; }
+  const m = document.createElement('div');
+  m.id = 'lvup'; m.className = 'modal lvup'; m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true'); m.setAttribute('aria-labelledby', 'lvup-t');
+  m.innerHTML = `<div class="lv-box"><div class="lv-burst" aria-hidden="true">${sp}</div><div class="lv-ava">${rpgAvatar(r.cls, 112)}</div>
+<div class="px lv-t" id="lvup-t">LEVEL UP!</div><div class="px lv-n">LV ${r.level} · ${esc(r.cls.toUpperCase())}</div>
+<div class="mut">${real ? 'Você subiu de nível com o XP do Roadmap.' : 'Prévia da animação.'} ${r.road.toLocaleString('pt-BR')} XP.</div>
+<div class="bar lv-bar"><i style="--w:${pct}%"></i></div><div class="mut">Faltam ${r.toNext.toLocaleString('pt-BR')} XP para o Lv ${r.level + 1}.</div>
+<button class="btn full" data-lvok>Continuar</button></div>`;
+  m.addEventListener('click', e => { if (e.target === m || e.target.dataset.lvok !== undefined) m.remove(); });
+  document.body.appendChild(m);
+  const bt = m.querySelector('[data-lvok]'); if (bt) bt.focus();
+  try { if (navigator.vibrate) navigator.vibrate([40, 60, 40]); } catch (e) { }
+  if (real) try {
+    if ('Notification' in window && Notification.permission === 'granted' && navigator.serviceWorker) navigator.serviceWorker.ready.then(reg => reg.showNotification('Você subiu de nível!', { body: `Lv ${r.level} · ${r.cls}. Faltam ${r.toNext} XP para o próximo.`, icon: 'icon-192.png', tag: 'lvup' }));
+  } catch (e) { }
+}
+function lvInit() { Object.assign(A, { lvtest: () => { lvUp(rpgStats(), false); return false; } }); }
 function rpgInit() { Object.assign(A, {
   rpgplus: v => { const r = rpgStats(); if (!r.free) return false; const a = rpgS().alloc; a[v] = num(a[v]) + 1; save(); },
   rpgminus: v => { const a = rpgS().alloc; if (num(a[v]) > 0) a[v] = num(a[v]) - 1; save(); }
