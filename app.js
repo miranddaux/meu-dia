@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v84';
+const APP_V = 'v85';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -167,7 +167,7 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {}, dump: [],
-    study: { 0: th('', ''), 1: th('Produto e UX: livro (30 min) + UI Boost até o certificado (30 min)', 'UI/UX e Product Design', '', 'Matemática + Português (base, ~30 min)'), 2: th('Inglês 1: escuta e fala (60 min)', 'Inglês', '', 'Matemática + Português (base, ~30 min)'), 3: th('Front-end: aula da Udemy do dia (60 min)', 'Front-end web (Udemy)', '', 'Matemática + Português (base, ~30 min)'), 4: th('IA e Agentes: Claude Academy + projeto prático (60 min)', 'IA e Agentes', '', 'Natureza ou Humanas (alterna)'), 5: th('Inglês 2: leitura e escrita (45–60 min) + revisão da semana (30 min)', 'Inglês'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
+    study: { 0: th('', ''), 1: th('Produto e UX: livro (30 min) + UI Boost até o certificado (30 min)', 'UI/UX e Product Design', '', 'Matemática (base, ~30 min)'), 2: th('Inglês 1: escuta e fala (60 min)', 'Inglês', '', 'Português (base, ~30 min)'), 3: th('Front-end: aula da Udemy do dia (60 min)', 'Front-end web (Udemy)', '', 'Matemática (base, ~30 min)'), 4: th('IA e Agentes: Claude Academy + projeto prático (60 min)', 'IA e Agentes', '', 'Natureza ou Humanas (alterna)'), 5: th('Inglês 2: leitura e escrita (45–60 min) + revisão da semana (30 min)', 'Inglês'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
@@ -409,6 +409,7 @@ function migrate() {
   migrateSextaSabado76();
   migrateEstudos17Nov();
   migrateQuintaRodizio();
+  migrateNoiteUmaMateria();
   planoAjusteV3();
 }
 /* Roadmap 17/11/2026 (mentoria Daniel R. Campos): prioridade é ganhar dinheiro na área.
@@ -435,6 +436,15 @@ function migrateQuintaRodizio() {
   f.quintaRodizio = 1;
   S.study = S.study || {};
   if (S.study[4]) S.study[4].night = 'Natureza ou Humanas (alterna)';
+}
+/* 17/11/2026 (3): uma matéria por noite, nunca duas juntas. */
+function migrateNoiteUmaMateria() {
+  const f = S.flags;
+  if (f.noiteUma) return;
+  f.noiteUma = 1;
+  S.study = S.study || {};
+  const n = { 1: 'Matemática (base, ~30 min)', 2: 'Português (base, ~30 min)', 3: 'Matemática (base, ~30 min)' };
+  Object.entries(n).forEach(([d, t]) => { if (S.study[d]) S.study[d].night = t; });
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {

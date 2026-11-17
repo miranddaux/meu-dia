@@ -58,12 +58,16 @@ function arvSvg() {
 function arvoreCard() {
   const at = arvAt(), cur = ARV_LIVROS[at - 1], nxt = ARV_LIVROS[at];
   const lista = ARV_LIVROS.map(([n, g, t]) => `<div class="arv-li ${n < at ? 'ok' : n === at ? 'on' : ''}"><span class="arv-dot" style="background:${ARV_GALHOS[g].cor}"></span><span class="grow">${n}. ${esc(t)}</span><span class="mut">${n < at ? 'lido' : n === at ? 'lendo' : ARV_GALHOS[g].nome}</span></div>`).join('');
-  return `<div class="card arv">${sec('book-open', 'Árvore de livros', cur ? `${at}/${ARV_LIVROS.length}` : 'completa')}
-<div class="mut">Um livro por vez, alternando os galhos: Produto/UX, UI, IA e Tecnologia. Dourado = lido · branco = lendo agora · escuro = na fila.</div>
+  const topo = cur ? `<div class="agora"><div class="ag-row on"><span class="ag-ic">${ic('book-open')}</span><div class="grow"><div class="ag-k">Lendo agora · livro ${at} de ${ARV_LIVROS.length}</div><div class="ag-v">${esc(cur[2])}</div><div class="mut"><span class="arv-chip" style="background:${ARV_GALHOS[cur[1]].cor}">${esc(ARV_GALHOS[cur[1]].nome)}</span></div></div></div>${nxt ? `<div class="ag-row"><span class="ag-ic">${ic('arrow-right')}</span><div class="grow"><div class="ag-k">Próximo livro</div><div class="ag-v">${esc(nxt[2])}</div></div></div>` : ''}</div>` : '<div class="banner">Árvore completa. Hora de plantar a próxima.</div>';
+  return `<div class="card arv">${sec('book-open', 'Árvore de livros', `${Math.min(at - 1, ARV_LIVROS.length)}/${ARV_LIVROS.length} lidos`)}
+${topo}
 ${arvSvg()}
-<div class="mut">${cur ? `Agora: <b>${esc(cur[2])}</b>${nxt ? ` · depois: ${esc(nxt[2])}` : ''}` : 'Árvore completa. Hora de plantar a próxima.'}</div>
+${arvLegenda('lido', 'lendo agora', 'na fila')}
 <div class="row">${cur ? `<button class="btn sm" data-a="arvnext">${ic('check')}Terminei este livro</button>` : ''}${at > 1 ? `<button class="btn sm ghost" data-a="arvback">Voltar 1</button>` : ''}</div>
-<details><summary>Ver a ordem completa</summary>${lista}<div class="mut">Consulta (fora da fila): Eloquent JavaScript e Psicologia das Cores. A fila também está na Biblioteca de Livros do Notion.</div></details></div>`;
+<details><summary>Ver a ordem completa (um livro por vez)</summary>${lista}<div class="mut">Consulta, fora da fila: Eloquent JavaScript e Psicologia das Cores. A fila também está na Biblioteca de Livros do Notion.</div></details></div>`;
+}
+function arvLegenda(ok, now, next) {
+  return `<div class="arv-leg"><span><i class="pip ok"></i>${ok}</span><span><i class="pip now"></i>${now}</span><span><i class="pip"></i>${next}</span></div>`;
 }
 function arvoreInit() {
   Object.assign(A, {
@@ -118,16 +122,47 @@ function vidaSvg() {
   });
   return `<svg class="arv-svg" viewBox="0 0 140 134" shape-rendering="crispEdges" role="img" aria-label="Árvore da vida em pixel art: seis galhos (carreira, produto e UX, IA, código, UI e inglês) e a base nas raízes">${r}</svg>`;
 }
+const VIDA_PROJ = [
+  ['2026-11-20', 'Portfólio V1 no ar'],
+  ['2026-11-27', 'Levar ao Vini o agente de métricas da Disco'],
+  ['2027-02-06', 'PIM 2027.1: escopo do projeto de IA'],
+  ['2027-03-25', 'Prova Claude Certified Associate'],
+  ['2027-06-12', 'PIM 2027.1: projeto de IA publicado'],
+  ['2027-12-11', 'PIM 2027.2: versão 2 com métricas']
+];
+function vidaProj() {
+  const t = dkey(), i = VIDA_PROJ.findIndex(p => p[0] >= t);
+  if (i < 0) return null;
+  const [d, nome] = VIDA_PROJ[i], dias = Math.round((new Date(d + 'T12:00') - new Date(t + 'T12:00')) / 864e5);
+  return { nome, data: d.slice(8, 10) + '/' + d.slice(5, 7), dias, prox: VIDA_PROJ[i + 1] };
+}
 function vidaCard() {
   const st = typeof rpgStats === 'function' ? rpgStats() : null, pct = st ? Math.min(100, Math.round(st.cur / st.next * 100)) : 0;
-  const feitos = VIDA.reduce((a, g) => a + vidaN(g.id), 0);
-  const lista = VIDA.map((g, i) => { const n = vidaN(g.id), atual = g.et[n]; return `<div class="arv-li ${n >= 3 ? 'ok' : ''}"><span class="arv-dot" style="background:${g.cor}"></span><span class="grow"><b>${esc(g.nome)}</b> · ${atual ? esc(atual) : 'galho completo'}<span class="mut"> (${n}/3)</span></span>${n < 3 ? `<button class="btn sm ghost" data-a="vidaok" data-v="${g.id}" aria-label="Concluir etapa de ${esc(g.nome)}">${ic('check')}</button>` : ''}</div>`; }).join('');
-  return `<div class="card arv vida">${sec('trending-up', 'Árvore da vida', `${feitos}/18`)}
-<div class="px vida-lv">${st ? `LV ${st.level} · ${esc(st.cls.toUpperCase())} · ${st.road.toLocaleString('pt-BR')} XP` : 'LIGUE O NOTION PARA LER O XP'}</div>
-${st ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mut">Faltam ${st.toNext.toLocaleString('pt-BR')} XP para o Lv ${st.level + 1}.</div>` : ''}
+  const feitos = VIDA.reduce((a, g) => a + vidaN(g.id), 0), livro = ARV_LIVROS[arvAt() - 1], pj = vidaProj();
+  const dow = new Date().getDay(), hoje = (S.study || {})[dow] || {};
+  const quando = d => d === 0 ? 'hoje' : d === 1 ? 'amanhã' : `em ${d} dias`;
+  const ag = (icn, k, v, sub, on) => `<div class="ag-row ${on ? 'on' : ''}"><span class="ag-ic">${ic(icn)}</span><div class="grow"><div class="ag-k">${k}</div><div class="ag-v">${v}</div>${sub ? `<div class="mut">${sub}</div>` : ''}</div></div>`;
+  const agora = `<div class="agora">
+${ag('target', 'Estudo de hoje', esc(hoje.theme || 'Dia livre'), hoje.night ? 'Noite: ' + esc(dow === 4 && typeof planoRodizio === 'function' && /alterna/.test(hoje.night) ? planoRodizio().materia : hoje.night) : '', true)}
+${ag('book-open', 'Lendo', livro ? esc(livro[2]) : 'Árvore de livros completa', livro ? `Livro ${arvAt()} de ${ARV_LIVROS.length}` : '')}
+${pj ? ag('flag', 'Próxima entrega', esc(pj.nome), `${pj.data} · ${quando(pj.dias)}${pj.prox ? ` · depois: ${esc(pj.prox[1])}` : ''}`) : ''}
+</div>`;
+  const galhos = VIDA.map(g => {
+    const n = vidaN(g.id), atual = g.et[n], dep = g.et[n + 1];
+    const pips = g.et.map((_, k) => `<i class="pip ${k < n ? 'ok' : k === n ? 'now' : ''}"></i>`).join('');
+    return `<div class="vg ${n >= 3 ? 'ok' : ''}"><div class="row sp"><span class="vg-n"><span class="arv-dot" style="background:${g.cor}"></span>${esc(g.nome)}</span><span class="vg-p" aria-label="${n} de 3 etapas">${pips}</span></div>
+<div class="vg-a">${atual ? `<b>Agora:</b> ${esc(atual)}` : '<b>Galho completo</b>'}</div>${dep ? `<div class="mut">Depois: ${esc(dep)}</div>` : ''}
+${n < 3 ? `<button class="btn sm ghost" data-a="vidaok" data-v="${g.id}">${ic('check')}Concluí esta etapa</button>` : ''}</div>`;
+  }).join('');
+  return `<div class="card arv vida">${sec('trending-up', 'Árvore da vida', `${feitos}/18 etapas`)}
+<div class="px vida-lv">${st ? `LV ${st.level} · ${esc(st.cls.toUpperCase())}` : 'LIGUE O NOTION PARA LER O XP'}</div>
+${st ? `<div class="bar"><i style="width:${pct}%"></i></div><div class="mut">${st.road.toLocaleString('pt-BR')} XP · faltam ${st.toNext.toLocaleString('pt-BR')} para o Lv ${st.level + 1}</div>` : ''}
+${agora}
 ${vidaSvg()}
-<div class="mut">Branco piscando = etapa de agora · dourado = feita · escuro = próxima. As raízes são a base que nunca se corta.</div>
-${lista}${S.vidaAt && Object.keys(S.vidaAt).length ? '<div class="row"><button class="btn sm ghost" data-a="vidaback">Desfazer última</button></div>' : ''}</div>`;
+${arvLegenda('feita', 'etapa de agora', 'próxima')}
+<div class="mut">As raízes são a base que nunca se corta: sono, treino, fé e Nayara.</div>
+<details class="vg-box" open><summary>Etapas de cada galho</summary>${galhos}${S.vidaAt && S.vidaLast ? '<div class="row"><button class="btn sm ghost" data-a="vidaback">Desfazer a última</button></div>' : ''}</details>
+<details><summary>Todas as entregas e prazos</summary>${VIDA_PROJ.map(([d, n]) => `<div class="arv-li ${d < dkey() ? 'ok' : ''}"><span class="grow">${esc(n)}</span><span class="mut">${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(2, 4)}</span></div>`).join('')}</details></div>`;
 }
 Object.assign(globalThis, { vidaInit() {
   Object.assign(A, {

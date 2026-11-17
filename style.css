@@ -391,7 +391,7 @@ details.sub[open]>summary::after{content:'–'}
 .arv-svg{display:block;width:100%;height:auto;margin:var(--s2) 0;border-radius:var(--r);image-rendering:pixelated;--arv-ceu:#1d2a2e}
 .arv-svg text{font-family:'PixelPS',monospace}
 .arv-f.lendo rect:last-of-type{animation:arvPisca 1.2s steps(2) infinite}
-@keyframes arvPisca{50%{fill:#ffc83d}}
+@keyframes arvPisca{50%{fill:#ff6b57}}
 .arv-li{display:flex;align-items:center;gap:var(--s2);padding:4px 0;font-size:14px}
 .arv-li.ok{opacity:.6}.arv-li.on{font-weight:700}
 .arv-dot{width:12px;height:12px;flex:none;border:2px solid var(--ink)}
@@ -414,3 +414,22 @@ details.sub[open]>summary::after{content:'–'}
 @keyframes lvSp{0%{opacity:1;transform:translate(0,0)}80%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y))}}
 @media(prefers-reduced-motion:reduce){.lv-box,.lv-ava,.lv-t,.lv-sp,.arv-f.lendo rect:last-of-type{animation:none}.lv-sp{display:none}.lv-bar i{width:var(--w);animation:none}}
 .vida-lv{color:var(--ink);font-size:12px}
+
+/* UX das árvores: painel Agora, etapas e legenda */
+.agora{display:grid;gap:var(--s2);margin:var(--s2) 0}
+.ag-row{display:flex;gap:12px;align-items:flex-start;padding:8px 12px;border:2px solid var(--ink);border-radius:var(--r);background:var(--card)}
+.ag-row.on{background:var(--soft)}
+.ag-ic{font-size:20px;line-height:24px;flex:none}
+.ag-k{font-size:12px;line-height:16px;text-transform:uppercase;letter-spacing:.04em;color:var(--mut)}
+.ag-v{font-size:16px;line-height:22px;font-weight:700}
+.arv-chip{display:inline-block;font-size:12px;line-height:16px;padding:0 8px;border:2px solid var(--ink);color:#1f2a2e;margin-top:4px}
+.arv-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mut);margin-bottom:var(--s2)}
+.arv-leg span{display:flex;align-items:center;gap:4px}
+.pip{display:inline-block;width:12px;height:12px;border:2px solid var(--ink);background:#1f2a2e}
+.pip.ok{background:#ffc83d}.pip.now{background:#fff;border-color:#ff6b57;animation:arvPisca2 1.2s steps(2) infinite}
+@keyframes arvPisca2{50%{background:#ff6b57}}
+.vg{padding:12px 0;border-top:2px dashed var(--soft);display:grid;gap:4px}
+.vg.ok{opacity:.6}.vg-n{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}
+.vg-p{display:flex;gap:4px}.vg-a{font-size:14px;line-height:20px}
+.vg .btn{justify-self:start}
+@media(prefers-reduced-motion:reduce){.pip.now{animation:none}}
