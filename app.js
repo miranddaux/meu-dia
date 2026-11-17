@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v82';
+const APP_V = 'v83';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -167,7 +167,7 @@ function defaults() {
     },
     schedule: buildSchedule(false), habits: DEF_HABITS(),
     log: {}, prios: {}, hardDay: {}, mood: {}, dump: [],
-    study: { 0: th('', ''), 1: th('UX Research e Product Thinking (60 min)', 'UI/UX e Product Design', '', 'Matemática (base)'), 2: th('Inglês (60 min)', 'Inglês', '', 'Português e leitura (base)'), 3: th('HTML/CSS (60 min)', 'Front-end web (Udemy)', '', 'Matemática (base)'), 4: th('UI/Design Systems (60 min)', 'UI/UX e Product Design', '', 'Natureza ou Humanas (alterna)'), 5: th('Flashcards (30 min) + redação (30 a 40 min)', 'ENEM (diagnóstico e base)'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
+    study: { 0: th('', ''), 1: th('Produto e UX: livro (30 min) + UI Boost até o certificado (30 min)', 'UI/UX e Product Design', '', 'Matemática + Português (base, ~30 min)'), 2: th('Inglês 1: escuta e fala (60 min)', 'Inglês', '', 'Matemática + Português (base, ~30 min)'), 3: th('Front-end: aula da Udemy do dia (60 min)', 'Front-end web (Udemy)', '', 'Matemática + Português (base, ~30 min)'), 4: th('IA e Agentes: Claude Academy + projeto prático (60 min)', 'IA e Agentes', '', 'Matemática + Português + Natureza ou Humanas (alterna)'), 5: th('Inglês 2: leitura e escrita (45–60 min) + revisão da semana (30 min)', 'Inglês'), 6: th('Python (60 min) + portfólio/candidaturas (90 min)', 'Python (Guanabara)') },
     studyLog: {}, saturdayLog: {}, reminders: [],
     tracks: [
       { id: uid(), group: 'Formação principal', name: 'UI/UX e Product Design', link: '', now: '' },
@@ -176,7 +176,8 @@ function defaults() {
       { id: uid(), group: 'Apoio', name: 'Matemática de apoio', link: '', now: 'Divisão' },
       { id: uid(), group: 'Apoio', name: 'ENEM (diagnóstico e base)', link: '', now: 'Matemática básica (Prof. Ferretto) e leitura. Sem prova até mar/2027' },
       { id: uid(), group: 'Complementar — programação', name: 'Computação (trilha CC)', link: '', now: 'CC1: lógica e Python' },
-      { id: uid(), group: 'Idioma', name: 'Inglês', link: '', now: '' }
+      { id: uid(), group: 'Idioma', name: 'Inglês', link: '', now: '' },
+      { id: uid(), group: 'Formação principal', name: 'IA e Agentes', link: 'https://academy.claude.com', now: 'Claude Academy: Claude Code 101' }
     ],
     explore: [], lazer: ['Anime ou série', 'Filme', 'Música', 'Desenho', 'Culinária', 'Leitura', 'Documentário', 'Conversa com alguém', 'Oração', 'Descansar sem fazer nada'],
     workouts: [], weights: [], photos: [], meals: {}, combos: [], pomo: {}, learn: { done: {}, days: {}, xp: 0 }, vida: {},
@@ -406,6 +407,25 @@ function migrate() {
   planoAjusteV2();
   migrateRotinaManhaNoite();
   migrateSextaSabado76();
+  migrateEstudos17Nov();
+  planoAjusteV3();
+}
+/* Roadmap 17/11/2026 (mentoria Daniel R. Campos): prioridade é ganhar dinheiro na área.
+   Atualiza só os temas de estudo de seg a sex; mantém link, próximo passo, logs e horários. */
+function migrateEstudos17Nov() {
+  const f = S.flags;
+  if (f.estudos17Nov) return;
+  f.estudos17Nov = 1;
+  const d = defaults();
+  S.study = S.study || {};
+  [1, 2, 3, 4, 5].forEach(day => {
+    const cur = S.study[day] || {};
+    S.study[day] = { ...d.study[day], ...(cur.link ? { link: cur.link } : {}), ...(cur.next ? { next: cur.next } : {}) };
+  });
+  S.tracks = S.tracks || [];
+  if (!S.tracks.some(t => t.name === 'IA e Agentes')) S.tracks.push({ id: uid(), group: 'Formação principal', name: 'IA e Agentes', link: 'https://academy.claude.com', now: 'Claude Academy: Claude Code 101' });
+  const en = S.tracks.find(t => /^ENEM/.test(t.name));
+  if (en) en.now = 'Conhecimento, sem cobrança: matemática + português de seg a qui (~30 min) e rodízio na quinta';
 }
 /* Mapa 10/11/2026: ENEM 2027 + trilha de Computação. Só acrescenta; não apaga nem reseta nada. */
 function migrateEnemNov2026() {
@@ -698,13 +718,13 @@ function planoFoco() {
   const ln = (lbl, tema, done, act) => `<div class="row sp" style="gap:8px"><div class="grow"><div class="mut">${lbl}</div><b>${esc(tema || '—')}</b></div>${act ? `<button class="chip ${done ? 'on' : ''}" data-a="${act}" aria-pressed="${!!done}">${done ? 'Feito' : 'Marcar'}</button>` : ''}</div>`;
   const hr = new Date().getHours(), passo = (() => {
     if (manha && !sl.done && hr < 12) return 'Bloco da manhã: ' + (st.theme || 'tema do dia');
-    if (noite && !sl.night && hr < 22) return 'Bloco da noite às 20h: ' + ((today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? planoRodizio().materia : (st.night || 'ENEM base'));
+    if (noite && !sl.night && hr < 22) return 'Bloco da noite às 20h: ' + ((today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? (st.night || '').replace(/Natureza ou Humanas \(alterna\)/, planoRodizio().materia) : (st.night || 'ENEM base'));
     if (today === 6 && !sl.done) return 'Janela das 09h às 12h: ' + (st.theme || 'Python e portfólio');
     return 'Nada pendente nos blocos de hoje. Descanse e proteja o sono.';
   })();
   let b = `<div class="banner">${ic('info-box')}<span><b>Próximo passo:</b> ${esc(passo)}</span></div>`;
   if (manha) b += ln('Manhã · 06h', st.theme, sl.done, 'studydone');
-  if (noite) b += ln('Noite · 20h', (today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? 'Natureza ou Humanas: ' + planoRodizio().materia : st.night, sl.night, 'nightdone');
+  if (noite) b += ln('Noite · 20h', (today === 4 && /alterna/.test(st.night || '') && typeof planoRodizio === 'function') ? (st.night || '').replace(/Natureza ou Humanas \(alterna\)/, 'Natureza ou Humanas: ' + planoRodizio().materia) : st.night, sl.night, 'nightdone');
   if (today === 5) b += `<div class="mut">Sexta à noite é livre (Nayara).</div>`;
   if (today === 6) b += ln('Sábado · 09h às 12h', st.theme, sl.done, 'studydone');
   if (today === 0) b += `<div class="mut">Domingo: igreja e descanso. Soft skills só se der vontade (20–30 min).</div>`;
@@ -1709,7 +1729,7 @@ function roadCard() {
 }
 /* ---- Histórico: aulas feitas (Roadmap Concluído + log de inglês), só leitura ---- */
 const HIST_KEY = 'meudia_hist';
-const histArea = c => c === 'Inglês' ? 'Inglês' : ['Código', 'ADS', 'Arquitetura'].includes(c) ? 'Código' : ['UI Design', 'UX Research', 'Figma', 'Design System', 'Produto', 'Métricas', 'Psicologia', 'Agile', 'Projeto Portfolio'].includes(c) ? 'UX/UI' : 'Outros';
+const histArea = c => c === 'Inglês' ? 'Inglês' : ['Código', 'ADS', 'Arquitetura', 'IA e Agentes'].includes(c) ? 'Código' : ['UI Design', 'UX Research', 'Figma', 'Design System', 'Produto', 'Métricas', 'Psicologia', 'Agile', 'Projeto Portfolio'].includes(c) ? 'UX/UI' : 'Outros';
 function histLoad() { if (ui.hist) return ui.hist; try { ui.hist = JSON.parse(localStorage.getItem(HIST_KEY)) || {}; } catch (e) { ui.hist = {}; } return ui.hist; }
 async function histFetch(force) {
   const sy = S.settings.sync, h = histLoad(); if (!sy.key || ui.histBusy) return;
