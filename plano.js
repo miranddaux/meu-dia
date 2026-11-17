@@ -2,44 +2,44 @@
    Dados estáticos + avisos semeados em S.reminders (uma vez, sem apagar nada).
    Datas de ENEM 2027/SISU 2028 ainda NÃO verificadas: conferir no edital do Inep. */
 const PLANO_MESES = [
-  { m:'2026-11', nome:'Novembro 2026', nivel:1, h:'5h', foco:'BASE, sem prova e sem questão. Noite (20h): Matemática Básica do Prof. Ferretto (aulas 6 a 47) e leitura. Manhã (6h): carreira e código como já está.', ev:[] },
-  { m:'2026-12', nome:'Dezembro 2026', nivel:1, h:'5h (leve de 14 a 27/12)', foco:'Base continua. Férias leves de 14 a 27/12: só flashcards e inglês. Volta ao ritmo em 04/01.', ev:[] },
-  { m:'2027-01', nome:'Janeiro 2027', nivel:2, h:'5h', foco:'Terminar Matemática Básica. Começar razão, proporção e porcentagem. Português: leitura e interpretação. CC1 termina com prova.', ev:[
-    ['2027-01-16','Prova rank D · CC1 (lógica/Python)','prova'],['2027-01-29','Checkpoint de base: 15 questões fáceis de Matemática (só para medir)','check']] },
-  { m:'2027-02', nome:'Fevereiro 2027', nivel:2, h:'5h', foco:'Regra de três, porcentagem e juros. Redação: aprender a estrutura (introdução, desenvolvimento, proposta). CC2 (JS e Git) em paralelo.', ev:[
-    ['2027-02-06','PIM 2027.1 · tema do semestre e escopo (leve)','pim'],['2027-02-26','Primeira redação de treino (só estrutura, sem nota)','check']] },
-  { m:'2027-03', nome:'Março 2027', nivel:2, h:'5h', foco:'Estatística, gráficos, tabelas e geometria plana. Português: figuras de linguagem e gêneros.', ev:[
-    ['2027-03-27','Diagnóstico 1 · Matemática (sábado, janela 09–12)','diag']] },
-  { m:'2027-04', nome:'Abril 2027', nivel:3, h:'5h', foco:'Começam as questões por assunto (provas antigas) e os diagnósticos das outras áreas. CC3: estruturas de dados.', ev:[
-    ['2027-04-03','Diagnóstico 2 · Linguagens (sábado)','diag'],['2027-04-10','Diagnóstico 3 · Humanas (sábado)','diag'],['2027-04-17','Diagnóstico 4 · Natureza (sábado)','diag'],['2027-04-24','Diagnóstico 5 · Redação (sábado)','diag'],
-    ['2027-04-30','G1 · a base subiu? decidir se vai para 6h','gate']] },
-  { m:'2027-05', nome:'Maio 2027', nivel:3, h:'6h', foco:'Funções, geometria espacial e probabilidade. Questões por competência e 1 redação por semana. Caderno de Erros do ENEM. PIM 2027.1 em construção, leve (no sábado).', ev:[['2027-05-29','Mini-prova mensal ENEM','mini']] },
-  { m:'2027-06', nome:'Junho 2027', nivel:3, h:'6h', foco:'Fechar o semestre de base. Decidir FUVEST/UNESP e a carga das fases finais.', ev:[
-    ['2027-06-12','PIM 2027.1 · entrega (demo + 1 página)','pim'],['2027-06-26','Mini-prova mensal ENEM','mini'],['2027-06-30','G2 · decidir FUVEST/UNESP e se jul–out usa 7–8h (trocando com código)','gate']] },
-  { m:'2027-07', nome:'Julho 2027', nivel:4, h:'7h (no lugar do código)', foco:'Fase de simulados. Prova rank B do CC2. Corrigir cada simulado por causa do erro.', ev:[
-    ['2027-07-03','Prova rank B · CC2 (JS/Git)','prova'],['2027-07-17','Simulado 1 ENEM','simulado']] },
-  { m:'2027-08', nome:'Agosto 2027', nivel:4, h:'7h (no lugar do código)', foco:'Simulados e revisão dos pontos fracos.', ev:[['2027-08-07','PIM 2027.2 · tema do semestre e escopo (mínimo)','pim'],['2027-08-14','Simulado 2 ENEM','simulado']] },
-  { m:'2027-09', nome:'Setembro 2027', nivel:5, h:'8h (no lugar do código)', foco:'Reta final: o ENEM ocupa o lugar do código (pausado). Trabalho, sono, treino, espiritual e casal ficam intactos.', ev:[
-    ['2027-09-11','Simulado 3 ENEM','simulado'],['2027-09-25','Simulado 4 ENEM','simulado']] },
-  { m:'2027-10', nome:'Outubro 2027', nivel:5, h:'8h (no lugar do código)', foco:'Simulados finais, redação e descanso. Não começar assunto novo.', ev:[
-    ['2027-10-09','Simulado 5 ENEM','simulado'],['2027-10-16','Simulado 6 ENEM (último)','simulado']] },
-  { m:'2027-11', nome:'Novembro 2027', nivel:3, h:'leve', foco:'ENEM 2027 (conferir datas oficiais do Inep). Depois: descansar e voltar ao código.', ev:[
-    ['2027-11-01','G3 · conferir datas oficiais do ENEM e plano de prova','gate']] },
-  { m:'2027-12', nome:'Dezembro 2027', nivel:3, h:'só código', foco:'Entrega do PIM 2027.2. Resultado do ENEM em janeiro. CC4 (SQL) entra em 2028.', ev:[
-    ['2027-12-11','PIM 2027.2 · entrega (demo + 1 página)','pim']] }
+  { m:'2026-11', nome:'Novembro 2026', nivel:1, h:'~2h', foco:'Plano novo (17/11): prioridade é ganhar dinheiro na área. Manhã: Produto/UX (livro) + UI Boost, inglês, front-end Udemy, IA e Agentes, inglês 2 + revisão. Noite seg a qui: matemática + português (~30 min, por conhecimento) e o rodízio na quinta.', ev:[
+    ['2026-11-26','IA · AI for Everyone (começa o bloco de IA da quinta)','aula'],['2026-11-30','Mini-prova: Articulando Decisões de Design','prova']] },
+  { m:'2026-12', nome:'Dezembro 2026', nivel:1, h:'~2h', foco:'Claude Code na quinta. Semana leve de 21 a 27/12 e férias de 28/12 a 03/01 (só inglês, se quiser).', ev:[
+    ['2026-12-03','IA · Claude Code 101 (Claude Academy)','aula'],['2026-12-05','Prova rank C · HTML e CSS','prova'],['2026-12-17','IA · Claude Code in Action','aula']] },
+  { m:'2027-01', nome:'Janeiro 2027', nivel:1, h:'~2h', foco:'MCP e Agent Skills na quinta. Python fecha o rank D. Defesa oral de case.', ev:[
+    ['2027-01-09','Defesa oral gravada de 1 case (5 min)','prova'],['2027-01-14','IA · Introdução ao MCP','aula'],['2027-01-16','Prova rank D · Python','prova'],['2027-01-27','Meu PIM · quiz em Python (leve)','pim'],['2027-01-28','IA · Agent Skills (criar 1 skill própria)','aula']] },
+  { m:'2027-02', nome:'Fevereiro 2027', nivel:2, h:'~2h', foco:'PIM 2027.1 começa: projeto de IA que resolve um problema real (agente de métricas da Disco, se o Vini aprovar; senão, ferramenta própria publicada).', ev:[
+    ['2027-02-06','PIM 2027.1 · escopo do projeto de IA','pim'],['2027-02-11','IA · Subagents','aula'],['2027-02-25','IA · Agentic AI (DeepLearning.AI)','aula']] },
+  { m:'2027-03', nome:'Março 2027', nivel:2, h:'~2h', foco:'Certificação de IA. Prazo final para vaga melhor (meta de mar/2027).', ev:[
+    ['2027-03-04','IA · testar o Cursor num projeto pequeno','aula'],['2027-03-25','Prova Claude Certified Associate (CCAO-F)','prova']] },
+  { m:'2027-04', nome:'Abril 2027', nivel:2, h:'~2h', foco:'Inglês: primeira gravação de apresentação pessoal. PIM 2027.1 em construção (sábado).', ev:[
+    ['2027-04-24','Inglês · me apresentar em 60 s (gravado)','prova']] },
+  { m:'2027-05', nome:'Maio 2027', nivel:2, h:'~2h', foco:'PIM 2027.1 com usuários reais testando. ENEM só por conhecimento.', ev:[] },
+  { m:'2027-06', nome:'Junho 2027', nivel:2, h:'~2h', foco:'Entregar e publicar o PIM 2027.1. Decidir se faz o ENEM 2027 (sem aumentar carga).', ev:[
+    ['2027-06-12','PIM 2027.1 · entrega (publicado, demo + 1 página)','pim'],['2027-06-19','Inglês · 1ª entrevista simulada curta (10 min)','prova'],['2027-06-30','Decidir: faço o ENEM 2027? (só por conhecimento)','gate']] },
+  { m:'2027-07', nome:'Julho 2027', nivel:2, h:'~2h', foco:'Rank B de JavaScript e apresentação de case com métricas.', ev:[
+    ['2027-07-03','Prova rank B · JavaScript, DOM e Git','prova'],['2027-07-10','Apresentar case com métricas (10 min)','prova']] },
+  { m:'2027-08', nome:'Agosto 2027', nivel:2, h:'~2h', foco:'PIM 2027.2: evoluir o projeto de IA com métricas reais.', ev:[
+    ['2027-08-05','IA · Hugging Face Agents Course','aula'],['2027-08-07','PIM 2027.2 · escopo (evoluir o projeto com métricas)','pim']] },
+  { m:'2027-09', nome:'Setembro 2027', nivel:2, h:'~2h', foco:'Ritmo normal. Nada de reta final de ENEM pesada.', ev:[] },
+  { m:'2027-10', nome:'Outubro 2027', nivel:2, h:'~2h', foco:'Ritmo normal.', ev:[] },
+  { m:'2027-11', nome:'Novembro 2027', nivel:2, h:'~2h', foco:'Rank A de React. ENEM só se decidiu fazer em junho.', ev:[
+    ['2027-11-27','Prova rank A · React e componentização','prova']] },
+  { m:'2027-12', nome:'Dezembro 2027', nivel:2, h:'leve', foco:'Entrega do PIM 2027.2 e entrevista simulada completa em inglês.', ev:[
+    ['2027-12-11','PIM 2027.2 · entrega (demo + 1 página)','pim'],['2027-12-18','Inglês · entrevista simulada completa','prova']] }
 ];
 const PLANO_ANOS = [
-  ['Regra do PIM','2 PIM por ano, um por semestre (jan–jun e ago–dez). Leve: 1 a 2 sábados de 1h30 por mês, entrega curta (demo + 1 página). O tema é o que você estudou naquele semestre. Sem TCC no plano.'],
-  ['PIM 2027','2027.1 (entrega 12/06): tema do que estudou de código no semestre. 2027.2 (entrega 11/12): mínimo, com pausa em set–out por causa dos simulados.'],
-  ['Jan–Fev 2028','SISU/bolsa com a melhor nota das últimas 3 edições do ENEM. Datas a confirmar.'],
-  ['PIM 2028','Dois PIM, um por semestre, com o tema do semestre (ex.: lógica e Python, depois banco de dados). Faculdade pública a partir de mar, se a nota permitir.'],
-  ['PIM 2029','Dois PIM leves; o 2.º pode virar peça do portfólio. Primeiros projetos como Product Engineer no trabalho.'],
-  ['PIM 2030','Dois PIM, com tema da especialização (IA aplicada ou Design Engineering). Inglês de entrevista.'],
-  ['PIM 2031','Dois PIM e, se estiver cursando, o TCC da faculdade (que a faculdade define). Posição de Product Engineer.'],
-  ['2032+','Concurso e/ou carreira internacional, conforme o resultado de cada etapa.']
+  ['Regra do PIM','2 PIM por ano, um por semestre (jan–jun e ago–dez). Tema: IA e produto, sempre resolvendo um problema real, publicado para as pessoas usarem. Leve: sábados, entrega curta (demo + 1 página).'],
+  ['PIM 2027','2027.1 (entrega 12/06): projeto de IA (agente de métricas da Disco, se o Vini aprovar; senão, ferramenta própria). 2027.2 (entrega 11/12): evoluir com métricas.'],
+  ['Jan–Fev 2028','Se fez o ENEM: ver nota e opções (SISU/bolsa). Faculdade não é prioridade; já tenho diploma superior.'],
+  ['PIM 2028','Dois PIM com código (API, SQL, tela no ar). TCC do ciclo: projeto final no ar (ANIMAE ou projeto do bloco de IA).'],
+  ['PIM 2029','Dois PIM leves; o 2.º pode virar peça do portfólio. Projetos como Product Engineer no trabalho.'],
+  ['PIM 2030','Dois PIM com tema da especialização (IA aplicada ou Design Engineering). Inglês de trabalho.'],
+  ['PIM 2031','Dois PIM. Posição de Product Engineer ou especialização.'],
+  ['2032+','Carreira internacional e/ou concurso, conforme o resultado de cada etapa.']
 ];
-const PLANO_TETO = 'Teto: 2–3h de estudo por dia, contando tudo. Manhã (6h–7h): carreira e código, como já é. Noite (20h–21h): ENEM. Quando o ENEM sobe, ele TROCA com código/portfólio, não soma. Trabalho, sono, treino, espiritual e casal não entram na conta.';
-const PLANO_SEMANA = [['Seg','Manhã UX · Noite Matemática'],['Ter','Manhã Inglês · Noite Português e leitura (alterna com literatura)'],['Qua','Manhã HTML/CSS · Noite Matemática'],['Qui','Manhã UI/Design System · Noite Natureza ou Humanas (rodízio abaixo)'],['Sex','Manhã: flashcards 30 min + redação 30–40 min · Noite livre (Nayara)'],['Sáb','09h–12h: Python, portfólio e candidaturas, revisão dos erros do ENEM'],['Dom','Soft skills 20–30 min, só se der vontade (opcional, sem cobrança)'],['Provas','Nov/26 a mar/27 só base. Diagnósticos no sábado, de 27/03 a 24/04/27. Simulados de jul a out/27 no sábado (cerca de 5h, 6 vezes).']];
+const PLANO_TETO = 'Teto: 2–3h de estudo por dia, contando tudo. Prioridade: ganhar dinheiro na área (vaga melhor, inglês, IA). Manhã (6h–7h): carreira, código, IA e inglês. Noite (20h, seg a qui): ENEM como conhecimento, ~30 min; se passar, tudo bem. Trabalho, sono, treino, espiritual e casal não entram na conta.';
+const PLANO_SEMANA = [['Seg','Manhã Produto/UX (livro) + UI Boost até o certificado · Noite Matemática + Português'],['Ter','Manhã Inglês 1 (escuta e fala) · Noite Matemática + Português'],['Qua','Manhã Front-end (aula da Udemy) · Noite Matemática + Português'],['Qui','Manhã IA e Agentes (Claude Academy + projeto prático) · Noite Matemática + Português + rodízio (abaixo)'],['Sex','Manhã Inglês 2 (leitura e escrita) + revisão da semana, 1h a 1h30 · Noite livre (Nayara)'],['Sáb','09h–10h Python · 10h–12h portfólio e candidaturas (PIM leve quando houver)'],['Dom','Livre. Oficina (hardware) como hobby, sem meta'],['Provas','Carreira: ranks de código, defesa de case, certificação de IA (mar/27) e inglês (abr, jun e dez/27). ENEM pesado pausado (decisão em jun/27).']];
 const PLANO_NIVEIS = ['Aprendiz', 'Escudeiro', 'Cavaleiro', 'Veterano', 'Mestre'];
 const PLANO_RODIZIO = [['Natureza','Biologia (ecologia e corpo humano)'],['Humanas','Geografia (mapas, clima e população)'],['Natureza','Química (matéria, misturas e reações simples)'],['Humanas','História (Brasil e mundo, linha do tempo)'],['Natureza','Física (energia, eletricidade e movimento)'],['Humanas','Filosofia e Sociologia (conceitos e cidadania)']];
 function planoRodizio(date) {
@@ -54,6 +54,15 @@ function planoProximo() {
   const e = ev[0]; return { date: e[0], title: e[1], dias: Math.round((new Date(e[0] + 'T12:00') - new Date(t + 'T12:00')) / 864e5) };
 }
 const PLANO_LEAD = { prova:1, simulado:1, gate:1, pim:1 };
+/* 17/11/2026: troca os avisos semeados pelo plano novo (só os meus, ainda não concluídos). */
+function planoAjusteV3() {
+  S.flags = S.flags || {};
+  if (S.flags.planoIA1711) return;
+  S.flags.planoIA1711 = 1;
+  S.reminders = (S.reminders || []).filter(r => !(String(r.id || '').startsWith('plano-') && !r.done));
+  S.flags.planoNov26 = 0;
+  planoSeed();
+}
 function planoSeed() {
   S.flags = S.flags || {}; S.reminders = Array.isArray(S.reminders) ? S.reminders : [];
   if (S.flags.planoNov26) return;
