@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v88';
+const APP_V = 'v89';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -203,11 +203,12 @@ function load() {
   S.saturdayLog = (raw && raw.saturdayLog && typeof raw.saturdayLog === 'object') ? raw.saturdayLog : {};
   S.ideas = Object.assign({ done: [], mine: [] }, (raw && raw.ideas) || {});
   S.flags = (raw && raw.flags) || {};
-  if (raw) migrate(); else S.flags.fresh = 1;
-  dropOnly();
-  seedCareerRemindersNov2026();
-  refreshMentorRadarNov2026();
-  seedNewMentorRequestsNov2026();
+  if (raw) { try { migrate(); } catch (e) { console.error('migrate', e); S.flags.migErr = String(e && e.message || e); } } else S.flags.fresh = 1;
+  ['habits', 'challenges', 'reminders'].forEach(k => { if (Array.isArray(S[k])) S[k] = S[k].filter(x => x && typeof x === 'object'); });
+  try { dropOnly(); } catch (e) { console.error(e); }
+  try { seedCareerRemindersNov2026(); } catch (e) { console.error(e); }
+  try { refreshMentorRadarNov2026(); } catch (e) { console.error(e); }
+  try { seedNewMentorRequestsNov2026(); } catch (e) { console.error(e); }
 }
 /* Career appointments and confirmation reminders, Nov-Dec 2026.
    Store locally and in cloud backup. They are not external ADPList bookings.
@@ -351,7 +352,7 @@ function migrate() {
     });
     const AT = {}; DEF_HABITS().forEach(d => { AT[d.title.toLowerCase()] = d.at; });
     S.habits.forEach(h => { if (!h.at) h.at = AT[h.title.toLowerCase()] || ''; });
-    if (!S.habits.some(h => h.title === 'Passear com o cachorro')) S.habits.push(DEF_HABITS().find(h => h.title === 'Passear com o cachorro'));
+    if (!S.habits.some(h => h.title === 'Passear com o cachorro')) { const d = DEF_HABITS().find(h => h.title === 'Passear com o cachorro'); if (d) S.habits.push(d); }
     if ((S.schedule[1] || []).some(x => x.t === 'Remédio do cachorro e passeio')) { const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); }
   }
   if (!f.pet) {
@@ -361,7 +362,7 @@ function migrate() {
   }
   if (!f.orelha) {
     f.orelha = 1;
-    if (!S.habits.some(h => /orelha/i.test(h.title))) S.habits.push(DEF_HABITS().find(h => /orelha/.test(h.title)));
+    if (!S.habits.some(h => /orelha/i.test(h.title))) { const d = DEF_HABITS().find(h => /orelha/.test(h.title)); if (d) S.habits.push(d); }
   }
   if (!f.domLivre) { /* domingo livre: só a igreja é meta; o resto some do domingo (nada é apagado) */
     f.domLivre = 1; S.schedule[0] = sun();
@@ -375,7 +376,7 @@ function migrate() {
   if (!f.sabConteudo) { /* sábado = rotina de conteúdo até 12h; sem estudo no fim de semana */
     f.sabConteudo = 1; S.schedule[6] = sat();
     S.habits.forEach(h => { if (/^Quarto e organização/i.test(h.title) && h.days.join() === '6') h.days = []; if (/^Conteúdo do LinkedIn/i.test(h.title)) { h.title = 'LinkedIn: criar e agendar os posts'; h.when = 'm'; h.at = '08:30'; } });
-    ['LinkedIn: criar e agendar os posts', 'YouTube ou ANIMAE: etapa de hoje', 'Atualizar status no Notion'].forEach(t => { if (!S.habits.some(h => h.title === t)) S.habits.push(DEF_HABITS().find(h => h.title === t)); });
+    ['LinkedIn: criar e agendar os posts', 'YouTube ou ANIMAE: etapa de hoje', 'Atualizar status no Notion'].forEach(t => { const d = DEF_HABITS().find(h => h.title === t); if (d && !S.habits.some(h => h.title === t)) S.habits.push(d); });
   }
   if (!f.limpo1) { /* orelha repetida, desafios com o tipo certo, desafios que não fazem sentido arquivados (nada é apagado) */
     f.limpo1 = 1;
