@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v91';
+const APP_V = 'v92';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -134,10 +134,19 @@ function sun() { /* domingo é dia livre: só a igreja é meta */
     b('11:30', '23:59', 'Resto do dia livre', 'livre')
   ];
 }
+/* v92: quarta à tarde, 15h–17h, conteúdo da área (gravar, roteiro, editar). Opcional, sem cobrança. */
+const CONTEUDO_T = 'Conteúdo: gravar, roteiro ou editar (opcional, sem cobrança)';
+function quartaConteudo(l) {
+  l = l || []; if (l.some(x => x && /^Conte[úu]do/i.test(x.t || ''))) return l;
+  const tira = x => x && tm(x.s) >= tm('14:00') && tm(x.e) <= tm('17:00') && /^(Trabalho|Pausa)/i.test(x.t || '');
+  const tinha = l.some(x => x && x.t === 'Trabalho' && x.s === '14:00');
+  return l.filter(x => !tira(x)).concat([...(tinha ? [b('14:00', '15:00', 'Trabalho', 'fixo')] : []), b('15:00', '17:00', CONTEUDO_T, 'livre', { opt: 1 })]);
+}
 function buildSchedule(col) {
   const f = col ? college : wk, s = {};
   [1, 2, 3, 4, 5].forEach(d => s[d] = f(true)); s[6] = sat(); s[0] = sun();
   if (!col) s[5] = s[5].map(x => x.study === 2 ? b('20:00', '21:00', 'Sexta à noite: livre (Nayara)', 'livre') : x);
+  s[3] = quartaConteudo(s[3]);
   return s;
 }
 const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5], D6 = [1, 2, 3, 4, 5, 6];
@@ -420,6 +429,7 @@ function migrate() {
   migrateTrilhasOficina();
   planoAjusteV3();
   migrateSemCobrancaNoite();
+  if (!S.flags.quartaConteudo) { S.flags.quartaConteudo = 1; S.schedule = S.schedule || {}; S.schedule[3] = quartaConteudo(S.schedule[3]); }
 }
 /* 20/11/2026 (v91): noite sem cobrança. Sai higiene/oração da noite e tudo do cachorro (passeio, remédio, orelha).
    Nada é apagado: missões vão para S.habitsArq, blocos viram tempo livre, lembretes ficam como concluídos. */
@@ -707,7 +717,7 @@ function vFoco() {
   const hr = new Date().getHours(), cur = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
   const blocks = FW.map(([w, nm]) => { const l = items.filter(x => x.w === w); if (!l.length && !ed) return ''; return `<div class="card fper ${w === cur ? 'now' : ''}"><div class="row sp"><h3 class="px">${nm}</h3>${w === cur ? '<span class="mut">agora</span>' : ''}</div>${l.map(tile).join('') || '<div class="mut">Nada aqui.</div>'}${ed ? `<button class="btn sm ghost" data-a="focoadd" data-v="${w}">${ic('plus')}Adicionar em ${nm}</button>` : ''}</div>`; }).join('');
   const sl = S.study[new Date().getDay()] || {};
-  const tema = fer ? `<div class="mut">Estudo de hoje (feriado): revisão leve de 20 a 30 min, ou descanso.</div>` : sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
+  const tema = (sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '') + (new Date().getDay() === 3 ? `<div class="mut">Hoje das 15h às 17h: conteúdo (gravar, roteiro ou editar), se der vontade. É opcional.</div>` : '');
   if (fer && !ed) return top + ferBanner(fer);
   const ferB = '';
   const hard = !!S.hardDay[k], night = hr >= 20, care = cuidarCard(k);
@@ -1777,7 +1787,7 @@ function roadCard() {
   const sy = S.settings.sync, k = dkey();
   if (!sy.key) return acc('road', 'Estudo do Roadmap', '', `<div class="mut">Ligue o Notion nos ajustes (ícone no topo) para ver aqui o estudo do dia.</div>`, false);
   const rd = roadLoad(); setTimeout(() => roadFetch(false), 0);
-  const items = (rd.items || []).filter(x => x.date <= dkey(addD(k, 7)));
+  const items = (rd.items || []).filter(x => x.date <= dkey(addD(k, 7)) && !roadOff(x.id));
   const hoje = items.filter(x => x.date === k), atr = items.filter(x => x.date < k), prox = items.filter(x => x.date > k).slice(0, 4);
   const row = (x, tag) => { const dn = x.status === 'Concluído'; return `<div class="road ${dn ? 'dn' : ''}"><div class="rt"><a class="t" href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>${dn ? doneBtn('Concluído', 'Desfazer', `data-a="roaddone" data-v="${esc(x.id)}"`) : `<button class="btn sm" data-a="roaddone" data-v="${esc(x.id)}">${ic('check')}Feito</button>`}</div><span class="mut">${esc([x.tipo, x.cat].filter(Boolean).join(' · '))}${tag ? ' · ' + tag : ''}${x.xp ? ' · ' + x.xp + ' XP' : ''}</span>${x.crit && !dn ? `<span class="mut">Pronto quando: ${esc(x.crit)}</span>` : ''}</div>`; };
   const dd = d => d.split('-').reverse().slice(0, 2).join('/');
@@ -1844,6 +1854,8 @@ Object.assign(A, { roadrefresh: () => { roadFetch(true); return false; }, roaddo
 
 /* ---- Central de avisos (sino no topo): Guardei / Paguei / Depois ---- */
 const snzd = id => ((S.snz || {})[id]) === dkey();
+/* v92: Cancelar tarefa pelos avisos. Lembrete: fica como concluído (cancelado), nada é apagado. Roadmap: some do app e dos avisos; no Notion não muda nada. */
+const roadOff = id => !!((S.cancel || {})['road:' + id]);
 function notifs() {
   const k = dkey(), mo = k.slice(0, 7), out = [], essencial = id => !FOCO() || /^(g|b|p|r):/.test(id), add = (id, icon, text, acts) => { if (essencial(id) && !snzd(id)) out.push({ id, icon, text, acts }); };
   S.goals.filter(g => goalDue(g, k)).forEach(g => add(`g:${g.id}:${mo}`, 'flag', `Dia do pagamento: guardar ${brl(goalM(g, mo))} para ${g.title}.`, [['Guardei', 'goalpaid', g.id, '']]));
@@ -1852,7 +1864,7 @@ function notifs() {
   Object.values(pdays()).forEach(p => { const it = (planCache(mo) || {}).despesas, row = it && it.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const r = rel(billDue({ day: p.day }, mo)); if (r) add(`p:${pkey(p.t)}:${mo}`, 'wallet', `${p.t} ${r}.`, [['Abrir Dinheiro', 'loja_pork', '', '']]); });
   dinNotifs(add, k, mo);
   if (S.settings.sync.key) setTimeout(() => roadFetch(false), 0);
-  (roadLoad().items || []).filter(x => x.status !== 'Concluído' && x.date <= k).slice(0,4).forEach(x => add(`road:${x.id}:${x.date}`,'book-open',`${x.title}${x.date<k?' · Roadmap atrasado desde '+sd2(x.date):' · Roadmap de hoje'}.`,[['Concluir','roaddone',x.id,'']]));
+  (roadLoad().items || []).filter(x => x.status !== 'Concluído' && x.date <= k && !roadOff(x.id)).slice(0,4).forEach(x => add(`road:${x.id}:${x.date}`,'book-open',`${x.title}${x.date<k?' · Roadmap atrasado desde '+sd2(x.date):' · Roadmap de hoje'}.`,[['Concluir','roaddone',x.id,'']]));
   S.reminders.filter(r=>!r.done && r.date<=k).forEach(r=>add(`r:${r.id}:${r.date}`,'bell',`${r.title}${r.date<k?' · atrasado desde '+sd2(r.date):' · hoje'}${r.time?' às '+r.time:''}.`,[['Concluir','remdone',r.id,'']]));
   const last = S.tx.map(x => x.date).sort().pop();
   if (S.tx.length && last && (new Date(k + 'T12:00') - new Date(last + 'T12:00')) / 864e5 >= 3) add(`t:${k}`, 'wallet', 'Faz uns dias sem lançar gastos no Porkinho.', [['Lançar', 'addtx', '', '']]);
@@ -1863,7 +1875,7 @@ function notifs() {
 function notifHtml() {
   const l = notifs(), k = dkey(), pd = payDay(k.slice(0, 7)), dd = pd.split('-').reverse().slice(0, 2).join('/');
   return `<div class="sheet"><h3 class="px">${ic('bell')}<span>Avisos</span></h3><div class="mut">Pagamento (5º dia útil) deste mês: ${dd}${k === pd ? ' · hoje' : ''}.</div>` +
-    (l.length ? l.map(n => `<div class="road"><div class="rt"><span class="t">${ic(n.icon)} ${esc(n.text)}</span></div><div class="row">${n.acts.map(a => `<button class="btn sm" data-a="${a[1]}" data-v="${esc(a[2])}" data-w="${esc(a[3])}">${esc(a[0])}</button>`).join('')}<button class="btn sm link" data-a="snz" data-v="${esc(n.id)}">Deixar para depois</button></div></div>`).join('') : `<div class="mut">Tudo em dia. Nada pendente agora.</div>`) +
+    (l.length ? l.map(n => `<div class="road"><div class="rt"><span class="t">${ic(n.icon)} ${esc(n.text)}</span></div><div class="row">${n.acts.map(a => `<button class="btn sm" data-a="${a[1]}" data-v="${esc(a[2])}" data-w="${esc(a[3])}">${esc(a[0])}</button>`).join('')}${/^(r|road):/.test(n.id) ? `<button class="btn sm ghost" data-a="avcancel" data-v="${esc(n.id)}">Cancelar</button>` : ''}<button class="btn sm link" data-a="snz" data-v="${esc(n.id)}">Deixar para depois</button></div></div>`).join('') : `<div class="mut">Tudo em dia. Nada pendente agora.</div>`) +
     `<div class="row act"><button type="button" class="btn ghost" data-x>Fechar</button></div></div>`;
 }
 function notifOpen() {
@@ -1881,7 +1893,8 @@ function notifOpen() {
   }
   m.innerHTML = notifHtml();
 }
-Object.assign(A, { notif: () => { notifOpen(); return false; }, snz: v => { S.snz = S.snz || {}; Object.keys(S.snz).forEach(x => { if (S.snz[x] !== dkey()) delete S.snz[x]; }); S.snz[v] = dkey(); toast('Aviso volta amanhã.'); } });
+Object.assign(A, { avcancel: v => { const [t, id] = String(v).split(':'); if (t === 'r') { const r = S.reminders.find(x => x.id === id); if (r) { r.done = true; r.cancelado = dkey(); } } else if (t === 'road') { S.cancel = S.cancel || {}; S.cancel['road:' + id] = dkey(); } toast('Tarefa cancelada. Saiu dos avisos, sem cobrança.'); if (typeof pushAgenda === 'function') pushAgenda(true); },
+  notif: () => { notifOpen(); return false; }, snz: v => { S.snz = S.snz || {}; Object.keys(S.snz).forEach(x => { if (S.snz[x] !== dkey()) delete S.snz[x]; }); S.snz[v] = dkey(); toast('Aviso volta amanhã.'); } });
 
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-a]'); if (!el || e.target.closest('.modal')) return;
@@ -2136,7 +2149,7 @@ function agendaAvisos() {
     Object.values(pdays()).forEach(p => { const pc = (planCache(mo) || {}).despesas, row = pc && pc.find(x => pkey(x.desc) === pkey(p.t)); if (row && (row.pago || !row.valor)) return; const df = rel(billDue({ day: p.day }, mo), k); if (df === 1 || df === 0) add('pd:' + pkey(p.t) + ':' + mo + ':' + df, k, 8, p.t, df ? 'Vence amanhã.' : 'Vence hoje.'); });
   }
   (S.reminders || []).filter(r => !r.done && r.date >= today && r.date <= dkey(addD(new Date(today + 'T12:00'), 9))).forEach(r => add('rem:' + r.id, r.date, r.time || '09:00', r.title, r.note || 'Lembrete do Meu Dia.'));
-  (roadLoad().items || []).filter(x => x.status !== 'Concluído' && x.date >= today && x.date <= dkey(addD(new Date(today + 'T12:00'), 9))).forEach(x => add('road:' + x.id, x.date, '08:00', 'Roadmap: ' + x.title, [x.tipo,x.cat,x.crit].filter(Boolean).join(' · ') || 'Tarefa do Roadmap no Notion.'));
+  (roadLoad().items || []).filter(x => x.status !== 'Concluído' && !roadOff(x.id) && x.date >= today && x.date <= dkey(addD(new Date(today + 'T12:00'), 9))).forEach(x => add('road:' + x.id, x.date, '08:00', 'Roadmap: ' + x.title, [x.tipo,x.cat,x.crit].filter(Boolean).join(' · ') || 'Tarefa do Roadmap no Notion.'));
   conteudoAvisos(today, add);
   const seen = new Set(); return out.filter(x => !seen.has(x.id) && seen.add(x.id));
 }
