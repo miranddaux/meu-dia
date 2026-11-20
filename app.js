@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v89';
+const APP_V = 'v90';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -61,6 +61,13 @@ const goalDue = (g, k) => { const mo = k.slice(0, 7); return goalShare(g) > 0 &&
 /* ---- Dia do pagamento: 5º dia útil (sem sábado, domingo e feriados nacionais) ---- */
 const payNth = () => Math.max(1, Math.min(15, Math.round(num((S.settings.plan || {}).payNth)) || 5));
 const easterOf = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), mo = Math.floor((h + l - 7 * m + 114) / 31), dy = (h + l - 7 * m + 114) % 31 + 1; return new Date(y, mo - 1, dy); };
+/* ---- Feriados: automático, sem internet. Nacionais (fixos + Carnaval, Sexta-feira Santa e Corpus Christi) + os que você marcar em S.settings.feriados ---- */
+const FERIADOS_FIXOS = { '01-01': 'Confraternização Universal', '04-21': 'Tiradentes', '05-01': 'Dia do Trabalho', '09-07': 'Independência', '10-12': 'Nossa Senhora Aparecida', '11-02': 'Finados', '11-15': 'Proclamação da República', '11-20': 'Consciência Negra', '12-25': 'Natal' };
+function feriado(k) {
+  k = k || dkey(); if (((S.settings || {}).semFeriado || {})[k]) return '';
+  const y = +k.slice(0, 4), e = easterOf(y), mov = { [dkey(addD(e, -48))]: 'Carnaval', [dkey(addD(e, -47))]: 'Carnaval', [dkey(addD(e, -2))]: 'Sexta-feira Santa', [dkey(addD(e, 60))]: 'Corpus Christi' };
+  return ((S.settings || {}).feriados || {})[k] || mov[k] || FERIADOS_FIXOS[k.slice(5)] || '';
+}
 function payDay(mo) {
   const [y, m] = mo.split('-').map(Number), gf = dkey(addD(easterOf(y), -2)), H = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '11-20', '12-25']; let n = 0;
   for (let d = 1; d <= 31; d++) { const dt = new Date(y, m - 1, d), key = dkey(dt); if (dt.getMonth() !== m - 1) break; if (dt.getDay() === 0 || dt.getDay() === 6 || H.includes(key.slice(5)) || key === gf) continue; if (++n === payNth()) return key; }
@@ -532,7 +539,7 @@ function hydratePhotos() {
 }
 
 /* ---------- helpers ---------- */
-const sched = dow => [...(S.schedule[dow] || [])].sort((a, c) => tm(a.s) - tm(c.s));
+const sched = dow => [...(S.schedule[(dow === new Date().getDay() && dow !== 0 && feriado()) ? 0 : dow] || [])].sort((a, c) => tm(a.s) - tm(c.s));
 const bt = (x, dow) => x.study === 2 ? `ENEM (noite): ${(S.study[dow] && S.study[dow].night) || 'base'}` : x.study ? `Estudo: ${(S.study[dow] && S.study[dow].theme) || 'tema do dia'}` : x.t;
 const TL = { fixo: 'fixo', flex: 'flexível', livre: 'livre' };
 const TLI = { fixo: 'pin', flex: 'sync', livre: 'cloud-sun' };
@@ -674,7 +681,7 @@ function respirar() {
   m.addEventListener('click', e => { if (e.target === m || e.target.dataset.x !== undefined) end(); });
 }
 function vFoco() {
-  const k = dkey(), ed = !!ui.focoEdit, items = focoItems();
+  const k = dkey(), ed = !!ui.focoEdit, fer = feriado(k), items = focoItems().filter(x => ed || !fer || x.id !== 'trab');
   const top = `<div class="chips"><button class="chip on" data-a="hv" data-v="hoje">Hoje</button><button class="chip" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focooff">Ver tudo</button></div>`;
   const pr = S.prios[k] || [{}, {}, {}], pst = i => { const p = pr[i] || {}; return p.s || (p.d ? 'done' : ''); };
   const prios = `<div class="card"><h2 class="px">${ic('bullseye')}<span>Prioridades</span></h2>${[0, 1, 2].map(i => { const s = pst(i); return `<div class="pri"><button class="st ${s === 'done' ? 'done' : s === 'no' ? 'no' : ''}" data-a="prcyc" data-v="${i}" aria-label="Prioridade ${i + 1}">${s === 'done' ? ic('check') : s === 'no' ? ic('close') : ''}</button><input type="text" data-c="pt" data-v="${i}" value="${esc(pr[i] && pr[i].t)}" placeholder="Prioridade ${i + 1} (escreva ou apague)"></div>`; }).join('')}</div>`;
@@ -682,11 +689,12 @@ function vFoco() {
   const hr = new Date().getHours(), cur = hr < 12 ? 'm' : hr < 18 ? 't' : 'n';
   const blocks = FW.map(([w, nm]) => { const l = items.filter(x => x.w === w); if (!l.length && !ed) return ''; return `<div class="card fper ${w === cur ? 'now' : ''}"><div class="row sp"><h3 class="px">${nm}</h3>${w === cur ? '<span class="mut">agora</span>' : ''}</div>${l.map(tile).join('') || '<div class="mut">Nada aqui.</div>'}${ed ? `<button class="btn sm ghost" data-a="focoadd" data-v="${w}">${ic('plus')}Adicionar em ${nm}</button>` : ''}</div>`; }).join('');
   const sl = S.study[new Date().getDay()] || {};
-  const tema = sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
+  const tema = fer ? `<div class="mut">Estudo de hoje (feriado): revisão leve de 20 a 30 min, ou descanso.</div>` : sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
+  const ferB = fer ? `<div class="banner">${ic('sun')}<span><b>Hoje é feriado: ${esc(fer)}.</b> Dia leve: sem trabalho, estudo curto e treino leve ou descanso.</span><button class="btn sm ghost" data-a="semferiado">Vou trabalhar hoje</button></div>` : '';
   const hard = !!S.hardDay[k], night = hr >= 20, care = cuidarCard(k);
   const tools = `<div class="row wrap"><button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button></div>`;
   if (hard && !ed) return top + `<div class="banner">${ic('shield')}<span>Dia difícil: hoje vale o mínimo. Beba água, faça 1 prioridade se der e cuide de você. O resto fica para outro dia, sem dívida.</span></div>` + care + waterCard(k) + prios + tools;
-  return top + (night ? care : '') + waterCard(k) + prios + blocks + tema + (night ? '' : care) + tools;
+  return top + ferB + (night ? care : '') + waterCard(k) + prios + blocks + tema + (night ? '' : care) + tools;
 }
 function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focoon">Simples</button></div>`;
@@ -1096,7 +1104,7 @@ function vJornada() {
   const nx = journeyNext(), vw = (S.vida || {})[vwk()] || { s:{} };
   const vals = AREAS.map(a => vw.s[a[0]]).filter(v => v !== undefined), life = vals.length ? r1(vals.reduce((a,n)=>a+n,0)/vals.length) : '—';
   const row = x => `<div class="journey-step"><div class="journey-step-ic">${ic(x.icon)}</div><div class="grow"><b>${esc(x.title)}</b><div class="mut">${esc(x.meta)}</div></div><button class="btn sm ${x.a === 'jgo' ? 'ghost' : ''}" data-a="${x.a}" data-v="${esc(x.v)}">${esc(x.cta)}</button></div>`;
-  let out = rpgCard(false) + (typeof vidaCard === 'function' ? vidaCard() : '') + visaoStrip('vida');
+  let out = (!S.settings.sync.key && !S.xpNotion ? `<div class="banner warn"><span>Seu XP vem do Notion. Coloque a chave do app em Ajustes → Notion e o nível atualiza sozinho.</span><button class="btn sm" data-a="cfg">Abrir Ajustes</button></div>` : '') + rpgCard(false) + (typeof vidaCard === 'function' ? vidaCard() : '') + visaoStrip('vida');
   out += `<div class="card">${sec('flag','Próximas ações',`<button class="btn sm ghost" data-a="jgo" data-v="rem">Lembretes</button>`)}<div class="mut">O app junta o que vence no Meu Dia com o Roadmap do Notion e mostra primeiro o que precisa da sua atenção.</div>${nx.length ? nx.map(row).join('') : '<div class="banner">'+ic('check')+'<span>Nada urgente agora. Continue a rotina e registre o que fizer.</span></div>'}</div>`;
   const map = AREAS.map(([id,nm,ico]) => `<button class="journey-area" data-a="jgo" data-v="vida"><span>${ic(ico)}</span><b>${esc(nm)}</b><small>${vw.s[id] === undefined ? 'avaliar' : vw.s[id] + '/10'}</small></button>`).join('');
   out += `<div class="card">${sec('heart','Mapa da vida',`<button class="btn sm ghost" data-a="jgo" data-v="vida">Abrir</button>`)}<div class="mut">Cada área tem nota semanal, uma ação pequena e XP quando você conclui.</div><div class="journey-map">${map}</div></div>` + rpgParts();
@@ -1200,7 +1208,7 @@ function vCfg() {
   const s = S.settings, cloud = s.sync.key ? (s.cloudLast ? 'Na nuvem (Notion): ' + new Date(s.cloudLast).toLocaleString('pt-BR') + '. Atualiza sozinho.' : 'Ainda não foi para a nuvem.') : 'Sem nuvem: coloque a chave do app em Notion, acima.';
   return `<div class="card">${sec('sun', 'Aparência')}<div class="chips">${[['auto', 'Automático'], ['light', 'Claro'], ['dark', 'Escuro']].map(([v, l]) => `<button class="chip ${(s.theme || 'auto') === v ? 'on' : ''}" data-a="theme" data-v="${v}">${l}</button>`).join('')}</div></div>
 <div class="card">${sec('clock', 'Rotina')}<div class="row sp"><span>Modo faculdade (aulas seg a sex, 19h–22h)</span><button class="chip ${s.college ? 'on' : ''}" data-a="college" aria-pressed="${!!s.college}">${s.college ? 'Ligado' : 'Desligado'}</button></div><div class="mut">Troca a agenda de seg a sex: treino mais curto, jantar rápido e sono até 22h45.</div></div>
-${FOCO() ? `<div class="card"><h2 class="px">Home simples</h2><div class="mut">Ligada: Home com Prioridades e 3 blocos, sem contagem. Avisos só de contas, metas e lembretes que você marcou.</div><button class="btn sm ghost" data-a="focooff">Voltar ao modo completo</button></div>` : `<div class="card"><h2 class="px">Home simples</h2><button class="btn sm" data-a="focoon">Ligar Home simples</button></div>${pushCard()}`}
+${FOCO() ? `<div class="card"><h2 class="px">Home simples</h2><div class="mut">Ligada: Home com Prioridades e 3 blocos, sem contagem. Avisos só de contas, metas e lembretes que você marcou.</div><button class="btn sm ghost" data-a="focooff">Voltar ao modo completo</button></div>${pushCard()}` : `<div class="card"><h2 class="px">Home simples</h2><button class="btn sm" data-a="focoon">Ligar Home simples</button></div>${pushCard()}`}
 ${acc('cfgcal', `${ic('calendar')}<span>Avisos pelo Calendário e cachorros</span>`, '', `<div class="mut">Alternativa aos avisos do app: baixe e toque em Adicionar tudo no Calendário do iPhone.</div><button class="btn ghost full" data-a="ics">${ic('download')}Baixar avisos (Calendário)</button><div class="grp">Cuidados dos cachorros</div>${(S.pet || []).map(p => `<div class="item"><div class="t">${esc(p.title)}<div class="mut">A cada ${p.every} dias${p.last ? ' · último ' + sd2(p.last) : ''}</div></div>${ib('edit', 'Editar ' + p.title, 'editpet', p.id)}</div>`).join('')}<button class="btn sm ghost" data-a="addpet">${ic('plus')}Cuidado</button>`, false)}
 <div class="card">${sec('sync', 'Notion')}<div class="row sp"><span>Enviar o dia sozinho</span><button class="chip ${s.sync.on ? 'on' : ''}" data-a="synctog" aria-pressed="${!!s.sync.on}">${s.sync.on ? 'Ligado' : 'Desligado'}</button></div><label>Chave do app</label><input data-c="synckey" type="password" autocomplete="off" value="${esc(s.sync.key)}" placeholder="a mesma do Netlify (APP_KEY)"><button class="btn ghost full" data-a="syncnow">${ic('upload')}Enviar hoje agora</button><div class="mut">${s.sync.last ? 'Último envio: ' + new Date(s.sync.last).toLocaleString('pt-BR') : 'Ainda não enviou.'}</div><label>Link do seu Notion</label><input data-c="notion" type="url" value="${esc(s.notion || '')}" placeholder="https://notion.so/…">${s.notion ? `<a href="${esc(s.notion)}" target="_blank" rel="noopener">${ic('external-link')}Abrir Notion</a>` : ''}</div>
 <div class="card">${sec('save', 'Backup')}<div class="mut">${cloud}${s.lastBackup ? ' Último arquivo: ' + s.lastBackup.split('-').reverse().join('/') + '.' : ''} As fotos não entram no backup.</div>${s.sync.key ? `<div class="row"><button class="btn ghost sm grow" data-a="cbk">${ic('upload')}Nuvem agora</button><button class="btn ghost sm grow" data-a="crest">${ic('download')}Trazer da nuvem</button></div>` : ''}<button class="btn full" data-a="export">${ic('download')}Exportar backup (arquivo)</button><label>Restaurar de arquivo</label><input type="file" accept=".json,application/json" data-c="restore"></div>
@@ -1273,6 +1281,7 @@ function newCh(kind, title, days, done) {
 const A = {
   tab: v => { ui.tab = v; window.scrollTo(0, 0); },
   cfg: () => { ui.tab = 'mais'; ui.mais = 'cfg'; window.scrollTo(0, 0); },
+  semferiado: () => { S.settings.semFeriado = Object.assign({}, S.settings.semFeriado, { [dkey()]: 1 }); save(); toast('Ok: hoje fica a rotina normal.'); },
   icsskip: () => { S.settings.icsSkip = dkey(); save(); },
   icsfin: () => { downloadIcs('fin'); return false; },
   prcyc: v => { const k = dkey(); S.prios[k] = S.prios[k] || [{}, {}, {}]; const p = S.prios[k][v] = S.prios[k][v] || {}, cs = p.s || (p.d ? 'done' : ''); p.s = cs === '' ? 'done' : cs === 'done' ? 'no' : ''; p.d = p.s === 'done'; save(); },
