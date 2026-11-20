@@ -1,7 +1,7 @@
 'use strict';
 /* Meu Dia v3 — app pessoal (PWA). Dados ficam só neste aparelho (localStorage; fotos em IndexedDB). */
 const $ = (s, r = document) => r.querySelector(s);
-const APP_V = 'v90';
+const APP_V = 'v91';
 const WEB_PREVIEW = /github\.io$/.test(location.hostname);
 if (WEB_PREVIEW) { const f0 = window.fetch.bind(window); window.fetch = (u, o) => /\.netlify\/functions|netlify\.app/.test(String(u && u.url || u)) ? Promise.reject(new Error('Na versão web, Notion e planilha ficam desligados.')) : f0(u, o); }
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -85,7 +85,7 @@ const MORN = () => [
   b('05:55', '06:00', 'Arrumar a cama', 'flex'),
   b('06:00', '07:00', 'Estudo (1h)', 'flex', { study: 1 }),
   b('07:00', '07:30', 'Leitura e café da manhã', 'flex'),
-  b('07:30', '08:00', 'Tempo flexível (leitura, cachorro ou o que precisar)', 'flex'),
+  b('07:30', '08:00', 'Tempo flexível (leitura ou o que precisar)', 'flex'),
   b('08:00', '09:00', 'Higiene, me arrumar e preparar para trabalhar', 'flex')
 ];
 const MID = () => [
@@ -101,20 +101,19 @@ const MID = () => [
 function wk(gym) {
   return [...MORN(), ...MID(),
     ...(gym ? [b('17:00', '18:40', 'Treino (parar o trabalho, me arrumar e treinar)', 'flex')] : [b('17:00', '18:40', 'Fim do expediente: livre, caminhada ou ANIMAE', 'livre')]),
-    b('18:40', '19:15', 'Passear com o cachorro', 'flex'),
+    b('18:40', '19:15', 'Tempo livre', 'livre'),
     b('19:15', '20:00', 'Banho e jantar', 'flex'),
     b('20:00', '21:00', 'Estudo da noite (ENEM, base)', 'flex', { study: 2 }),
-    b('21:00', '21:15', 'Tempo livre', 'livre'),
-    b('21:15', '22:00', 'Higiene e oração da noite', 'flex'),
+    b('21:00', '22:00', 'Tempo livre', 'livre'),
     b('22:00', '23:59', 'Dormir (meta; adaptação gradual)', 'fixo')];
 }
 function college(gym) {
   return [...MORN(), ...MID(),
-    ...(gym ? [b('17:00', '18:10', 'Treino curto (parar o trabalho, me arrumar e treinar)', 'flex')] : [b('17:00', '18:10', 'Fim do expediente: livre ou cachorro', 'livre')]),
+    ...(gym ? [b('17:00', '18:10', 'Treino curto (parar o trabalho, me arrumar e treinar)', 'flex')] : [b('17:00', '18:10', 'Fim do expediente: livre', 'livre')]),
     b('18:10', '18:50', 'Banho e jantar (rápido)', 'flex'),
     b('18:50', '19:00', 'Ir para a aula', 'flex'),
     b('19:00', '22:00', 'Aula na UNIP (presencial)', 'fixo'),
-    b('22:00', '22:45', 'Voltar, higiene e oração da noite', 'flex'),
+    b('22:00', '22:45', 'Voltar para casa e descansar', 'livre'),
     b('22:45', '23:59', 'Dormir (meta)', 'fixo')];
 }
 function sat() { /* sábado: 09–12 estudos e carreira; tarde livre */
@@ -145,10 +144,9 @@ const ALL = [0, 1, 2, 3, 4, 5, 6], WD = [1, 2, 3, 4, 5], D6 = [1, 2, 3, 4, 5, 6]
 function hb(title, when, days, pts, hard, ord, at) { return { id: uid(), title, when, days, pts, hard, ord, at: at || '' }; }
 const DEF_HABITS = () => [
   hb('Oração e agradecimento', 'm', D6, 0, 1, 1, '05:45'), hb('Arrumar a cama', 'm', D6, 1, 0, 2, '05:55'), hb('Leitura', 'm', D6, 1, 0, 4, '07:00'), hb('Café da manhã', 'm', D6, 0, 1, 5, '07:15'),
-  hb('Remédio do cachorro (quando precisar)', 'm', [], 1, 1, 6, ''),
   hb('Almoço', 't', D6, 0, 1, 1, '12:00'), hb('Cochilo com alarme', 't', WD, 0, 0, 2, '12:45'), hb('Lanche da tarde', 't', D6, 0, 1, 3, '16:00'), hb('Treino (o treino guiado dá moedas)', 't', [1, 2, 3, 4, 5], 0, 0, 4, '17:00'),
   hb('Python: aula + desafio (sábado)', 'm', [6], 1, 0, 5, '09:00'), hb('Portfólio/candidaturas (sábado)', 'm', [6], 1, 0, 6, '10:15'), hb('Atualizar status no Notion', 'm', [6], 1, 0, 7, '11:45'), hb('Igreja', 'm', [0], 2, 0, 8, '09:00'), hb('Revisão semanal (20 min)', 't', [], 1, 0, 9, ''),
-  hb('Passear com o cachorro', 'n', D6, 1, 1, 1, '18:40'), hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Cuidar da orelha do cachorro', 'n', D6, 1, 0, 3, '20:30'), hb('Higiene e oração da noite', 'n', D6, 0, 1, 3, '21:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
+  hb('Banho e jantar', 'n', D6, 0, 1, 2, '19:15'), hb('Preparar o dia seguinte', 'n', D6, 1, 0, 4, '21:45'),
   hb('ANIMAE (bloco flexível)', 'n', [2, 4], 1, 0, 6, '20:00')
 ];
 const STARTER = [
@@ -359,7 +357,7 @@ function migrate() {
     });
     const AT = {}; DEF_HABITS().forEach(d => { AT[d.title.toLowerCase()] = d.at; });
     S.habits.forEach(h => { if (!h.at) h.at = AT[h.title.toLowerCase()] || ''; });
-    if (!S.habits.some(h => h.title === 'Passear com o cachorro')) { const d = DEF_HABITS().find(h => h.title === 'Passear com o cachorro'); if (d) S.habits.push(d); }
+    if (false) { const d = DEF_HABITS().find(h => h.title === 'Passear com o cachorro'); if (d) S.habits.push(d); }
     if ((S.schedule[1] || []).some(x => x.t === 'Remédio do cachorro e passeio')) { const ns = buildSchedule(S.settings.college); [1, 2, 3, 4, 5].forEach(d => { S.schedule[d] = ns[d]; }); }
   }
   if (!f.pet) {
@@ -369,7 +367,7 @@ function migrate() {
   }
   if (!f.orelha) {
     f.orelha = 1;
-    if (!S.habits.some(h => /orelha/i.test(h.title))) { const d = DEF_HABITS().find(h => /orelha/.test(h.title)); if (d) S.habits.push(d); }
+    if (false) { const d = DEF_HABITS().find(h => /orelha/.test(h.title)); if (d) S.habits.push(d); }
   }
   if (!f.domLivre) { /* domingo livre: só a igreja é meta; o resto some do domingo (nada é apagado) */
     f.domLivre = 1; S.schedule[0] = sun();
@@ -421,6 +419,25 @@ function migrate() {
   fixEnemTexto();
   migrateTrilhasOficina();
   planoAjusteV3();
+  migrateSemCobrancaNoite();
+}
+/* 20/11/2026 (v91): noite sem cobrança. Sai higiene/oração da noite e tudo do cachorro (passeio, remédio, orelha).
+   Nada é apagado: missões vão para S.habitsArq, blocos viram tempo livre, lembretes ficam como concluídos. */
+const SEM_COBRANCA = /cachorro|orelha|higiene e ora[çc][ãa]o da noite/i;
+function migrateSemCobrancaNoite() {
+  const f = S.flags; if (f.semCobranca1) return; f.semCobranca1 = 1;
+  const sai = (S.habits || []).filter(h => h && SEM_COBRANCA.test(h.title || ''));
+  if (sai.length) { S.habitsArq = (S.habitsArq || []).concat(sai.map(h => Object.assign({}, h, { arqEm: dkey() }))); S.habits = S.habits.filter(h => !sai.includes(h)); }
+  Object.keys(S.schedule || {}).forEach(d => {
+    (S.schedule[d] || []).forEach(x => {
+      if (!x || !x.t) return;
+      if (/^Tempo flex[íi]vel \(leitura, cachorro/i.test(x.t)) x.t = 'Tempo flexível (leitura ou o que precisar)';
+      else if (/^Fim do expediente: livre ou cachorro/i.test(x.t)) x.t = 'Fim do expediente: livre';
+      else if (/^Voltar, higiene e ora/i.test(x.t)) { x.t = 'Voltar para casa e descansar'; x.type = 'livre'; }
+      else if (SEM_COBRANCA.test(x.t)) { x.t = 'Tempo livre'; x.type = 'livre'; delete x.study; }
+    });
+  });
+  (S.reminders || []).forEach(r => { if (r && !r.done && /cachorro|orelha/i.test(r.title || '')) r.done = true; });
 }
 /* Roadmap 17/11/2026 (mentoria Daniel R. Campos): prioridade é ganhar dinheiro na área.
    Atualiza só os temas de estudo de seg a sex; mantém link, próximo passo, logs e horários. */
@@ -539,7 +556,8 @@ function hydratePhotos() {
 }
 
 /* ---------- helpers ---------- */
-const sched = dow => [...(S.schedule[(dow === new Date().getDay() && dow !== 0 && feriado()) ? 0 : dow] || [])].sort((a, c) => tm(a.s) - tm(c.s));
+const sched = dow => { const fer = dow === new Date().getDay() && feriado(); if (fer) return [{ id: 'fer', s: '00:00', e: '23:59', t: `Feriado (${fer}): dia livre`, type: 'livre', virt: 1 }]; return [...(S.schedule[dow] || [])].sort((a, c) => tm(a.s) - tm(c.s)); };
+const ferBanner = fer => `<div class="card ferd"><h2 class="px">${ic('sun')}<span>Feriado: ${esc(fer)}</span></h2><p>Hoje não tem nada para fazer. Sem tarefas, sem horários, sem cobrança. Descanse.</p><button class="btn sm ghost" data-a="semferiado">Vou trabalhar hoje</button></div>`;
 const bt = (x, dow) => x.study === 2 ? `ENEM (noite): ${(S.study[dow] && S.study[dow].night) || 'base'}` : x.study ? `Estudo: ${(S.study[dow] && S.study[dow].theme) || 'tema do dia'}` : x.t;
 const TL = { fixo: 'fixo', flex: 'flexível', livre: 'livre' };
 const TLI = { fixo: 'pin', flex: 'sync', livre: 'cloud-sun' };
@@ -620,7 +638,7 @@ function chRow(c, k) {
   if (ui.chEdit) return `<div class="ch"><div class="row sp"><div class="grow"><b>${esc(c.title)}</b><div class="mut">${n}/${c.days} dias · ${det ? 'detox' : 'melhorar'}</div></div>${ib('edit', 'Editar ' + c.title, 'editch', c.id)}${ib('close', 'Tirar ' + c.title + ' da lista', 'charq', c.id, 'danger')}</div></div>`;
   return `<div class="ch"><div class="row sp" data-a="editch" data-v="${c.id}" role="button" tabindex="0"><b>${esc(c.title)}</b><span class="mut">${n}/${c.days} dias${c.rounds ? ` · ${c.rounds} rodada(s)` : ''}</span></div><div class="sqs">${[...Array(c.days)].map((_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('')}</div>${btns}</div>`;
 }
-const isMin = h => /^(Oração e agradecimento|Almoço|Higiene e oração da noite)/.test(h.title);
+const isMin = h => /^(Oração e agradecimento|Almoço|Banho e jantar)/.test(h.title);
 const minHabs = dow => S.habits.filter(h => h.days.includes(dow) && isMin(h));
 function minDone(k) { const hs = minHabs(new Date(k + 'T12:00').getDay()); return hs.length >= 3 && hs.every(h => stOf(k, h.id) === 'done'); }
 const dayDiff = (a, b) => Math.round((new Date(b + 'T12:00') - new Date(a + 'T12:00')) / 864e5);
@@ -690,7 +708,8 @@ function vFoco() {
   const blocks = FW.map(([w, nm]) => { const l = items.filter(x => x.w === w); if (!l.length && !ed) return ''; return `<div class="card fper ${w === cur ? 'now' : ''}"><div class="row sp"><h3 class="px">${nm}</h3>${w === cur ? '<span class="mut">agora</span>' : ''}</div>${l.map(tile).join('') || '<div class="mut">Nada aqui.</div>'}${ed ? `<button class="btn sm ghost" data-a="focoadd" data-v="${w}">${ic('plus')}Adicionar em ${nm}</button>` : ''}</div>`; }).join('');
   const sl = S.study[new Date().getDay()] || {};
   const tema = fer ? `<div class="mut">Estudo de hoje (feriado): revisão leve de 20 a 30 min, ou descanso.</div>` : sl.theme ? `<div class="mut">Estudo de hoje: ${esc(sl.theme)}</div>` : '';
-  const ferB = fer ? `<div class="banner">${ic('sun')}<span><b>Hoje é feriado: ${esc(fer)}.</b> Dia leve: sem trabalho, estudo curto e treino leve ou descanso.</span><button class="btn sm ghost" data-a="semferiado">Vou trabalhar hoje</button></div>` : '';
+  if (fer && !ed) return top + ferBanner(fer);
+  const ferB = '';
   const hard = !!S.hardDay[k], night = hr >= 20, care = cuidarCard(k);
   const tools = `<div class="row wrap"><button class="btn sm ghost" data-a="focoed">${ed ? 'Pronto' : 'Editar blocos'}</button><button class="chip" data-a="remadd">${ic('bell')}Novo lembrete</button></div>`;
   if (hard && !ed) return top + `<div class="banner">${ic('shield')}<span>Dia difícil: hoje vale o mínimo. Beba água, faça 1 prioridade se der e cuide de você. O resto fica para outro dia, sem dívida.</span></div>` + care + waterCard(k) + prios + tools;
@@ -700,6 +719,7 @@ function vHoje() {
   const seg = `<div class="chips"><button class="chip ${ui.hv === 'hoje' ? 'on' : ''}" data-a="hv" data-v="hoje">Hoje</button><button class="chip ${ui.hv === 'semana' ? 'on' : ''}" data-a="hv" data-v="semana">Semana</button><button class="chip" data-a="focoon">Simples</button></div>`;
   if (ui.hv === 'semana') return seg + vAgenda();
   if (FOCO()) return vFoco();
+  { const fer = feriado(); if (fer) return seg + ferBanner(fer); }
   const n = new Date(), k = dkey(n), dow = n.getDay(), hard = !!S.hardDay[k], mins = n.getHours() * 60 + n.getMinutes();
   const bl = sched(dow), cur = bl.find(x => tm(x.s) <= mins && mins < tm(x.e)), nxt = bl.find(x => tm(x.s) > mins);
   const st = S.study[dow] || {}, sl = S.studyLog[k] || {};
@@ -714,7 +734,7 @@ function vHoje() {
   if (!S.settings.welcomed) out += `<div class="card"><h3 class="px">${ic('mood-happy')}<span>Oi!</span></h3><p class="mut">Tudo fica salvo só neste iPhone. Toque no quadrado para marcar: vazio = pendente, check = feito, meio = parcial, seta = adiado, traço = não se aplica. Moedas vêm de missões, treino, água, estudo e desafios; você troca na Loja (Mais, Loja). Nada vira dívida. Faça backup nos ajustes (ícone no topo).</p><button class="btn sm" data-a="welcome">Entendi</button></div>`;
   /* 2) Agora */
   out += `<div class="card slim"><div class="row sp"><div class="grow">${cur ? `<div class="mut">Agora · ${cur.s}–${cur.e}</div><b>${esc(bt(cur, dow))}</b>` : `<div class="mut">Agora</div><b>Nenhum bloco neste horário</b>`}${nxt ? `<div class="mut">Depois: ${nxt.s} · ${esc(bt(nxt, dow))}</div>` : ''}</div><button class="chip ${hard ? 'on' : ''}" data-a="hard" aria-pressed="${hard}">${ic('shield')}Dia difícil</button></div></div>`;
-  if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e fechar a noite. O resto fica para outro dia, sem dívida.`}</span></div>`; }
+  if (hard) { const mh = minHabs(dow), md3 = mh.filter(h => stOf(k, h.id) === 'done').length; out += `<div class="banner">${ic('info-box')}<span>${mh.length >= 3 && md3 === mh.length ? 'Dia salvo. Você fez o mínimo e isso conta (+3 moedas). O resto fica para outro dia.' : `Dia difícil: só 3 coisas hoje (${md3}/${mh.length || 3}): orar, almoçar e jantar. O resto fica para outro dia, sem dívida.`}</span></div>`; }
   /* 3) Missões em accordion */
   ['m', 't', 'n'].forEach(w => {
     let items = habs.filter(h => h.when === w).map(h => ({ o: h.ord ?? 50, h }));
@@ -739,7 +759,7 @@ function vAgenda() {
   const d = ui.ad ?? new Date().getDay(), today = new Date(), mins = today.getHours() * 60 + today.getMinutes();
   let out = `<div class="chips">${[1, 2, 3, 4, 5, 6, 0].map(i => `<button class="chip ${i === d ? 'on' : ''}" data-a="aday" data-v="${i}">${DN[i]}</button>`).join('')}</div>`;
   out += `<div class="card">${sec('calendar-week', DF[d], `<button class="btn sm" data-a="addblk" data-v="${d}">${ic('plus')}Bloco</button>`)}<div class="mut">Fixo, flexível ou livre. Toque no bloco para reagendar ou editar. Nada vira dívida.${S.settings.college ? ' Modo faculdade ligado.' : ''}</div>`;
-  out += sched(d).map(x => { const now = d === today.getDay() && tm(x.s) <= mins && mins < tm(x.e); return `<div class="blk ${now ? 'now' : ''}" data-a="editblk" data-v="${x.id}" data-w="${d}" role="button" tabindex="0"><div class="tm">${x.s}–${x.e}</div><div class="t">${esc(bt(x, d))}${x.opt ? ' <span class="mut">(opcional)</span>' : ''}</div><span class="badge ${x.type}">${ic(TLI[x.type])}${TL[x.type]}</span></div>`; }).join('');
+  out += sched(d).map(x => { if (x.virt) return `<div class="blk now"><div class="tm">dia todo</div><div class="t">${esc(x.t)}</div><span class="badge livre">${ic(TLI.livre)}${TL.livre}</span></div>`; const now = d === today.getDay() && tm(x.s) <= mins && mins < tm(x.e); return `<div class="blk ${now ? 'now' : ''}" data-a="editblk" data-v="${x.id}" data-w="${d}" role="button" tabindex="0"><div class="tm">${x.s}–${x.e}</div><div class="t">${esc(bt(x, d))}${x.opt ? ' <span class="mut">(opcional)</span>' : ''}</div><span class="badge ${x.type}">${ic(TLI[x.type])}${TL[x.type]}</span></div>`; }).join('');
   out += `</div><div class="card"><h3 class="px">Consultas</h3><div class="mut">Para consulta, adicione um bloco fixo no dia e reduza um bloco opcional.</div></div>`;
   return out;
 }
@@ -1329,7 +1349,7 @@ const A = {
   delidea: v => { S.ideas.mine = S.ideas.mine.filter(x => x.id !== v); save(); },
   aday: v => { ui.ad = +v; },
   addblk: v => { form('Novo bloco', blkFields({ t: '', s: '09:00', e: '10:00', type: 'flex' }), r => { S.schedule[v].push({ id: uid(), ...r }); }); return false; },
-  editblk: (v, w) => { const x = S.schedule[w].find(y => y.id === v); form('Editar bloco', blkFields(x), r => Object.assign(x, r), () => { S.schedule[w] = S.schedule[w].filter(y => y.id !== v); }); return false; },
+  editblk: (v, w) => { const x = (S.schedule[w] || []).find(y => y.id === v); if (!x) return false; form('Editar bloco', blkFields(x), r => Object.assign(x, r), () => { S.schedule[w] = S.schedule[w].filter(y => y.id !== v); }); return false; },
   sday: v => { ui.sd = +v; },
   addtrack: () => { form('Nova trilha', [{ k: 'name', label: 'Nome' }, { k: 'group', label: 'Grupo', value: 'Complementar' }, { k: 'now', label: 'Aula atual (opcional)' }, { k: 'link', label: 'Link do material', type: 'url' }], r => S.tracks.push({ id: uid(), ...r })); return false; },
   edittrack: v => { const t = S.tracks.find(x => x.id === v); form('Editar trilha', [{ k: 'name', label: 'Nome', value: t.name }, { k: 'group', label: 'Grupo', value: t.group }, { k: 'now', label: 'Aula atual', value: t.now }, { k: 'link', label: 'Link', type: 'url', value: t.link }], r => Object.assign(t, r), () => { S.tracks = S.tracks.filter(x => x.id !== v); }); return false; },
@@ -1894,7 +1914,10 @@ setInterval(() => {
   if (ui.tm) { const left = Math.ceil((ui.tm.end - Date.now()) / 1000); if (left > 0) { tts.forEach(tt => { tt.textContent = `${pad(Math.floor(left / 60))}:${pad(left % 60)}`; }); } else tickTimer(); }
 }, 1000);
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist();
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+if ('serviceWorker' in navigator) { /* v91: versão nova entra sozinha (ao voltar para o app, procura atualização e recarrega 1 vez) */
+  navigator.serviceWorker.register('sw.js').then(r => { document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') r.update().catch(() => { }); }); }).catch(() => { });
+  let rl = !!navigator.serviceWorker.controller; navigator.serviceWorker.addEventListener('controllerchange', () => { if (rl) { rl = false; location.reload(); } });
+}
 document.addEventListener('visibilitychange', () => { if (!document.hidden) planFlush(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden && S.settings.sync.on && S.settings.sync.key) doSync(true); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !document.querySelector('.modal') && !document.activeElement.matches('input,textarea,select')) render(); });
